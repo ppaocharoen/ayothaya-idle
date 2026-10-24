@@ -16,14 +16,14 @@ export const BALANCE = {
   carryStatFraction: 0.3,
 
   // ---- การเติบโตของสเตตัส (เข้าหาเพดานแบบชะลอตัว: dv = k·share·eff·(cap − v)) ----
-  trainRate: 6.0e-5,      // ต่อวัน ต่อสัดส่วนเวลาที่ฝึก
-  workPrimaryRate: 3.5e-5, // สเตตัสหลักของอาชีพโตจากการทำงาน
-  workSecondaryRate: 2.5e-5, // สเตตัสรองโตจากการทำงาน (ทุกอาชีพเท่ากัน)
+  trainRate: 1.2e-4,      // ต่อวัน ต่อสัดส่วนเวลาที่ฝึก
+  workPrimaryRate: 2.0e-5, // สเตตัสหลักของอาชีพโตจากการทำงาน
+  workSecondaryRate: 1.3e-5, // สเตตัสรองโตจากการทำงาน (ทุกอาชีพเท่ากัน)
   childJobRate: 8.0e-5,
   /** ตัวคูณพรสวรรค์จากอาชีพเดิมที่เคยทำ: 1 + x·เลเวลสูงสุดที่เคยถึง (สายเดียวกัน) */
   lineagePerLevel: 0.03,
   /** + x ต่อจำนวนชาติที่เคยทำอาชีพนี้ (ทำให้ชาติหลังๆ ยังเก่งขึ้นเรื่อยๆ ไม่ตัน) */
-  lineagePerLife: 0.25,
+  lineagePerLife: 0.18,
   careerItemEffPerLevel: 0.08,
   accommodationTrainPerLevel: 0.05,
   retainerIncomePerLevel: 0.08,
@@ -46,7 +46,7 @@ export const BALANCE = {
   promoteCooldownDays: 30,
   promoteCostBase: 0.08, promoteCostGrowth: 1.32,
   /** ความชอบที่ต้องมี: A·lv^P (เป็นเกณฑ์ ไม่ถูกหัก กลับเป็น 0 เมื่อตาย) */
-  affectionReqA: 0.6, affectionReqP: 1.55,
+  affectionReqA: 0.45, affectionReqP: 1.55,
   lightDarkLevel: 2,
 
   // ---- เงิน ----
@@ -75,6 +75,8 @@ export const BALANCE = {
   // ---- เหตุการณ์ ----
   /** ผลของ choice (+1..+3): แต่ละแต้มขยับ x ของระยะที่เหลือถึงเพดาน */
   eventK: 0.0012,
+  /** ตัวเลือกเสี่ยงดวงแรงกว่าตัวเลือกปกติกี่เท่า */
+  riskyMult: 4,
   genericMinDays: 30, genericMaxDays: 60,
   genericStartAge: 18,
   waveMinDays: 365, waveMaxDays: 730,
@@ -84,8 +86,8 @@ export const BALANCE = {
 
   // ---- เอนดิ้ง ----
   fleeFrac: 0.6,             // หลบหลีกสูงสุด ≥ 60% ของเพดานชาตินั้น
-  defendTosuFrac: 0.75, defendPoksapFrac: 0.4,
-  siegeBase: 0.25, siegeSlope: 0.55, siegeMaxFails: 4,
+  defendTosuFrac: 0.75, defendPoksapFrac: 0.5,
+  siegeBase: 0.20, siegeSlope: 0.55, siegeMaxFails: 4,
 
   // ---- งานบุญใหญ่ (ที่ใช้เงินช่วงท้าย) ----
   megaProjects: [

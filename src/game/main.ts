@@ -51,9 +51,9 @@ function frame(now: number) {
     const days = Math.floor(acc / B.secondsPerGameDay);
     if (days > 0) {
       acc -= days * B.secondsPerGameDay;
-      const m0 = g.life.money, b0 = g.merit;
+      const before = snap();
       E.advance(g, capToSlice(days), { online: true });
-      gainFloat(g.life.money - m0, g.merit - b0);
+      if (g.life.idx === before.life) gainFloat(before);
       if (E.ageOf(g.life) >= SLICE_END_AGE && g.life.idx === 1 && g.loop === 1) { sliceDone = true; showSliceEnd(); }
       renderHud(); renderTabSoft();
     }
@@ -66,15 +66,36 @@ function frame(now: number) {
 }
 
 // ---------- ตัวเลขลอยขึ้นจากตัวละคร (ให้รู้ว่าเวลาเดินและได้อะไร) ----------
-let floatFlip = false;
-function gainFloat(money: number, merit: number) {
-  floatFlip = !floatFlip;
-  const text = floatFlip && money > 0 ? `+${baht(money, 1)}` : merit > 0 ? `บุญ +${th(merit < 1 ? merit.toFixed(2) : merit.toFixed(1))}` : '';
-  if (!text) return;
+interface Snap { life: number; money: number; merit: number; aff: number; stats: Record<string, number>; }
+function snap(): Snap {
+  const L = g.life, stats: Record<string, number> = {};
+  for (const k of E.STAT_KEYS) stats[k] = L.stats[k] / L.cap;
+  return { life: L.idx, money: L.money, merit: g.merit, aff: L.affection, stats };
+}
+/** ผลต่างก่อน/หลัง เป็นรายการข้อความ (ใช้ทั้งตัวเลขลอยและป๊อปอัพผลลัพธ์) */
+function diff(a: Snap): { label: string; v: number; text: string; kind: string }[] {
+  const b = snap(), out: { label: string; v: number; text: string; kind: string }[] = [];
+  if (a.life !== b.life) return out;
+  for (const k of E.STAT_KEYS) { const d = b.stats[k] - a.stats[k]; if (Math.abs(d) > 1e-7) out.push({ label: statName(k), v: d, text: `${d > 0 ? '+' : '−'}${pctAuto(Math.abs(d))}`, kind: 'stat' }); }
+  const dm = b.money - a.money; if (Math.abs(dm) > 1e-7) out.push({ label: 'เงิน', v: dm, text: `${dm > 0 ? '+' : '−'}${baht(Math.abs(dm), 1)}`, kind: 'money' });
+  const db = b.merit - a.merit; if (db > 1e-6) out.push({ label: 'บุญ', v: db, text: `+${th(db < 1 ? db.toFixed(2) : db.toFixed(1))}`, kind: 'merit' });
+  const da = b.aff - a.aff; if (Math.abs(da) > 1e-6) out.push({ label: 'ความชอบ', v: da, text: `${da > 0 ? '+' : '−'}${th(Math.abs(da).toFixed(2))}`, kind: 'aff' });
+  return out;
+}
+let floatTurn = 0, lastFloat = 0;
+function gainFloat(before: Snap) {
+  // ไม่เกิน 1 ตัวต่อ 0.8 วินาที (ตอนเร่งเวลาจะได้ไม่ซ้อนกันจนอ่านไม่ออก)
+  const now = performance.now();
+  if (now - lastFloat < 800) return;
+  lastFloat = now;
+  const d = diff(before);
+  const stats = d.filter(x => x.kind === 'stat' && x.v > 0).sort((x, y) => y.v - x.v);
+  const pick = [d.find(x => x.kind === 'money'), stats[0], d.find(x => x.kind === 'merit'), stats[1] ?? stats[0]][floatTurn++ % 4];
+  if (!pick) return;
   const el = document.createElement('span');
-  el.className = `float ${floatFlip && money > 0 ? 'money' : 'merit'}`;
-  el.textContent = text;
-  el.style.left = `${46 + Math.random() * 14}%`;
+  el.className = `float ${pick.kind}`;
+  el.textContent = pick.kind === 'money' ? pick.text : `${pick.label} ${pick.text}`;
+  el.style.left = `${40 + Math.random() * 16}%`;
   $('floats').appendChild(el);
   setTimeout(() => el.remove(), 2200);
 }
@@ -130,9 +151,13 @@ function lifeTab(): string {
       <button class="card pick" data-act="career" data-v="${c.key}"><b>${esc(c.key)}</b> <small>${esc(c.fullname)}</small>
       <p>เริ่มเป็น ${esc(c.titles['0'])}</p><small>สเตตัสหลัก ${statName(c.gateStat)} · รอง ${statName(c.secondaryStat)}</small></button>`).join('');
   } else work = promoteCard();
-  return `<h3>แนวทางชีวิต</h3><div class="chips">${paths}</div>
-    <h3>ฝึกฝน <small>เลือกได้ ๒ ด้าน · แตะเพื่อสลับ</small></h3><div class="tags">${train}</div>${trainInfo()}${work}`;
+  return `<h3>แนวทางชีวิต ${help('path')}</h3>${helpBox('path', `<b>งาน</b> — เงินตามยศ สเตตัสหลัก/รองของอาชีพ และความชอบ (ก่อนอายุ ๑๒ คืองานเด็ก)<br><b>ฝึก</b> — สเตตัส ๑–๒ ด้านที่เลือกไว้ด้านล่าง<br><b>บุญ</b> — บุญญาธิการเพิ่มขึ้นทุกวัน ใช้ปลดล็อกทวิภพ<br>สัดส่วนบอกว่าแต่ละวันแบ่งเวลาให้แต่ละอย่างเท่าไร`)}<div class="chips">${paths}</div>
+    <h3>ฝึกฝน <small>เลือกได้ ๒ ด้าน</small> ${help('train')}</h3><div class="tags">${train}</div>${helpBox('train', trainInfo())}${work}`;
 }
+
+const openHelp = new Set<string>();
+const help = (id: string) => `<button class="help ${openHelp.has(id) ? 'on' : ''}" data-act="help" data-v="${id}" aria-label="คำอธิบาย">?</button>`;
+const helpBox = (id: string, html: string) => openHelp.has(id) ? `<div class="helpbox">${html}</div>` : '';
 
 function trainInfo(): string {
   const L = g.life;
@@ -196,10 +221,10 @@ function charTab(): string {
   const bars = content.stats.map(s => {
     const f = L.stats[s.key] / L.cap, gate = L.career && (careerOf(L.career).gateStat === s.key || careerOf(L.career).secondaryStat === s.key);
     return `<div class="stat ${L.train.includes(s.key) ? 'train' : ''} ${gate ? 'gate' : ''}"><div class="sl"><b>${esc(s.display)}</b><span>${pctFine(f)}</span></div>
-      <div class="bar"><i style="width:${(f * 100).toFixed(1)}%"></i></div><small>${esc(s.role)}</small></div>`;
+      <div class="bar"><i style="width:${(f * 100).toFixed(1)}%"></i></div></div>`;
   }).join('');
   const coll = g.collection;
-  return `<p class="muted">เพดานสเตตัสชาตินี้ ${th(L.cap)} · ค่าแสดงเป็น % ของเพดาน</p>${bars}
+  return `<p class="muted">เพดานสเตตัสชาตินี้ ${th(L.cap)} · ค่าแสดงเป็น % ของเพดาน ${help('stats')}</p>${helpBox('stats', content.stats.map(s => `<p><b>${esc(s.display)}</b> — ${esc(s.role)}</p>`).join('') + '<p>★ = สเตตัสที่อาชีพปัจจุบันใช้เลื่อนยศ · แถบสีเขียว = กำลังฝึก</p>')}${bars}
     <h3>สมุดสะสม</h3><div class="card"><p>ยศที่เคยได้ ${th(coll.titles.length)} · ตัวเลือกที่เคยเลือก ${th(Object.keys(coll.choices).length)} เหตุการณ์ · ชาติที่บันทึก ${th(coll.family.length)}</p></div>`;
 }
 
@@ -222,13 +247,13 @@ function showEvent() {
     const d = E.karmaDef(e);
     const risky = 'risky' in d && d.risky ? `<button class="choice risky" data-act="resolve" data-v="risky">${esc(d.risky.label)}<small>เสี่ยงดวง · โอกาส ${pct(d.risky.chance)}</small></button>` : '';
     openModal(`${head}<div class="kind">กงกรรม</div><h2>${esc(d.title)}</h2>
-      ${d.choices.map((c, i) => `<button class="choice" data-act="resolve" data-v="${i}">${esc(c.label)}<small>${fx(c.effects as Record<string, number>)}</small></button>`).join('')}${risky}`);
+      ${d.choices.map((c, i) => `<button class="choice" data-act="resolve" data-v="${i}">${esc(c.label)}</button>`).join('')}${risky}`);
     return;
   }
   if (e.kind === 'hist') {
     const h = content.historical.find(x => x.id === e.id)!;
     let body = `${head}<div class="kind hist">เหตุการณ์ประวัติศาสตร์</div><h2>${esc(h.title)}</h2>${h.desc ? `<p>${esc(h.desc)}</p>` : ''}`;
-    if (h.kind === 'choice') body += h.choices!.map((c, i) => `<button class="choice" data-act="resolve" data-v="${i}">${esc(c.label)}<small>${fx(c.effects as Record<string, number>)}</small></button>`).join('');
+    if (h.kind === 'choice') body += h.choices!.map((c, i) => `<button class="choice" data-act="resolve" data-v="${i}">${esc(c.label)}</button>`).join('');
     else if (h.kind === 'check') {
       const p = Math.min(B.checkMax, B.checkBase + B.checkSlope * E.frac(L, h.checkStat!));
       body += `<p class="muted">ต้องใช้${esc(statName(h.checkStat!))} · โอกาสผ่าน ${pct(p)}<br>ผ่าน: ความชอบ +${th(B.affectionHistSuccess)} · ไม่ผ่าน: เสียเงินและทรัพย์สิน ${pct(B.checkFailLoss)}</p>
@@ -244,6 +269,14 @@ function showEvent() {
   if (e.kind === 'finale') {
     openModal(`<h2>พ.ศ. ๒๓๑๐</h2><p>กรุงศรีอยุธยากำลังจะแตก</p>${e.options.map(o => `<button class="choice" data-act="resolve" data-v="${o}">${o}</button>`).join('')}`);
   }
+}
+
+function showResult(label: string, d: ReturnType<typeof diff>, risky: E.ResolveResult | null) {
+  const items = d.map(x => `<li class="${x.v < 0 ? 'bad' : 'good'}">${esc(x.label)} <b>${x.text}</b></li>`).join('');
+  const verdict = risky ? `<p class="${risky.success ? 'good' : 'bad'}">${risky.success ? 'เสี่ยงแล้วได้ผล!' : 'เสี่ยงแล้วพลาด'}</p>` : '';
+  openModal(`<div class="kind">ผลของการเลือก</div><h2>${esc(label)}</h2>${verdict}
+    ${items ? `<ul class="result">${items}</ul>` : '<p class="muted">ไม่มีผลที่เห็นได้ในตอนนี้ (ค่าที่จะลดเหลือศูนย์อยู่แล้ว หรือถึงเพดานแล้ว)</p>'}
+    <button class="choice" data-act="close">ไปต่อ</button>`);
 }
 
 function showSliceEnd() {
@@ -292,7 +325,15 @@ document.addEventListener('click', ev => {
     case 'donate': E.donate(g, +v); break;
     case 'common': E.buyCommon(g, +v); break;
     case 'mega': E.buyMega(g, v); break;
-    case 'resolve': { closeModal(); E.resolveEvent(g, v === '' ? undefined : v === 'risky' ? 'risky' : isNaN(+v) ? v as E.EndingId : +v); break; }
+    case 'resolve': {
+      const e = g.queue[0], before = snap();
+      const label = (b.firstChild?.textContent ?? '').trim();
+      const r = E.resolveEvent(g, v === '' ? undefined : v === 'risky' ? 'risky' : isNaN(+v) ? v as E.EndingId : +v);
+      const choseSomething = e && (e.kind === 'karma' || (e.kind === 'hist' && v !== ''));
+      if (choseSomething) showResult(label, diff(before), v === 'risky' ? r : null);
+      else closeModal();
+      break;
+    }
     case 'resolve-check': {
       const h = content.historical.find(x => x.id === (g.queue[0] as { id: string }).id)!;
       const r = E.resolveEvent(g);
@@ -300,6 +341,7 @@ document.addEventListener('click', ev => {
       break;
     }
     case 'close': closeModal(); break;
+    case 'help': if (openHelp.has(v)) openHelp.delete(v); else openHelp.add(v); break;
     case 'restart': store()?.removeItem(SAVE_KEY); g = E.newGame(); sliceDone = false; running = true; closeModal(); break;
   }
   save(); renderHud(); renderTab();

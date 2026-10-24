@@ -126,6 +126,10 @@ export function workEff(g: GameState): number {
   if (!L.career) return 1;
   return (1 + B.lineagePerLevel * (g.careerMaxLevel[L.career] ?? 0) + B.lineagePerLife * (g.careerLives[L.career] ?? 0)) * (1 + B.careerItemEffPerLevel * (L.careerItem[L.career] ?? 0));
 }
+export function talent(g: GameState): number {
+  const L = g.life;
+  return L.career ? 1 + B.lineagePerLevel * (g.careerMaxLevel[L.career] ?? 0) + B.lineagePerLife * (g.careerLives[L.career] ?? 0) : 1;
+}
 export function trainEff(L: LifeState): number {
   return (1 + B.accommodationTrainPerLevel * L.accommodation) * (1 + 0.3 * frac(L, 'ความรู้'));
 }
@@ -142,7 +146,7 @@ export function dailyIncome(g: GameState): number {
 function stepDay(g: GameState) {
   const L = g.life, p = B.paths[L.path], age = ageOf(L);
   // ฝึกฝน
-  const te = trainEff(L);
+  const te = trainEff(L) * talent(g);
   for (const s of L.train) grow(L, s, B.trainRate * (p.train / L.train.length) * te);
   // ทำงาน
   if (age < B.careerMinAge) {
@@ -208,14 +212,14 @@ export function advance(g: GameState, days: number, opts: { online: boolean }): 
 }
 
 // ---------- แก้เหตุการณ์ ----------
-function applyEffects(g: GameState, e: Effects) {
+function applyEffects(g: GameState, e: Effects, mult = 1) {
   const L = g.life;
   for (const [k, v] of Object.entries(e) as [string, number][]) {
     if (k === 'ความชอบ') { L.affection = Math.max(0, L.affection + v); continue; }
     const s = k as StatKey;
     // ผลจากเหตุการณ์คิดจากระยะที่เหลือถึงเพดาน (บวก) หรือค่าที่มี (ลบ) จึงไม่ดันทะลุเพดานแม้เกิดบ่อย
     const x = L.stats[s];
-    L.stats[s] = clamp(x + v * B.eventK * (v > 0 ? L.cap - x : x), 0, L.cap);
+    L.stats[s] = clamp(x + v * B.eventK * mult * (v > 0 ? L.cap - x : x), 0, L.cap);
     if (s === 'บารมี' && v > 0) L.affection += v * B.affectionPerBarami;
   }
 }
@@ -242,20 +246,21 @@ function remember(g: GameState, id: string, choice: number) {
   if (!c.includes(choice)) c.push(choice);
 }
 
-function applyKarma(g: GameState, e: { id: string; generic: boolean }, choice: number | 'risky') {
+function applyKarma(g: GameState, e: { id: string; generic: boolean }, choice: number | 'risky'): ResolveResult {
   remember(g, e.id, choice === 'risky' ? -1 : (choice as number));
   const def = karmaDef(e);
   if (choice === 'risky' && 'risky' in def && def.risky) {
     const ok = nextRandom(g) < def.risky.chance, o = ok ? def.risky.success : def.risky.fail;
-    if (o.stats) applyEffects(g, o.stats);
+    if (o.stats) applyEffects(g, o.stats, B.riskyMult);
     if (o.merit) addMerit(g, o.merit * 20);
     if (o.affection) g.life.affection += o.affection * 10;
     log(g, `${def.title} → ${def.risky.label} (${ok ? 'สำเร็จ' : 'ล้มเหลว'})`);
-    return;
+    return { success: ok };
   }
   const c = def.choices[choice as number] ?? def.choices[0];
   applyEffects(g, c.effects);
   log(g, `${def.title} → ${c.label}`);
+  return {};
 }
 
 export interface ResolveResult { text?: string; success?: boolean; }
@@ -264,7 +269,7 @@ export interface ResolveResult { text?: string; success?: boolean; }
 export function resolveEvent(g: GameState, choice?: number | 'risky' | EndingId): ResolveResult {
   const e = g.queue.shift();
   if (!e) return {};
-  if (e.kind === 'karma') { applyKarma(g, e, (choice as number | 'risky') ?? autoChoice(g, e)); return {}; }
+  if (e.kind === 'karma') return applyKarma(g, e, (choice as number | 'risky') ?? autoChoice(g, e));
   if (e.kind === 'hist') {
     const h = content.historical.find(x => x.id === e.id)!, L = g.life;
     if (h.kind === 'check') {
