@@ -6,6 +6,10 @@ import { ageOf } from '../engine/core';
 
 export const SCENE_W = 240, SCENE_H = 168;
 const GROUND = 140;
+/** ความละเอียดจริงของ canvas = 4 เท่า เพื่อให้ย่อ/ขยายตัวละครทีละ 0.25 ได้โดยพิกเซลยังคม (ทุกพิกเซลภาพ = 3, 4, 5, 6 พิกเซลจอ) */
+const Q = 4;
+/** ปัดขนาดตัวละครเป็นขั้น 0.25 (พิกเซลคม ไม่มีเส้นหนาบางไม่เท่ากัน) */
+const snap = (s: number) => Math.max(0.5, Math.round(s * Q) / Q);
 
 export interface SceneMood { dayFrac: number; month: number; rain: boolean; war: boolean; }
 export type PickupKind = 'coin' | 'flower' | 'leaf';
@@ -24,22 +28,35 @@ export class Scene {
   private readonly FW = 56; private readonly FH = 104;
   private posX = 112; private targetX = 112; private face = 1; private nextWalk = 6; private walkT = 0;
   private blinkAt = 3; private lookUntil = 0; private nextLook = 10;
-  // ชุดท่า A2: ฝึกฝน แถว 0 อ่านหนังสือ (นั่ง) · แถว 1 แบกกระสอบ · แถว 2 รำไม้พลอง (แถวละ 2 เฟรม)
-  // ชุดท่าฝึก: ขนาดเฟรมอ่านจากรูป (2 คอลัมน์ × 3 แถว)
+  // ชุดท่าอื่น (2 คอลัมน์ × 3 แถว, ขนาดเฟรมอ่านจากรูป): A2 อ่าน/แบก/รำไม้ · A3 สมาธิ/ย่อง/จุดเทียน · A4 หาของป่า/กวาดวัด/หาบของ
   private actSheets: Record<string, HTMLImageElement> = {};
-  private act: { sheet: string; row: number; until: number } | null = null;
-  /** สเตตัส → ชุดท่าและแถว (A2: อ่าน แบก รำไม้ · A3: สมาธิ ย่อง จุดเทียน) */
-  private static ACTS: Record<string, { sheet: string; row: number; speed: number }> = {
-    'ความรู้': { sheet: 'a2', row: 0, speed: 0.8 }, 'พละกำลัง': { sheet: 'a2', row: 1, speed: 0.8 }, 'ต่อสู้': { sheet: 'a2', row: 2, speed: 0.45 },
-    'บารมี': { sheet: 'a3', row: 0, speed: 1.4 }, 'หลบหลีก': { sheet: 'a3', row: 1, speed: 0.5 }, 'ไสยเวทย์': { sheet: 'a3', row: 2, speed: 1.0 },
+  private act: { id: string; until: number } | null = null;
+  // frames = [คอลัมน์, แถว] · lift = ยกตัวขึ้นจากพื้นในเฟรมนั้น (ท่ากระโดด)
+  static ANIMS: Record<string, { sheet: string; frames: [number, number][]; speed: number; lift?: number[] }> = {
+    read: { sheet: 'a2', frames: [[0, 0], [1, 0]], speed: 0.8 }, carry: { sheet: 'a2', frames: [[0, 1], [1, 1]], speed: 0.8 }, staff: { sheet: 'a2', frames: [[0, 2], [1, 2]], speed: 0.45 },
+    meditate: { sheet: 'a3', frames: [[0, 0], [1, 0]], speed: 1.4 }, sneak: { sheet: 'a3', frames: [[0, 1], [1, 1]], speed: 0.5 }, candle: { sheet: 'a3', frames: [[0, 2], [1, 2]], speed: 1.0 },
+    forage: { sheet: 'a4', frames: [[0, 0], [1, 0]], speed: 0.9 }, sweep: { sheet: 'a4', frames: [[0, 1], [1, 1]], speed: 0.4 }, pole: { sheet: 'a4', frames: [[0, 2], [1, 2]], speed: 0.35 },
+    happy: { sheet: 'a5', frames: [[0, 0], [1, 0]], speed: 0.35, lift: [0, 12] }, sad: { sheet: 'a5', frames: [[0, 1]], speed: 1 }, surprised: { sheet: 'a5', frames: [[1, 1]], speed: 1 },
+    sleep: { sheet: 'a5', frames: [[0, 2]], speed: 1 }, rain: { sheet: 'a5', frames: [[1, 2]], speed: 1 },
   };
-  private hasAct(stat: string) { const a = Scene.ACTS[stat], im = a && this.actSheets[a.sheet]; return !!(im && im.complete && im.naturalWidth); }
-  /** ให้ตัวละครทำท่าของสเตตัสนี้สักพัก (เช่น หลังเลือกตัวเลือกในกงกรรม) */
-  showStat(stat: string, seconds = 5) {
-    if (!this.hasAct(stat)) return false;
-    const a = Scene.ACTS[stat]; this.act = { sheet: a.sheet, row: a.row, until: this.t + seconds }; this.targetX = this.posX;
+  /** เกมหยุดอยู่ (ตัวละครนอน) · ฝนตก (ถือใบตองบังฝน) — ตั้งจาก main */
+  paused = false;
+  /** สเตตัสที่ฝึก → ท่า */
+  static STAT_ANIM: Record<string, string> = { 'ความรู้': 'read', 'พละกำลัง': 'carry', 'ต่อสู้': 'staff', 'บารมี': 'meditate', 'หลบหลีก': 'sneak', 'ไสยเวทย์': 'candle' };
+  /** งานเด็ก → ท่า */
+  static JOB_ANIM: Record<string, string> = { 'หาของป่า': 'forage', 'งานวัด': 'sweep', 'คาราวาน': 'pole' };
+  hasAnim(id: string) { const a = Scene.ANIMS[id], im = a && this.actSheets[a.sheet]; return !!(im && im.complete && im.naturalWidth); }
+  /** ให้ตัวละครทำท่านี้สักพัก (เช่น หลังเลือกตัวเลือกในกงกรรม) */
+  showAnim(id: string, seconds = 5) {
+    if (!this.hasAnim(id)) return false;
+    this.act = { id, until: this.t + seconds }; this.targetX = this.posX;
     return true;
   }
+  showStat(stat: string, seconds = 5) { return this.showAnim(Scene.STAT_ANIM[stat] ?? '', seconds); }
+  /** ระยะ: 0 = ไกล (ยืนบนเส้นพื้น) · 1 = ใกล้จอ (ตัวใหญ่ เลื่อนลงมาข้างหน้า ส่วนที่ล้นจอตัดไป) */
+  private z = 0;
+  private raining = false;
+  private pickDepth() { const r = Math.random(); this.z = r < 0.5 ? 0 : r < 0.8 ? 0.5 : 1; }
   private t = 0;
   private parts: Particle[] = [];
   private jump = 0;
@@ -50,12 +67,12 @@ export class Scene {
   charBox = { x: 0, y: 0, w: 0, h: 0 };
 
   constructor(private canvas: HTMLCanvasElement) {
-    canvas.width = SCENE_W; canvas.height = SCENE_H;
+    canvas.width = SCENE_W * Q; canvas.height = SCENE_H * Q;
     this.ctx = canvas.getContext('2d')!;
     this.ctx.imageSmoothingEnabled = false;
     this.sprite.src = new URL('./art/boy.png', document.baseURI).href;
     this.sheet.src = new URL('./art/boy_a1.png', document.baseURI).href;
-    for (const k of ['a2', 'a3']) { const im = new Image(); im.src = new URL(`./art/boy_${k}.png`, document.baseURI).href; this.actSheets[k] = im; }
+    for (const k of ['a2', 'a3', 'a4', 'a5']) { const im = new Image(); im.src = new URL(`./art/boy_${k}.png`, document.baseURI).href; this.actSheets[k] = im; }
   }
 
   /** แปลงพิกัดคลิกบนหน้าจอเป็นพิกัด canvas */
@@ -67,7 +84,7 @@ export class Scene {
   hitChar(x: number, y: number) { const b = this.charBox; return x >= b.x - 4 && x <= b.x + b.w + 4 && y >= b.y && y <= b.y + b.h; }
 
   celebrate() {
-    this.jump = 1; this.flash = 1;
+    this.flash = 1; if (!this.showAnim('happy', 3.2)) this.jump = 1;
     const cols = ['#f2c46d', '#8e2a1f', '#2f6b4f', '#fbf3e2', '#b8862b'];
     for (let i = 0; i < 60; i++) this.parts.push({ x: 128, y: 70, vx: (Math.random() - 0.5) * 140, vy: -40 - Math.random() * 90, life: 1.6 + Math.random(), color: cols[i % cols.length] });
   }
@@ -79,6 +96,8 @@ export class Scene {
   draw(g: GameState, dt: number, mood: SceneMood) {
     this.t += dt;
     const c = this.ctx, L = g.life;
+    c.setTransform(Q, 0, 0, Q, 0, 0); c.imageSmoothingEnabled = false;
+    this.raining = mood.rain;
     c.clearRect(0, 0, SCENE_W, SCENE_H);
     // ---- ท้องฟ้าตามเวลาของวัน (เช้าชมพูอ่อน กลางวันครีม เย็นส้ม) และฝน ----
     const day = ['#f6e7c8', '#f3dfbb', '#efd5ad', '#e9c99c', '#e2bc8c'];
@@ -118,8 +137,7 @@ export class Scene {
     // ---- ตัวละคร ----
     if (this.sheet.complete && this.sheet.naturalWidth) this.drawCharacter(L, dt);
     else if (this.sprite.complete && this.sprite.naturalWidth) {
-      const age = ageOf(L), scale = Math.min(1.25, 0.85 + (age - 9) * 0.035);
-      const w = Math.round(this.sprite.naturalWidth * scale), h = Math.round(this.sprite.naturalHeight * scale);
+      const w = this.sprite.naturalWidth * 0.75, h = this.sprite.naturalHeight * 0.75;
       const x = 112, y = GROUND + 2 - h;
       this.charBox = { x, y, w, h };
       c.drawImage(this.sprite, x, y, w, h);
@@ -182,29 +200,44 @@ export class Scene {
     for (const [dx, dy, w] of [[-10, 0, 10], [2, 0, 10], [-7, -3, 6], [3, -3, 6], [-3, -5, 6]]) c.fillRect(x + dx, base - h + dy, w, 2);
     c.fillRect(x - 12, base - h + 2, 3, 3); c.fillRect(x + 11, base - h + 2, 3, 3);
   }
-  /** ตัวละครมีชีวิต: ยืนหายใจ กะพริบตา หันมามอง และเดินไปมาเป็นระยะ */
+  /** ขนาดตัวละคร: โตตามวัย × ระยะใกล้/ไกล แล้วปัดเป็นขั้น 0.25 */
+  private charScale(L: GameState['life']) {
+    const age = ageOf(L), base = age < 12 ? 0.75 : age < 18 ? 0.85 : 1;
+    return snap(base * (1 + 0.5 * this.z));
+  }
+  /** ตำแหน่งเท้า: ไกล = เส้นพื้น · ใกล้ = เลื่อนลงมาหน้าจอ */
+  private feetY() { return GROUND + 2 + Math.round(this.z * 22); }
+
+  /** ตัวละครมีชีวิต: ยืนหายใจ กะพริบตา หันมามอง เดินไปมา และทำท่าตามสิ่งที่ทำอยู่ */
   private drawCharacter(L: GameState['life'], dt: number) {
     const c = this.ctx, t = this.t;
-    const age = ageOf(L), scale = Math.min(1.25, 0.85 + (age - 9) * 0.035);
-    const w = Math.round(this.FW * scale), h = Math.round(this.FH * scale);
-    // เดิน: สุ่มจุดหมายใหม่ทุก 8–18 วินาที (หยุดเมื่อมีเหตุการณ์หรือกำลังฉลอง)
-    const busy = this.alert || this.jump > 0;
-    if (this.alert) this.act = null;
+    const busy = this.alert || this.jump > 0 || this.paused;
+    if (this.alert || (this.paused && this.act?.id !== 'happy')) this.act = null;
     if (this.act && t > this.act.until) this.act = null;
     if (!busy && !this.act && t > this.nextWalk && Math.abs(this.targetX - this.posX) < 1) {
-      // ถึงเวลาขยับ: ฝึกท่าตามสเตตัสที่เลือกไว้ (ถ้ามีภาพ) หรือเดินไปจุดอื่น
-      const stats = L.train.filter(s => this.hasAct(s));
-      if (L.path === 'merit' && this.hasAct('บารมี')) stats.push('บารมี'); // แนวทางทำบุญ → นั่งสมาธิ/ไหว้พระ
-      if (stats.length && Math.random() < 0.6) this.showStat(stats[Math.floor(Math.random() * stats.length)], 6 + Math.random() * 4);
-      else this.targetX = 60 + Math.random() * 110;
+      // ถึงเวลาขยับ: ทำงานเด็ก/ฝึกตามสเตตัสที่เลือก (ถ้ามีภาพ) หรือเดินไปจุดอื่น — สุ่มระยะใกล้/ไกลใหม่
+      const ids = L.train.map(s => Scene.STAT_ANIM[s]).filter(id => id && this.hasAnim(id));
+      if (L.path === 'merit' && this.hasAnim('meditate')) ids.push('meditate');
+      const job = ageOf(L) < 12 && L.childJob ? Scene.JOB_ANIM[L.childJob] : null;
+      if (job && this.hasAnim(job)) ids.push(job, job); // ช่วงเด็กทำงานเด็กบ่อยกว่า
+      this.pickDepth();
+      if (ids.length && Math.random() < 0.6) { this.posX = 50 + Math.random() * 140; this.showAnim(ids[Math.floor(Math.random() * ids.length)], 6 + Math.random() * 4); }
+      else this.targetX = 50 + Math.random() * 140;
       this.nextWalk = t + 8 + Math.random() * 10;
     }
-    if (this.act) { this.drawAct(this.act.sheet, this.act.row, scale); return; }
+    const scale = this.charScale(L);
+    if (this.act) { this.drawAct(this.act.id, scale); return; }
+    // ท่าตามสถานการณ์ (ไม่ได้เดิน): มีเหตุการณ์ = ตกใจ · หยุดเกม = นอน · ฝนตก = ถือใบตอง
+    const still = Math.abs(this.targetX - this.posX) < 1;
+    const mood = this.alert ? 'surprised' : this.paused ? 'sleep' : this.raining && still ? 'rain' : null;
+    if (mood === 'sleep') this.z = 0;
+    if (mood && this.hasAnim(mood)) { this.drawAct(mood, mood === 'sleep' ? this.charScale(L) : scale); if (this.alert) this.drawAlert(); return; }
+    const w = this.FW * scale, h = this.FH * scale;
     const dx = this.targetX - this.posX, walking = !busy && Math.abs(dx) >= 1;
     let col: number, row: number;
     if (walking) {
       this.face = dx > 0 ? 1 : -1;
-      this.posX += Math.sign(dx) * Math.min(Math.abs(dx), 16 * dt);
+      this.posX += Math.sign(dx) * Math.min(Math.abs(dx), 16 * scale * dt);
       this.walkT += dt; row = 0; col = Math.floor(this.walkT / 0.16) % 4;
     } else {
       row = 1;
@@ -216,31 +249,33 @@ export class Scene {
       }
     }
     const hop = this.jump > 0 ? Math.round(Math.abs(Math.sin((1 - this.jump) * Math.PI * 3)) * 14 * this.jump) : 0;
-    const x = Math.round(this.posX - w / 2), y = GROUND + 2 - h - hop;
-    this.charBox = { x: x + Math.round(w * 0.2), y, w: Math.round(w * 0.6), h };
-    c.fillStyle = 'rgba(80,55,30,0.25)'; c.fillRect(x + Math.round(w * 0.25), GROUND, Math.round(w * 0.5), 2);
+    const x = Math.round(this.posX - w / 2), y = this.feetY() - h - hop;
+    this.charBox = { x: x + w * 0.2, y, w: w * 0.6, h };
+    c.fillStyle = 'rgba(80,55,30,0.25)'; c.fillRect(x + Math.round(w * 0.25), this.feetY() - 2, Math.round(w * 0.5), 2);
     c.save();
     if (this.face < 0) { c.translate(x * 2 + w, 0); c.scale(-1, 1); }
     c.drawImage(this.sheet, col * this.FW, row * this.FH, this.FW, this.FH, x, y, w, h);
     c.restore();
-    if (this.alert && Math.floor(t * 3) % 2 === 0) {
-      const ax = x + w / 2;
-      c.fillStyle = '#8e2a1f'; c.fillRect(ax - 3, y - 16, 6, 12);
-      c.fillStyle = '#fff'; c.fillRect(ax - 1, y - 14, 2, 6); c.fillRect(ax - 1, y - 7, 2, 2);
-    }
+    this.drawAlert();
+  }
+  private drawAlert() {
+    const c = this.ctx, b = this.charBox;
+    if (!this.alert || Math.floor(this.t * 3) % 2) return;
+    const ax = Math.round(b.x + b.w / 2), ay = Math.max(18, Math.round(b.y));
+    c.fillStyle = '#8e2a1f'; c.fillRect(ax - 3, ay - 16, 6, 12);
+    c.fillStyle = '#fff'; c.fillRect(ax - 1, ay - 14, 2, 6); c.fillRect(ax - 1, ay - 7, 2, 2);
   }
 
-  /** ท่าฝึก: วางให้หัวตรงกับตำแหน่งตัวละคร เท้าแตะพื้น */
-  private drawAct(sheet: string, row: number, scale: number) {
-    const im = this.actSheets[sheet], fw = im.naturalWidth / 2, fh = im.naturalHeight / 3;
-    const a = Object.values(Scene.ACTS).find(x => x.sheet === sheet && x.row === row)!;
-    const c = this.ctx, w = Math.round(fw * scale), h = Math.round(fh * scale);
-    const col = Math.floor(this.t / a.speed) % 2;
-    const x = Math.round(this.posX - w / 2), y = GROUND + 2 - h;
+  /** ท่าอื่นๆ: วางให้หัวตรงกับตำแหน่งตัวละคร เท้าแตะพื้น */
+  private drawAct(id: string, scale: number) {
+    const a = Scene.ANIMS[id], im = this.actSheets[a.sheet], fw = im.naturalWidth / 2, fh = im.naturalHeight / 3;
+    const c = this.ctx, w = fw * scale, h = fh * scale;
+    const k = Math.floor(this.t / a.speed) % a.frames.length, [col, row] = a.frames[k];
+    const x = Math.round(this.posX - w / 2), y = this.feetY() - h - Math.round((a.lift?.[k] ?? 0) * scale);
     const bw = Math.round(this.FW * scale * 0.6);
     this.charBox = { x: Math.round(this.posX - bw / 2), y, w: bw, h };
     this.face = 1;
-    c.fillStyle = 'rgba(80,55,30,0.25)'; c.fillRect(Math.round(this.posX - bw / 2), GROUND, bw, 2);
+    c.fillStyle = 'rgba(80,55,30,0.25)'; c.fillRect(Math.round(this.posX - bw / 2), this.feetY() - 2, bw, 2);
     c.drawImage(im, col * fw, row * fh, fw, fh, x, y, w, h);
   }
 

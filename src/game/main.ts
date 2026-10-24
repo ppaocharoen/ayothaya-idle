@@ -21,7 +21,10 @@ const statDef = (k: string) => content.stats.find(s => s.key === k);
 const statName = (k: string) => statDef(k)?.display ?? k;
 const careerOf = (k: string) => content.careers.careers.find(c => c.key === k)!;
 /** ชื่อยศในข้อมูลมีคำอธิบายต่อท้าย → แยกเป็น [ชื่อสั้น, คำอธิบาย] */
-const splitTitle = (t: string): [string, string] => { const i = t.indexOf(' '); return i > 0 ? [t.slice(0, i), t.slice(i + 1)] : [t, '']; };
+const splitTitle = (t: string): [string, string] => {
+  const m = t.match(/^(.+?)\s*\((.+)\)\s*$/); if (m) return [m[1], m[2]];
+  const i = t.indexOf(' '); return i > 0 ? [t.slice(0, i), t.slice(i + 1)] : [t, ''];
+};
 const clean = (s: string) => s.replace(/\s*\([^)]*\)\s*/g, ' ').trim(); // ตัดวงเล็บภาษาอังกฤษในชื่อของ
 
 // ---------- โหลด/เซฟ ----------
@@ -68,6 +71,7 @@ function frame(now: number) {
   }
   $('daybar').style.width = `${running && !g.queue.length && !sliceDone ? Math.min(100, acc / B.secondsPerGameDay * 100) : 0}%`;
   scene.alert = g.queue.length > 0;
+  scene.paused = !running && !sliceDone;
   if (g.queue.length && !inAfterlife && !$('modal').classList.contains('show')) showEvent();
   const mood = currentMood();
   // ของให้แตะเก็บ: สุ่มหล่นทุก 35–70 วินาทีจริง เฉพาะตอนเวลาเดินและไม่มีป๊อปอัพ
@@ -96,7 +100,7 @@ function snap(): Snap {
   for (const k of E.STAT_KEYS) stats[k] = L.stats[k] / L.cap;
   return { life: L.idx, money: L.money, merit: g.merit, aff: L.affection, stats };
 }
-const iconOf = (key: string) => key === 'money' ? 'coin' : key === 'merit' ? 'lotus' : key === 'aff' ? 'heart' : STAT_ICON[key] ?? 'star';
+const iconOf = (key: string) => key === 'money' ? 'coin' : key === 'merit' ? 'lotus' : key === 'aff' ? 'medal' : STAT_ICON[key] ?? 'star';
 /** ผลต่างก่อน/หลัง (ใช้ทั้งตัวเลขลอยและป๊อปอัพผลลัพธ์) */
 function diff(a: Snap): Delta[] {
   const b = snap(), out: Delta[] = [];
@@ -142,6 +146,9 @@ function renderLifebar() {
   $('lifefill').style.width = `${pos.toFixed(2)}%`;
   $('lifeme').style.left = `${pos.toFixed(2)}%`;
   $('lifeage').textContent = th(E.ageOf(L));
+  const hp = Math.max(0, L.health);
+  $('hpfill').style.width = `${(hp * 100).toFixed(1)}%`;
+  $('hpbox').classList.toggle('low', hp < 0.3);
 }
 
 // ---------- HUD ----------
@@ -257,10 +264,10 @@ function promoteCard(): string {
   const req = (ic: string, ok: boolean, frac: number, val: string) =>
     `<div class="req ${ok ? 'ok' : ''}">${icon(ic, 20)}<div class="meter"><i style="width:${Math.min(100, frac * 100).toFixed(1)}%"></i></div><span>${val}</span>${icon(ok ? 'check' : 'cross', 18)}</div>`;
   const cooldown = Math.max(0, B.promoteCooldownDays - (L.day - L.lastPromoteDay));
-  return `${sec('ยศถัดไป', '', 'rank')}${helpBox('rank', `ต้องครบทั้ง ๓ อย่าง:<br>${icon(STAT_ICON[c.gateStat], 16)} ${statName(c.gateStat)} ผสม ${statName(c.secondaryStat)} (หลักมีน้ำหนักมากกว่า)<br>${icon('heart', 16)} ความชอบสะสม — ได้จากการทำงาน เหตุการณ์ และงานบุญใหญ่<br>${icon('coin', 16)} ค่ายื่นเรื่อง<br>${icon('house', 16)} ยศขั้น ๗, ๑๑, ๑๕ ต้องมีบ้านสมฐานะ (เรือนไทย ตึก จวน)<br>ยื่นแล้วยังมีโอกาสไม่ผ่าน ถ้าไม่ผ่านต้องรอสักพัก`)}
+  return `${sec('ยศถัดไป', '', 'rank')}${helpBox('rank', `ต้องครบทั้ง ๓ อย่าง:<br>${icon(STAT_ICON[c.gateStat], 16)} ${statName(c.gateStat)} ผสม ${statName(c.secondaryStat)} (หลักมีน้ำหนักมากกว่า)<br>${icon('medal', 16)} ความชอบสะสม — ได้จากการทำงาน เหตุการณ์ และงานบุญใหญ่<br>${icon('coin', 16)} ค่ายื่นเรื่อง<br>${icon('house', 16)} ยศขั้น ๗, ๑๑, ๑๕ ต้องมีบ้านสมฐานะ (เรือนไทย ตึก จวน)<br>ยื่นแล้วยังมีโอกาสไม่ผ่าน ถ้าไม่ผ่านต้องรอสักพัก`)}
     <div class="frame"><div class="rank" data-act="careerinfo" data-v="${L.career}">${icon(cic, 44)}<div><small>ขั้นที่ ${th(t)}</small><b>${esc(splitTitle(E.careerTitle(L.career!, t, L.track))[0])}</b><small>${esc(splitTitle(E.careerTitle(L.career!, t, L.track))[1])}</small></div></div>
       ${req(STAT_ICON[c.gateStat], gv >= gn, gv / gn, `${pct(gv)}/${pct(gn)}`)}
-      ${req('heart', L.affection >= aff, L.affection / aff, `${th(L.affection.toFixed(1))}/${th(aff.toFixed(1))}`)}
+      ${req('medal', L.affection >= aff, L.affection / aff, `${th(L.affection.toFixed(1))}/${th(aff.toFixed(1))}`)}
       ${req('coin', L.money >= cost, L.money / cost, baht(cost, 1))}
       ${E.houseReq(t) ? req('house', L.accommodation >= E.houseReq(t), L.accommodation / E.houseReq(t), clean(content.shop.accommodations[E.houseReq(t) - 1].name)) : ''}
       <button class="gbtn red" data-act="promote" ${blk ? 'disabled' : ''}>${icon('up', 20)}${blk === 'cooldown' ? `รออีก ${th(cooldown)} วัน` : `ยื่นขอเลื่อนยศ${blk ? '' : ` · ${pct(E.promoteChance(g))}`}`}</button>
@@ -282,8 +289,8 @@ function wares(): { title: string; sub: string; list: Ware[] }[] {
     { id: 'ret', ic: 'people', name: clean(ret.name), story: ret.story ?? ret.desc, effs: [['coin', `รายได้ +${pctAuto(B.retainerIncomePerLevel)}`]], price: sh.retainers[L.retainer] ? E.retainerPrice(L) : null, act: 'ret', v: '', lv: `${th(Math.min(L.retainer + 1, sh.retainers.length))}/${th(sh.retainers.length)}`, req: sh.retainers[L.retainer] ? E.retainerReq(g) : null },
   ] });
   out.push({ title: 'ทำบุญ', sub: 'ทำซ้ำได้', list: sh.meritItems.map((m, i) => ({ id: `donate:${i}`, ic: 'lotus', name: clean(m.name), story: m.story ?? m.effect, effs: [['lotus', `บุญ +${thInt(m.legacyMerit / (1 + g.merit / B.meritSoftcap))}`]] as [string, string][], price: E.donationPrice(L, i), act: 'donate', v: String(i), lv: L.donations[i] ? `×${th(L.donations[i])}` : '' })) });
-  out.push({ title: 'ของใช้', sub: 'ซื้อซ้ำได้', list: sh.commonItems.map((m, i) => ({ id: `common:${i}`, ic: STAT_ICON[m.stat] ?? 'pouch', name: clean(m.name), story: m.story ?? m.desc, effs: [[STAT_ICON[m.stat], `${statName(m.stat)} +${pctAuto(0.004)}`], ...(m.legacyAffection ? [['heart', 'ความชอบ +๐.๓'] as [string, string]] : [])], price: E.commonPrice(L, i), act: 'common', v: String(i), lv: L.common[i] ? `×${th(L.common[i])}` : '' })) });
-  out.push({ title: 'งานบุญใหญ่', sub: '', list: B.megaProjects.map(m => ({ id: `mega:${m.id}`, ic: 'temple', name: m.name, story: 'สร้างถาวรวัตถุถวายวัด ชื่อจารึกไว้ให้คนรุ่นหลังรู้', effs: [['lotus', `บุญ +${thInt(m.merit)}`], ['heart', `ความชอบ +${th(m.affection)}`]] as [string, string][], price: m.price * Math.pow(1.5, L.mega[m.id] ?? 0), act: 'mega', v: m.id, lv: L.mega[m.id] ? `×${th(L.mega[m.id])}` : '' })) });
+  out.push({ title: 'ของใช้', sub: 'ซื้อซ้ำได้', list: sh.commonItems.map((m, i) => ({ id: `common:${i}`, ic: STAT_ICON[m.stat] ?? 'pouch', name: clean(m.name), story: m.story ?? m.desc, effs: [[STAT_ICON[m.stat], `${statName(m.stat)} +${pctAuto(0.004)}`], ...(m.legacyAffection ? [['medal', 'ความชอบ +๐.๓'] as [string, string]] : [])], price: E.commonPrice(L, i), act: 'common', v: String(i), lv: L.common[i] ? `×${th(L.common[i])}` : '' })) });
+  out.push({ title: 'งานบุญใหญ่', sub: '', list: B.megaProjects.map(m => ({ id: `mega:${m.id}`, ic: 'temple', name: m.name, story: 'สร้างถาวรวัตถุถวายวัด ชื่อจารึกไว้ให้คนรุ่นหลังรู้', effs: [['lotus', `บุญ +${thInt(m.merit)}`], ['medal', `ความชอบ +${th(m.affection)}`]] as [string, string][], price: m.price * Math.pow(1.5, L.mega[m.id] ?? 0), act: 'mega', v: m.id, lv: L.mega[m.id] ? `×${th(L.mega[m.id])}` : '' })) });
   return out;
 }
 function shopTab(): string {
@@ -409,22 +416,28 @@ function showAway() {
   awayInfo = null;
 }
 
-function careerSheet(k: string, choose = true): string {
+/** แผ่นอาชีพ: คำอธิบายสาย + ทุกยศพร้อมคำอธิบาย (สลับทางสว่าง/มืด) */
+function careerSheet(k: string, choose = true, side: 'light' | 'dark' = 'light'): string {
   const c = careerOf(k), L = g.life, mine = L.career === k;
-  const t = (lv: number, tr: 'light' | 'dark') => splitTitle(E.careerTitle(k, lv, tr))[0];
-  const step = (label: string, title: string, on = false) => `<li class="${on ? 'on' : ''}"><small>${label}</small>${esc(title)}</li>`;
+  const myTrack = mine ? (L.track ?? 'light') : null;
+  const rank = (lv: number, tr: 'light' | 'dark') => {
+    const [name, desc] = splitTitle(E.careerTitle(k, lv, tr));
+    const cur = mine && L.level === lv && (lv < B.lightDarkLevel || myTrack === tr);
+    const got = g.collection.titles.includes(`${k}|${lv < B.lightDarkLevel ? 'ร่วม' : tr}|${lv}`) || (mine && lv === 0);
+    return `<li class="${cur ? 'on' : ''} ${got ? 'got' : ''}"><small>${lv === 0 ? 'เริ่ม' : `ขั้น ${th(lv)}`}${cur ? ' · ตอนนี้' : got ? ' · เคยได้' : ''}</small><b>${esc(name)}</b>${desc ? `<p>${esc(desc)}</p>` : ''}</li>`;
+  };
+  const ranks = [0, 1].map(lv => rank(lv, side)).join('') + `<li class="fork">${icon(side === 'light' ? 'star' : 'hood', 16)} แยกทาง${side === 'light' ? 'สว่าง' : 'มืด'}ตั้งแต่ขั้น ${th(B.lightDarkLevel)}</li>`
+    + Array.from({ length: B.maxLevel - B.lightDarkLevel + 1 }, (_, i) => rank(B.lightDarkLevel + i, side)).join('');
+  const tab = (sd: 'light' | 'dark', label: string) => `<button class="ctab ${side === sd ? 'on' : ''}" data-act="careerinfo" data-v="${k}|${sd}">${label}</button>`;
   return `<button class="close" data-act="close" aria-label="ปิด">${icon('cross', 16)}</button>
     <div class="head">${icon(CAREER_ICON[k] ?? 'star', 48)}<div><div class="eyebrow">${esc(c.fullname)}</div><h2>${esc(k)}</h2></div></div>
     ${c.desc ? `<p>${esc(c.desc)}</p>` : ''}
     <div class="effs"><span>${icon(STAT_ICON[c.gateStat], 18)}หลัก ${esc(statName(c.gateStat))}</span><span>${icon(STAT_ICON[c.secondaryStat], 18)}รอง ${esc(statName(c.secondaryStat))}</span></div>
-    <h3 class="sh">เส้นทางยศ</h3>
-    <ul class="ladder">
-      ${step('เริ่ม', t(0, 'light'), mine && L.level === 0)}${step('ขั้น ๑', t(1, 'light'), mine && L.level === 1)}
-      ${mine && L.level >= B.lightDarkLevel ? step(`ตอนนี้ · ขั้น ${th(L.level)}`, t(L.level, L.track ?? 'light'), true) : ''}
-    </ul>
-    <div class="forkline"><div><small>${icon('star', 14)}ทางสว่าง สูงสุด</small>${esc(t(B.maxLevel, 'light'))}</div><div><small>${icon('hood', 14)}ทางมืด สูงสุด</small>${esc(t(B.maxLevel, 'dark'))}</div></div>
-    ${choose ? `<p class="muted">เลือกแล้วเปลี่ยนไม่ได้ในชาตินี้ · ชาติต่อไปอาชีพเดิมจะเก่งเร็วขึ้น</p>
-    <button class="gbtn red" data-act="career" data-v="${k}">${icon('seal', 20)}เข้ารับราชการเป็น${esc(k)}</button>` : ''}`;
+    ${choose ? `<button class="gbtn red" data-act="career" data-v="${k}">${icon('seal', 20)}เข้ารับราชการเป็น${esc(k)}</button>
+    <p class="muted">เลือกแล้วเปลี่ยนไม่ได้ในชาตินี้ · ชาติต่อไปอาชีพเดิมจะเก่งเร็วขึ้น</p>` : ''}
+    <h3 class="sh">ยศทั้งหมด ${th(B.maxLevel + 1)} ขั้น</h3>
+    <div class="ctabs">${tab('light', 'ทางสว่าง')}${tab('dark', 'ทางมืด')}</div>
+    <ul class="ladder ranks">${ranks}</ul>`;
 }
 
 function reignSheet(): string {
@@ -476,7 +489,7 @@ function collSheet(tabName: string): string {
 const TIPS: Record<string, [string, string]> = {
   money: ['coin', 'เงิน — ได้จากงานทุกวัน ใช้ซื้อของ ทำบุญ และยื่นขอเลื่อนยศ'],
   merit: ['lotus', 'บุญญาธิการ — ติดตัวข้ามชาติ ไม่หายเมื่อตาย ใช้ปลดล็อกทวิภพ'],
-  aff: ['heart', 'ความชอบ — ผลงานที่นายเห็น ใช้เลื่อนยศ หายเมื่อสิ้นชาติ'],
+  aff: ['medal', 'ความชอบ — ผลงานที่นายเห็น ใช้เลื่อนยศ หายเมื่อสิ้นชาติ'],
   health: ['heart', 'สุขภาพ — ลดลงตามวัยและเมื่อล้มป่วย หมดเมื่อไรสิ้นชีวิต · บ้านดีและพละกำลังสูงช่วยให้แก่ช้าลง'],
 };
 
@@ -503,7 +516,9 @@ document.addEventListener('click', ev => {
       S.playToggle(i < 0); E.setTrain(g, cur); break;
     }
     case 'child': if (g.life.childJob !== v) S.playSelect(); E.chooseChildJob(g, v); break;
-    case 'careerinfo': S.playOpen(); openModal(careerSheet(v, !g.life.career)); return;
+    case 'careerinfo': { S.playOpen(); const [ck, sd] = v.split('|'); const keep = $('modal-body').scrollTop;
+      openModal(careerSheet(ck, !g.life.career, (sd as 'light' | 'dark') ?? (g.life.career === ck ? g.life.track ?? 'light' : 'light')));
+      if (sd) $('modal-body').querySelector('.ctabs')?.scrollIntoView({ block: 'start' }); void keep; return; }
     case 'reign': S.playOpen(); openModal(reignSheet()); return;
     case 'coll': S.playOpen(); openModal(collSheet(v)); return;
     case 'career': E.chooseCareer(g, v); S.playGong(); closeModal(); toast(`เข้ารับราชการเป็น${splitTitle(E.careerTitle(v, 0, null))[0]}`, CAREER_ICON[v]); break;
@@ -511,7 +526,7 @@ document.addEventListener('click', ev => {
     case 'promote': {
       const before = g.life.level, r = E.tryPromote(g);
       if (r.ok && g.life.level > before) celebrate(E.careerTitle(g.life.career!, g.life.level, g.life.track));
-      else { S.playFail(); toast('ยื่นเรื่องไม่ผ่านคราวนี้ ลองใหม่ภายหลัง', 'cross'); }
+      else { S.playFail(); scene.showAnim('sad', 4); toast('ยื่นเรื่องไม่ผ่านคราวนี้ ลองใหม่ภายหลัง', 'cross'); }
       break;
     }
     case 'ware': S.playOpen(); openWare = v; openModal(wareSheet(v)); return;
@@ -530,8 +545,10 @@ document.addEventListener('click', ev => {
       if (choseSomething) {
         const d = diff(before);
         showResult(label, d, v === 'risky' ? r : null);
-        // ให้ตัวละครทำท่าของสเตตัสที่เพิ่มมากที่สุด
-        for (const x of d.filter(x => x.kind === 'stat' && x.v > 0).sort((p, q) => q.v - p.v)) if (scene.showStat(x.key, 6)) break;
+        // ให้ตัวละครทำท่าที่เข้ากับตัวเลือก (ดูจากคำในตัวเลือกก่อน ถ้าไม่เข้าคำไหนใช้สเตตัสที่เพิ่มมากที่สุด)
+        const kw = v === 'risky' ? (r.success ? 'happy' : 'sad') : d.length && d.every(x => x.v < 0) ? 'sad' : animForLabel(label);
+        if (!(kw && scene.showAnim(kw, 6)))
+          for (const x of d.filter(x => x.kind === 'stat' && x.v > 0).sort((p, q) => q.v - p.v)) if (scene.showStat(x.key, 6)) break;
       }
       else closeModal();
       break;
@@ -539,7 +556,7 @@ document.addEventListener('click', ev => {
     case 'resolve-check': {
       const h = content.historical.find(x => x.id === (g.queue[0] as { id: string }).id)!;
       const r = E.resolveEvent(g);
-      (r.success ? S.playGood : S.playFail)();
+      (r.success ? S.playGood : S.playFail)(); scene.showAnim(r.success ? 'happy' : 'sad', 5);
       openModal(`<span class="kind hist">${icon('scroll', 16)}ผลลัพธ์</span><h2>${esc(h.title)}</h2><div class="verdict ${r.success ? 'good' : 'bad'}">${icon(r.success ? 'star' : 'cross', 28)}${r.success ? `ผ่าน — ความชอบ +${th(B.affectionHistSuccess)}` : `พลาด — เสียทรัพย์ ${pct(B.checkFailLoss)}`}</div><button class="choice go" data-act="close">ไปต่อ</button>`);
       break;
     }
@@ -561,7 +578,7 @@ $('scene').addEventListener('click', ev => {
     const r = E.grantPickup(g, scene.pickup.kind), [kind, a, b2] = r.split(':');
     scene.collectBurst(scene.pickup.x, scene.pickup.y); scene.pickup = null; S.playCoin();
     if (kind === 'money') floatText('coin', `+${baht(+a, 1)}`, 'money', p.x / 2.4);
-    else if (kind === 'aff') floatText('heart', `+${th(a)}`, 'aff', p.x / 2.4);
+    else if (kind === 'aff') floatText('medal', `+${th(a)}`, 'aff', p.x / 2.4);
     else floatText(STAT_ICON[a] ?? 'star', `+${pctAuto(+b2)}`, 'stat', p.x / 2.4);
     save(); renderHud(); return;
   }
@@ -608,6 +625,23 @@ $('speedpop').addEventListener('click', ev => {
 });
 document.addEventListener('click', () => $('speedpop').classList.remove('show'));
 
+/** คำในตัวเลือก → ท่าของตัวละคร (เรียงจากเจาะจงไปกว้าง) */
+const ANIM_WORDS: [RegExp, string][] = [
+  [/กวาด|ทำความสะอาด/, 'sweep'],
+  [/ของป่า|เห็ด|สมุนไพร|เก็บผัก|หาปลา|หาอาหาร|หมอยา|รักษา/, 'forage'],
+  [/หาบ|ขนสินค้า|คาราวาน|ค้าขาย|ขายของ|ตั้งแผง|ขายเสบียง|ซื้อ|สินค้า|สำเภา/, 'pole'],
+  [/คาถา|เวท|อาคม|ยันต์|เครื่องราง|ของขลัง|พิธี|เทียน|ปัดรังควาน|บูชา/, 'candle'],
+  [/สมาธิ|สวดมนต์|ภาวนา|ไหว้|ทำบุญ|ถวาย|บวช|ธรรม|ธุดงค์|สรงน้ำ|รดน้ำ|สาบาน|ใส่บาตร/, 'meditate'],
+  [/หนี|หลบ|ซ่อน|แอบ|ย่อง|สะกดรอย|สอดแนม|สืบ|เลี่ยง|ปลีกตัว/, 'sneak'],
+  [/สู้|ดวล|ตอบโต้|ไล่|ต่อย|ฟัน|รบ|ปราบ|ป้องกัน|อาวุธ|ฝึกท่า|กลศึก|ตามล่า/, 'staff'],
+  [/อ่าน|เรียน|ศึกษา|ตำรา|จด|คัดลอก|สอบถาม|ขอดู|หลักฐาน|ภาษา|ตรวจ|สอน|วิชา/, 'read'],
+  [/แบก|ขน|แรงงาน|ช่วยแรง|ทำงาน|รับงาน|ยก|ลาก|พาย|ช่วยเพื่อนบ้าน|ขุด|สร้าง|ร่างกาย|แข็งแรง|ที่นา|ทำกิน|เสบียง/, 'carry'],
+];
+function animForLabel(label: string): string | null {
+  for (const [re, id] of ANIM_WORDS) if (re.test(label)) return id;
+  return null;
+}
+
 /** ฉากหลังความตาย · preview = ลองดูเฉยๆ ไม่จบชาติจริง */
 function yama(preview: boolean) {
   inAfterlife = true;
@@ -644,7 +678,7 @@ setInterval(save, 10000);
 document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
 
 // ไอคอนคงที่ในหน้า
-$('ic-money').innerHTML = icon('coin', 22); $('ic-merit').innerHTML = icon('lotus', 22); $('ic-aff').innerHTML = icon('heart', 22);
+$('ic-money').innerHTML = icon('coin', 22); $('ic-merit').innerHTML = icon('lotus', 22); $('ic-aff').innerHTML = icon('medal', 22); $('ic-hp').innerHTML = icon('heart', 18);
 document.querySelectorAll<HTMLElement>('[data-ic]').forEach(el => { el.outerHTML = icon(el.dataset.ic!, 28); });
 
 renderHud(); renderTab();
