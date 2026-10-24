@@ -19,11 +19,14 @@ for j in range(rows):
         ys = np.where(m.sum(1) > 3)[0]; xs = np.where(m.sum(0) > 3)[0]
         cells.append((j, i, ys.min(), ys.max(), xs.min(), xs.max()))
 # สเกลเดียวกันทุกเฟรม: ให้ความสูงเฉลี่ยของแถวอ้างอิง (ท่ายืน) = target_h
-if arg.startswith('px='): s = 1 / float(arg[3:])
-else: s = target_h / np.mean([c[3] - c[2] + 1 for c in cells if c[0] == ref_row])
-print('scale', round(1/s, 2), 'px per pixel')
+# px= ใส่ค่าเดียว หรือรายแถวคั่นด้วยจุลภาค (เช่น px=9.5,8.3,8.3) — Gemini วาดสัดส่วนเพี้ยนต่างกันแต่ละท่า
+if arg.startswith('px='): pxs = [float(v) for v in arg[3:].split(',')]; row_s = [1 / pxs[min(j, len(pxs) - 1)] for j in range(rows)]
+else: row_s = [target_h / np.mean([c[3] - c[2] + 1 for c in cells if c[0] == ref_row])] * rows
+s = row_s[0]
+print('scale', [round(1/v, 2) for v in row_s], 'px per pixel')
 frames = []
 for (j, i, y0, y1, x0, x1) in cells:
+    s = row_s[j]
     x_off, y_off = i*cw, j*ch
     crop = im[y_off + y0:y_off + y1 + 1, x_off + x0:x_off + x1 + 1]
     mask = ~bg[y_off + y0:y_off + y1 + 1, x_off + x0:x_off + x1 + 1]

@@ -527,7 +527,12 @@ document.addEventListener('click', ev => {
       const r = E.resolveEvent(g, v === '' ? undefined : v === 'risky' ? 'risky' : isNaN(+v) ? v as E.EndingId : +v);
       const choseSomething = e && (e.kind === 'karma' || (e.kind === 'hist' && v !== ''));
       if (v === 'risky') (r.success ? S.playGood : S.playFail)(); else S.playTap();
-      if (choseSomething) showResult(label, diff(before), v === 'risky' ? r : null);
+      if (choseSomething) {
+        const d = diff(before);
+        showResult(label, d, v === 'risky' ? r : null);
+        // ให้ตัวละครทำท่าของสเตตัสที่เพิ่มมากที่สุด
+        for (const x of d.filter(x => x.kind === 'stat' && x.v > 0).sort((p, q) => q.v - p.v)) if (scene.showStat(x.key, 6)) break;
+      }
       else closeModal();
       break;
     }
