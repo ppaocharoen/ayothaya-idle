@@ -30,7 +30,7 @@ export class Scene {
   private blinkAt = 3; private lookUntil = 0; private nextLook = 10;
   // ชุดท่าอื่น (2 คอลัมน์ × 3 แถว, ขนาดเฟรมอ่านจากรูป): A2 อ่าน/แบก/รำไม้ · A3 สมาธิ/ย่อง/จุดเทียน · A4 หาของป่า/กวาดวัด/หาบของ
   private actSheets: Record<string, HTMLImageElement> = {};
-  private act: { id: string; until: number } | null = null;
+  private act: { id: string; until: number; flip: boolean } | null = null;
   // frames = [คอลัมน์, แถว] · lift = ยกตัวขึ้นจากพื้นในเฟรมนั้น (ท่ากระโดด)
   static ANIMS: Record<string, { sheet: string; frames: [number, number][]; speed: number; lift?: number[] }> = {
     read: { sheet: 'a2', frames: [[0, 0], [1, 0]], speed: 0.8 }, carry: { sheet: 'a2', frames: [[0, 1], [1, 1]], speed: 0.8 }, staff: { sheet: 'a2', frames: [[0, 2], [1, 2]], speed: 0.45 },
@@ -49,7 +49,8 @@ export class Scene {
   /** ให้ตัวละครทำท่านี้สักพัก (เช่น หลังเลือกตัวเลือกในกงกรรม) */
   showAnim(id: string, seconds = 5) {
     if (!this.hasAnim(id)) return false;
-    this.act = { id, until: this.t + seconds }; this.targetX = this.posX;
+    // สุ่มหันซ้าย/ขวา (กลับภาพแบบกระจก) ให้ดูหลากหลาย
+    this.act = { id, until: this.t + seconds, flip: Math.random() < 0.5 }; this.targetX = this.posX;
     return true;
   }
   showStat(stat: string, seconds = 5) { return this.showAnim(Scene.STAT_ANIM[stat] ?? '', seconds); }
@@ -226,7 +227,7 @@ export class Scene {
       this.nextWalk = t + 8 + Math.random() * 10;
     }
     const scale = this.charScale(L);
-    if (this.act) { this.drawAct(this.act.id, scale); return; }
+    if (this.act) { this.drawAct(this.act.id, scale, this.act.flip); return; }
     // ท่าตามสถานการณ์ (ไม่ได้เดิน): มีเหตุการณ์ = ตกใจ · หยุดเกม = นอน · ฝนตก = ถือใบตอง
     const still = Math.abs(this.targetX - this.posX) < 1;
     const mood = this.alert ? 'surprised' : this.paused ? 'sleep' : this.raining && still ? 'rain' : null;
@@ -241,9 +242,9 @@ export class Scene {
       this.walkT += dt; row = 0; col = Math.floor(this.walkT / 0.16) % 4;
     } else {
       row = 1;
-      if (this.alert || t < this.lookUntil) { col = 3; this.face = 1; }
+      if (this.alert || t < this.lookUntil) { col = 3; }
       else {
-        if (t > this.nextLook) { this.lookUntil = t + 1.6; this.nextLook = t + 12 + Math.random() * 12; }
+        if (t > this.nextLook) { this.lookUntil = t + 1.6; this.nextLook = t + 12 + Math.random() * 12; if (Math.random() < 0.5) this.face = -this.face; }
         if (t > this.blinkAt) { col = 2; if (t > this.blinkAt + 0.14) this.blinkAt = t + 2.5 + Math.random() * 3; }
         else col = Math.floor(t / 0.9) % 2;
       }
@@ -267,16 +268,19 @@ export class Scene {
   }
 
   /** ท่าอื่นๆ: วางให้หัวตรงกับตำแหน่งตัวละคร เท้าแตะพื้น */
-  private drawAct(id: string, scale: number) {
+  private drawAct(id: string, scale: number, flip = this.face < 0) {
     const a = Scene.ANIMS[id], im = this.actSheets[a.sheet], fw = im.naturalWidth / 2, fh = im.naturalHeight / 3;
     const c = this.ctx, w = fw * scale, h = fh * scale;
     const k = Math.floor(this.t / a.speed) % a.frames.length, [col, row] = a.frames[k];
     const x = Math.round(this.posX - w / 2), y = this.feetY() - h - Math.round((a.lift?.[k] ?? 0) * scale);
     const bw = Math.round(this.FW * scale * 0.6);
     this.charBox = { x: Math.round(this.posX - bw / 2), y, w: bw, h };
-    this.face = 1;
+    this.face = flip ? -1 : 1;
     c.fillStyle = 'rgba(80,55,30,0.25)'; c.fillRect(Math.round(this.posX - bw / 2), this.feetY() - 2, bw, 2);
+    c.save();
+    if (flip) { c.translate(x * 2 + w, 0); c.scale(-1, 1); }
     c.drawImage(im, col * fw, row * fh, fw, fh, x, y, w, h);
+    c.restore();
   }
 
   private house(level: number) {
