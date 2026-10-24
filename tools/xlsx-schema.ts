@@ -106,30 +106,30 @@ export const SHEETS: SheetDef[] = [
   },
   {
     name: 'ร้าน-ของสายอาชีพ', note: 'ราคาเดิม = ราคาใน v0.19 (บาท) ไว้อ้างอิง',
-    headers: ['อาชีพ', 'ระดับ', 'ชื่อ', 'คำอธิบาย', 'ราคาเดิม'],
-    toRows: c => Object.entries(c.shop.careerItems).flatMap(([k, items]) => items.map(i => [k, i.level, i.name, i.desc, i.legacyPrice])),
+    headers: ['อาชีพ', 'ระดับ', 'ชื่อ', 'คำอธิบาย', 'ราคาเดิม', 'เรื่องราว'],
+    toRows: c => Object.entries(c.shop.careerItems).flatMap(([k, items]) => items.map(i => [k, i.level, i.name, i.desc, i.legacyPrice, i.story ?? ''])),
     fromRows: (r, c) => {
       c.shop.careerItems = {};
-      for (const x of r) (c.shop.careerItems[str(x[0])] ??= []).push({ level: num(x[1]), name: str(x[2]), desc: str(x[3]), legacyPrice: num(x[4]) });
+      for (const x of r) (c.shop.careerItems[str(x[0])] ??= []).push({ level: num(x[1]), name: str(x[2]), desc: str(x[3]), legacyPrice: num(x[4]), ...(str(x[5]) ? { story: str(x[5]) } : {}) });
     },
   },
   ...(['accommodations', 'retainers'] as const).map((kind): SheetDef => ({
     name: kind === 'accommodations' ? 'ร้าน-ที่พัก' : 'ร้าน-บริวาร', note: 'ราคาเดิม = ราคาใน v0.19 (บาท)',
-    headers: ['ระดับ', 'ชื่อ', 'คำอธิบาย', 'ราคาเดิม'],
-    toRows: c => c.shop[kind].map(i => [i.level, i.name, i.desc, i.legacyPrice]),
-    fromRows: (r, c) => { c.shop[kind] = r.map(x => ({ level: num(x[0]), name: str(x[1]), desc: str(x[2]), legacyPrice: num(x[3]) })); },
+    headers: ['ระดับ', 'ชื่อ', 'คำอธิบาย', 'ราคาเดิม', 'เรื่องราว'],
+    toRows: c => c.shop[kind].map(i => [i.level, i.name, i.desc, i.legacyPrice, i.story ?? '']),
+    fromRows: (r, c) => { c.shop[kind] = r.map(x => ({ level: num(x[0]), name: str(x[1]), desc: str(x[2]), legacyPrice: num(x[3]), ...(str(x[4]) ? { story: str(x[4]) } : {}) })); },
   })),
   {
     name: 'ร้าน-ทำบุญ', note: '',
-    headers: ['ระดับ', 'ชื่อ', 'ผล', 'ราคาเดิม', 'บุญเดิม'],
-    toRows: c => c.shop.meritItems.map(i => [i.level, i.name, i.effect, i.legacyPrice, i.legacyMerit]),
-    fromRows: (r, c) => { c.shop.meritItems = r.map(x => ({ level: num(x[0]), name: str(x[1]), effect: str(x[2]), legacyPrice: num(x[3]), legacyMerit: num(x[4]) })); },
+    headers: ['ระดับ', 'ชื่อ', 'ผล', 'ราคาเดิม', 'บุญเดิม', 'เรื่องราว'],
+    toRows: c => c.shop.meritItems.map(i => [i.level, i.name, i.effect, i.legacyPrice, i.legacyMerit, i.story ?? '']),
+    fromRows: (r, c) => { c.shop.meritItems = r.map(x => ({ level: num(x[0]), name: str(x[1]), effect: str(x[2]), legacyPrice: num(x[3]), legacyMerit: num(x[4]), ...(str(x[5]) ? { story: str(x[5]) } : {}) })); },
   },
   {
     name: 'ร้าน-ของสามัญ', note: 'ค่าเดิม = ค่าใน v0.19',
-    headers: ['สเตตัส', 'ชื่อ', 'คำอธิบาย', 'ราคาเดิม', 'สเตตัสเดิม', 'ความชอบเดิม'],
-    toRows: c => c.shop.commonItems.map(i => [i.stat, i.name, i.desc, i.legacyPrice, i.legacyDelta, i.legacyAffection]),
-    fromRows: (r, c) => { c.shop.commonItems = r.map(x => ({ stat: str(x[0]) as never, name: str(x[1]), desc: str(x[2]), legacyPrice: num(x[3]), legacyDelta: num(x[4]), legacyAffection: num(x[5] ?? 0) })); },
+    headers: ['สเตตัส', 'ชื่อ', 'คำอธิบาย', 'ราคาเดิม', 'สเตตัสเดิม', 'ความชอบเดิม', 'เรื่องราว'],
+    toRows: c => c.shop.commonItems.map(i => [i.stat, i.name, i.desc, i.legacyPrice, i.legacyDelta, i.legacyAffection, i.story ?? '']),
+    fromRows: (r, c) => { c.shop.commonItems = r.map(x => ({ stat: str(x[0]) as never, name: str(x[1]), desc: str(x[2]), legacyPrice: num(x[3]), legacyDelta: num(x[4]), legacyAffection: num(x[5] ?? 0), ...(str(x[6]) ? { story: str(x[6]) } : {}) })); },
   },
   {
     name: 'รัชสมัย', note: 'ช่วงปีของแต่ละชาติคิดจากตารางนี้',

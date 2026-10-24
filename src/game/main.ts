@@ -5,7 +5,7 @@ import type { StatKey } from '../content/types';
 import { BALANCE as B, type PathKey } from '../engine/balance';
 import * as E from '../engine/core';
 import { Scene } from './scene';
-import { baht, esc, pct, th, thInt } from './format';
+import { baht, dateOf, esc, pct, pctAuto, pctFine, th, thInt } from './format';
 
 const SAVE_KEY = 'ayothaya.save.v1';
 const SLICE_END_AGE = 21; // ชิ้นทดลองจบเมื่ออายุครบ 21
@@ -51,21 +51,39 @@ function frame(now: number) {
     const days = Math.floor(acc / B.secondsPerGameDay);
     if (days > 0) {
       acc -= days * B.secondsPerGameDay;
+      const m0 = g.life.money, b0 = g.merit;
       E.advance(g, capToSlice(days), { online: true });
+      gainFloat(g.life.money - m0, g.merit - b0);
       if (E.ageOf(g.life) >= SLICE_END_AGE && g.life.idx === 1 && g.loop === 1) { sliceDone = true; showSliceEnd(); }
       renderHud(); renderTabSoft();
     }
   }
+  $('daybar').style.width = `${running && !g.queue.length && !sliceDone ? Math.min(100, acc / B.secondsPerGameDay * 100) : 0}%`;
   scene.alert = g.queue.length > 0;
   if (g.queue.length && !$('modal').classList.contains('show')) showEvent();
   scene.draw(g, dt);
   requestAnimationFrame(frame);
 }
 
+// ---------- ตัวเลขลอยขึ้นจากตัวละคร (ให้รู้ว่าเวลาเดินและได้อะไร) ----------
+let floatFlip = false;
+function gainFloat(money: number, merit: number) {
+  floatFlip = !floatFlip;
+  const text = floatFlip && money > 0 ? `+${baht(money, 1)}` : merit > 0 ? `บุญ +${th(merit < 1 ? merit.toFixed(2) : merit.toFixed(1))}` : '';
+  if (!text) return;
+  const el = document.createElement('span');
+  el.className = `float ${floatFlip && money > 0 ? 'money' : 'merit'}`;
+  el.textContent = text;
+  el.style.left = `${46 + Math.random() * 14}%`;
+  $('floats').appendChild(el);
+  setTimeout(() => el.remove(), 2200);
+}
+
 // ---------- HUD ----------
 function renderHud() {
   const L = g.life, r = E.reignAt(g);
   $('hud-when').textContent = `ชาติที่ ${th(L.idx)} · พ.ศ. ${th(E.yearOf(L))} · อายุ ${th(E.ageOf(L))} ปี`;
+  $('hud-date').textContent = `${dateOf(L.day % B.daysPerYear)}`;
   $('hud-reign').textContent = `รัชสมัย${r.king}`;
   $('res-money').textContent = baht(L.money);
   $('res-merit').textContent = thInt(g.merit);
@@ -113,7 +131,20 @@ function lifeTab(): string {
       <p>เริ่มเป็น ${esc(c.titles['0'])}</p><small>สเตตัสหลัก ${statName(c.gateStat)} · รอง ${statName(c.secondaryStat)}</small></button>`).join('');
   } else work = promoteCard();
   return `<h3>แนวทางชีวิต</h3><div class="chips">${paths}</div>
-    <h3>ฝึกฝน <small>เลือกได้ ๒ ด้าน</small></h3><div class="tags">${train}</div>${work}`;
+    <h3>ฝึกฝน <small>เลือกได้ ๒ ด้าน · แตะเพื่อสลับ</small></h3><div class="tags">${train}</div>${trainInfo()}${work}`;
+}
+
+function trainInfo(): string {
+  const L = g.life;
+  return L.train.map(s => {
+    const st = content.stats.find(x => x.key === s)!;
+    const prim = content.careers.careers.filter(c => c.gateStat === s).map(c => c.key);
+    const sec = content.careers.careers.filter(c => c.secondaryStat === s).map(c => c.key);
+    const checks = content.historical.filter(h => h.life === L.idx && h.checkStat === s).length;
+    const uses = [prim.length ? `หลักของ${prim.join(', ')}` : '', sec.length ? `รองของ${sec.join(', ')}` : ''].filter(Boolean).join(' · ');
+    return `<div class="info"><div class="sl"><b>${esc(st.display)}</b><span>${pctFine(L.stats[s] / L.cap)}</span></div>
+      <p>${esc(st.role)}</p><small>${uses ? `อาชีพ: ${esc(uses)} · ` : ''}เหตุการณ์ที่ต้องใช้ในชาตินี้ ${th(checks)} ครั้ง</small></div>`;
+  }).join('');
 }
 
 function promoteCard(): string {
@@ -142,20 +173,20 @@ function promoteCard(): string {
 
 function shopTab(): string {
   const L = g.life, sh = content.shop;
-  const row = (name: string, desc: string, price: number | null, act: string, v = '', extra = '') =>
-    `<div class="item"><div><b>${esc(name)}</b><p>${esc(desc)}</p>${extra}</div>${price == null ? '<span class="done">ครบแล้ว</span>' :
+  const row = (name: string, desc: string, price: number | null, act: string, v = '', story = '') =>
+    `<div class="item"><div><b>${esc(name)}</b>${story ? `<p class="story">${esc(story)}</p>` : ''}<p class="eff">${esc(desc)}</p></div>${price == null ? '<span class="done">ครบแล้ว</span>' :
       `<button class="buy" data-act="${act}" data-v="${v}" ${L.money < price ? 'disabled' : ''}>${baht(price)}</button>`}</div>`;
   let html = `<div class="money-bar">เงิน ${baht(L.money, 3)}</div>`;
   if (L.career) {
     const items = sh.careerItems[L.career], lv = L.careerItem[L.career] ?? 0, it = items[lv];
-    html += `<h3>ของประจำสาย${esc(L.career)} <small>ทำงานได้ผลขึ้นชิ้นละ ${pct(B.careerItemEffPerLevel)}</small></h3>` +
-      (it ? row(it.name, it.desc, E.careerItemPrice(g), 'citem') : '<p class="muted">ครบทุกชิ้นแล้ว</p>');
+    html += `<h3>ของประจำ${L.career.startsWith('สาย') ? '' : 'สาย'}${esc(L.career)} <small>ชิ้นที่ ${th(lv + 1)} จาก ${th(items.length)}</small></h3>` +
+      (it ? row(it.name, `${it.desc} · ทำงานได้ผล +${pctAuto(B.careerItemEffPerLevel)}`, E.careerItemPrice(g), 'citem', '', it.story) : '<p class="muted">ครบทุกชิ้นแล้ว</p>');
   }
   const acc = sh.accommodations[L.accommodation], ret = sh.retainers[L.retainer];
-  html += `<h3>ที่พำนัก <small>ฝึกฝนได้ผลขึ้น ${pct(B.accommodationTrainPerLevel)}/ระดับ</small></h3>` + (acc ? row(acc.name, acc.desc, E.accommodationPrice(L), 'acc') : '<p class="muted">ครบแล้ว</p>');
-  html += `<h3>ไพร่บริวาร <small>รายได้ขึ้น ${pct(B.retainerIncomePerLevel)}/ระดับ</small></h3>` + (ret ? row(ret.name, ret.desc, E.retainerPrice(L), 'ret') : '<p class="muted">ครบแล้ว</p>');
-  html += `<h3>ทำบุญ <small>ทำซ้ำได้ ราคาขึ้นทุกครั้ง</small></h3>` + sh.meritItems.map((m, i) => row(m.name, `บุญ +${thInt(m.legacyMerit)} ก่อนหักตามบุญที่มี`, E.donationPrice(L, i), 'donate', String(i))).join('');
-  html += `<h3>ของสามัญ</h3>` + sh.commonItems.map((m, i) => row(m.name, `${statName(m.stat)} +${pct(0.004)}${m.legacyAffection ? ' · ความชอบ +๐.๓' : ''}`, E.commonPrice(L, i), 'common', String(i))).join('');
+  html += `<h3>ที่พำนัก <small>ระดับ ${th(L.accommodation)} จาก ${th(sh.accommodations.length)}</small></h3>` + (acc ? row(acc.name, `ฝึกฝนได้ผล +${pctAuto(B.accommodationTrainPerLevel)}`, E.accommodationPrice(L), 'acc', '', acc.story ?? acc.desc) : '<p class="muted">ครบแล้ว</p>');
+  html += `<h3>ไพร่บริวาร <small>ระดับ ${th(L.retainer)} จาก ${th(sh.retainers.length)}</small></h3>` + (ret ? row(ret.name, `รายได้ +${pctAuto(B.retainerIncomePerLevel)}`, E.retainerPrice(L), 'ret', '', ret.story ?? ret.desc) : '<p class="muted">ครบแล้ว</p>');
+  html += `<h3>ทำบุญ <small>ทำซ้ำได้ ราคาขึ้นทุกครั้ง · ยิ่งมีบุญมาก ได้เพิ่มยิ่งน้อย</small></h3>` + sh.meritItems.map((m, i) => row(m.name, `บุญ +${thInt(m.legacyMerit / (1 + g.merit / B.meritSoftcap))} (ทำไปแล้ว ${th(L.donations[i])} ครั้ง)`, E.donationPrice(L, i), 'donate', String(i), m.story)).join('');
+  html += `<h3>ของสามัญ <small>ซื้อซ้ำได้ ราคาขึ้นทีละ ๑๐%</small></h3>` + sh.commonItems.map((m, i) => row(m.name, `${statName(m.stat)} +${pctAuto(0.004)} ของเพดาน${m.legacyAffection ? ' · ความชอบ +๐.๓' : ''}${L.common[i] ? ` · มีแล้ว ${th(L.common[i])}` : ''}`, E.commonPrice(L, i), 'common', String(i), m.story)).join('');
   html += `<h3>งานบุญใหญ่</h3>` + B.megaProjects.map(m => row(m.name, `บุญ +${thInt(m.merit)} · ความชอบ +${th(m.affection)}`, m.price * Math.pow(1.5, L.mega[m.id] ?? 0), 'mega', m.id)).join('');
   return html;
 }
@@ -164,7 +195,7 @@ function charTab(): string {
   const L = g.life;
   const bars = content.stats.map(s => {
     const f = L.stats[s.key] / L.cap, gate = L.career && (careerOf(L.career).gateStat === s.key || careerOf(L.career).secondaryStat === s.key);
-    return `<div class="stat ${L.train.includes(s.key) ? 'train' : ''} ${gate ? 'gate' : ''}"><div class="sl"><b>${esc(s.display)}</b><span>${pct(f)}</span></div>
+    return `<div class="stat ${L.train.includes(s.key) ? 'train' : ''} ${gate ? 'gate' : ''}"><div class="sl"><b>${esc(s.display)}</b><span>${pctFine(f)}</span></div>
       <div class="bar"><i style="width:${(f * 100).toFixed(1)}%"></i></div><small>${esc(s.role)}</small></div>`;
   }).join('');
   const coll = g.collection;

@@ -27,9 +27,9 @@ export interface CareersFile { careers: Career[]; monastic: Monastic; }
 
 export interface ChildJob { key: string; name: string; desc: string; stats: StatKey[]; suggests: string[]; note: string; }
 
-export interface LeveledItem { level: number; name: string; desc: string; legacyPrice: number; }
-export interface MeritItem { level: number; name: string; effect: string; legacyPrice: number; legacyMerit: number; }
-export interface CommonItem { stat: StatKey; name: string; desc: string; legacyPrice: number; legacyDelta: number; legacyAffection: number; }
+export interface LeveledItem { level: number; name: string; desc: string; legacyPrice: number; story?: string; }
+export interface MeritItem { level: number; name: string; effect: string; legacyPrice: number; legacyMerit: number; story?: string; }
+export interface CommonItem { stat: StatKey; name: string; desc: string; legacyPrice: number; legacyDelta: number; legacyAffection: number; story?: string; }
 export interface ShopFile {
   careerItems: Record<string, LeveledItem[]>;
   accommodations: LeveledItem[];

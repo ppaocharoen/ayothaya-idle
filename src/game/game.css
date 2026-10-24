@@ -90,3 +90,17 @@ p { margin: 4px 0; }
 
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); background: #2b2118; color: #fbf4e6; padding: 8px 14px; border-radius: 10px; font-size: 14px; opacity: 0; transition: .2s; pointer-events: none; z-index: 20; max-width: 90vw; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+.hud .date { font-weight: 400; font-size: 13px; color: var(--gold); }
+.stage { position: relative; }
+.floats { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.float { position: absolute; top: 38%; font-size: 13px; font-weight: 700; padding: 0 6px; border-radius: 6px; background: rgba(255,250,240,.85); animation: rise 2.2s ease-out forwards; white-space: nowrap; }
+.float.money { color: #7a5410; } .float.merit { color: var(--green); }
+@keyframes rise { from { transform: translateY(0); opacity: 0; } 15% { opacity: 1; } to { transform: translateY(-60px); opacity: 0; } }
+.daytrack { height: 4px; background: #9c7a4a; }
+.daytrack i { display: block; height: 100%; width: 0; background: var(--gold); transition: width .25s linear; }
+.info { background: #f4f9f6; border: 1px solid #cfe3d8; border-radius: 10px; padding: 8px 10px; margin: 8px 0 0; }
+.info .sl { display: flex; justify-content: space-between; } .info p { font-size: 13.5px; color: #3c4f44; } .info small { font-size: 12px; color: var(--muted); }
+.dec { font-size: .72em; font-weight: 400; opacity: .6; }
+.item p.story { font-style: italic; color: #6d5c49; font-size: 13px; }
+.item p.eff { color: var(--green); font-size: 12.5px; }

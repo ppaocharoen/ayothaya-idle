@@ -20,3 +20,21 @@ export function baht(v: number, parts = 2): string {
 }
 
 export const pct = (f: number) => `${th(Math.round(f * 100))}%`;
+
+/** % ที่ปรับทศนิยมตามขนาด: ≥10% ไม่มีทศนิยม, ≥1% หนึ่งตำแหน่ง, น้อยกว่านั้นสองตำแหน่ง */
+export function pctAuto(f: number): string {
+  const v = f * 100, d = v >= 10 ? 0 : v >= 1 ? 1 : 2;
+  return `${th(String(+v.toFixed(d)))}%`;
+}
+/** % พร้อมทศนิยม 2 ตำแหน่งตัวเล็กจาง (HTML) สำหรับแถบสเตตัส */
+export function pctFine(f: number): string {
+  const [a, b] = (f * 100).toFixed(2).split('.');
+  return `${th(a)}<small class="dec">.${th(b)}</small>%`;
+}
+
+// เดือนแบบจันทรคติไทย (ประมาณ 30.4 วัน/เดือน)
+const MONTHS = ['เดือนอ้าย', 'เดือนยี่', 'เดือนสาม', 'เดือนสี่', 'เดือนห้า', 'เดือนหก', 'เดือนเจ็ด', 'เดือนแปด', 'เดือนเก้า', 'เดือนสิบ', 'เดือนสิบเอ็ด', 'เดือนสิบสอง'];
+export function dateOf(dayOfYear: number): string {
+  const len = 365 / 12, m = Math.min(11, Math.floor(dayOfYear / len)), d = Math.floor(dayOfYear - m * len) + 1;
+  return `วันที่ ${th(d)} ${MONTHS[m]}`;
+}
