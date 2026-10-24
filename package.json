@@ -1,0 +1,21 @@
+{
+  "name": "ayothaya-idle",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run validate && tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "validate": "tsx tools/validate.ts",
+    "xlsx:export": "tsx tools/xlsx-export.ts",
+    "xlsx:import": "tsx tools/xlsx-import.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.6",
+    "exceljs": "^4.4.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10"
+  }
+}
