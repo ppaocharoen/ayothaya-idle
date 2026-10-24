@@ -4,7 +4,10 @@ import { content } from '../content';
 import type { StatKey } from '../content/types';
 import { BALANCE as B, type PathKey } from '../engine/balance';
 import * as E from '../engine/core';
-import { Scene } from './scene';
+import { Scene, type SceneMood } from './scene';
+import { playCoin, playEvent, playFanfare, playTap, setMusic, sound } from './sound';
+import { percentile, simulatePeers } from './compare';
+import { speechFor } from './speech';
 import { baht, dateOf, esc, pct, pctAuto, pctFine, th, thInt } from './format';
 
 const SAVE_KEY = 'ayothaya.save.v1';
@@ -26,6 +29,7 @@ let g: E.GameState = load() ?? E.newGame();
 let running = true, speedIdx = 0, acc = 0, tab: 'life' | 'shop' | 'char' | 'log' = 'life';
 let sliceDone = E.ageOf(g.life) >= SLICE_END_AGE;
 const scene = new Scene($<HTMLCanvasElement>('scene'));
+if (location.search.includes('dev')) (window as unknown as Record<string, unknown>).__dev = { scene, get g() { return g; }, celebrate: (t: string) => celebrate(t) };
 
 // เวลาที่ผ่านไปตอนปิดแอป
 const away = E.offlineDays(g);
@@ -61,8 +65,23 @@ function frame(now: number) {
   $('daybar').style.width = `${running && !g.queue.length && !sliceDone ? Math.min(100, acc / B.secondsPerGameDay * 100) : 0}%`;
   scene.alert = g.queue.length > 0;
   if (g.queue.length && !$('modal').classList.contains('show')) showEvent();
-  scene.draw(g, dt);
+  const mood = currentMood();
+  // ของให้แตะเก็บ: สุ่มหล่นทุก 35–70 วินาทีจริง เฉพาะตอนเวลาเดินและไม่มีป๊อปอัพ
+  if (running && !sliceDone && !g.queue.length && !$('modal').classList.contains('show')) {
+    pickupTimer -= dt;
+    if (pickupTimer <= 0 && !scene.pickup) { scene.spawnPickup((['coin', 'coin', 'flower', 'leaf'] as const)[Math.floor(Math.random() * 4)]); pickupTimer = 35 + Math.random() * 35; }
+  }
+  scene.draw(g, dt, mood);
   requestAnimationFrame(frame);
+}
+
+// ---------- บรรยากาศฉาก ----------
+let pickupTimer = 20;
+function currentMood(): SceneMood {
+  const L = g.life, doy = L.day % B.daysPerYear, month = Math.min(11, Math.floor(doy / (365 / 12))), y = E.yearOf(L);
+  const rainDay = (((L.day * 2654435761) >>> 0) % 5) < 2;
+  const war = content.historical.some(h => h.life === L.idx && h.checkStat === 'ต่อสู้' && y >= h.yearFrom && y <= Math.max(h.yearTo, h.yearFrom));
+  return { dayFrac: running && !g.queue.length ? acc / B.secondsPerGameDay : 0.4, month, rain: month >= 5 && month <= 10 && rainDay, war };
 }
 
 // ---------- ตัวเลขลอยขึ้นจากตัวละคร (ให้รู้ว่าเวลาเดินและได้อะไร) ----------
@@ -82,6 +101,11 @@ function diff(a: Snap): { label: string; v: number; text: string; kind: string }
   const da = b.aff - a.aff; if (Math.abs(da) > 1e-6) out.push({ label: 'ความชอบ', v: da, text: `${da > 0 ? '+' : '−'}${th(Math.abs(da).toFixed(2))}`, kind: 'aff' });
   return out;
 }
+function floatText(text: string, kind: string, leftPct = 50) {
+  const el = document.createElement('span');
+  el.className = `float ${kind}`; el.textContent = text; el.style.left = `${leftPct}%`;
+  $('floats').appendChild(el); setTimeout(() => el.remove(), 2200);
+}
 let floatTurn = 0, lastFloat = 0;
 function gainFloat(before: Snap) {
   // ไม่เกิน 1 ตัวต่อ 0.8 วินาที (ตอนเร่งเวลาจะได้ไม่ซ้อนกันจนอ่านไม่ออก)
@@ -100,12 +124,28 @@ function gainFloat(before: Snap) {
   setTimeout(() => el.remove(), 2200);
 }
 
+// ---------- เส้นชีวิต: อายุ 9 → สิ้นชาติ พร้อมจุดเหตุการณ์ประวัติศาสตร์ ----------
+let lifebarFor = '';
+function renderLifebar() {
+  const L = g.life, span = (L.endYear - L.startYear + 1) * B.daysPerYear, key = `${g.loop}-${L.idx}`;
+  if (lifebarFor !== key) {
+    lifebarFor = key;
+    $('lifemarks').innerHTML = content.historical.filter(h => h.life === L.idx).map(h => {
+      const pos = ((h.yearFrom - L.startYear) * B.daysPerYear) / span * 100;
+      return `<i class="mk ${h.kind}" style="left:${pos.toFixed(2)}%" title="${esc(h.title)}"></i>`;
+    }).join('');
+  }
+  $('lifefill').style.width = `${(L.day / span * 100).toFixed(2)}%`;
+  $('lifeage').textContent = `อายุ ${th(E.ageOf(L))} / ${th(B.startAge + L.endYear - L.startYear)}`;
+}
+
 // ---------- HUD ----------
 function renderHud() {
   const L = g.life, r = E.reignAt(g);
   $('hud-when').textContent = `ชาติที่ ${th(L.idx)} · พ.ศ. ${th(E.yearOf(L))} · อายุ ${th(E.ageOf(L))} ปี`;
   $('hud-date').textContent = `${dateOf(L.day % B.daysPerYear)}`;
   $('hud-reign').textContent = `รัชสมัย${r.king}`;
+  renderLifebar();
   $('res-money').textContent = baht(L.money);
   $('res-merit').textContent = thInt(g.merit);
   $('res-aff').textContent = th(L.affection.toFixed(1));
@@ -242,6 +282,7 @@ function closeModal() { $('modal').classList.remove('show'); }
 function showEvent() {
   const e = g.queue[0];
   if (!e) return;
+  playEvent();
   const L = g.life, head = `<div class="eyebrow">พ.ศ. ${th(E.yearOf(L))} · อายุ ${th(E.ageOf(L))} ปี</div>`;
   if (e.kind === 'karma') {
     const d = E.karmaDef(e);
@@ -279,12 +320,20 @@ function showResult(label: string, d: ReturnType<typeof diff>, risky: E.ResolveR
     <button class="choice" data-act="close">ไปต่อ</button>`);
 }
 
+function compareHtml(): string {
+  const peers = simulatePeers(100, SLICE_END_AGE), L = g.life;
+  const row = (label: string, p: number) => `<li><span>${label}</span><div class="pbar"><i style="width:${(p * 100).toFixed(0)}%"></i></div><b>${th(Math.round(p * 100))}%</b></li>`;
+  return `<h3>เทียบกับไพร่จำลอง ๑๐๐ คน</h3><p class="muted">ไพร่ที่เกิดปีเดียวกันและเล่นแบบสุ่ม — ท่านทำได้ดีกว่ากี่คน</p><ul class="peers">
+    ${row('ยศ', percentile(peers.map(p => p.level), L.level))}${row('บุญ', percentile(peers.map(p => p.merit), g.merit))}${row('เงิน', percentile(peers.map(p => p.money), L.money))}</ul>`;
+}
+
 function showSliceEnd() {
   running = false;
   const L = g.life;
   openModal(`<div class="kind">จบชิ้นทดลอง</div><h2>อายุ ${th(E.ageOf(L))} ปี</h2>
     <p>${L.career ? `เป็น<b>${esc(E.careerTitle(L.career, L.level, L.track))}</b> (ยศขั้นที่ ${th(L.level)})` : 'ยังไม่มีอาชีพ'}</p>
     <p>เงิน ${baht(L.money)} · บุญ ${thInt(g.merit)} · ความชอบ ${th(L.affection.toFixed(1))}</p>
+    ${compareHtml()}
     <p class="muted">ชิ้นทดลองนี้ครอบคลุมชาติ ๑ อายุ ๙–๒๐ — ลองเล่นแล้วเล่าให้ฟังว่าตรงไหนสนุก ตรงไหนน่าเบื่อหรือไม่เข้าใจ</p>
     <button class="choice" data-act="restart">เริ่มใหม่</button><button class="choice" data-act="close">ดูสถานะต่อ</button>`);
 }
@@ -316,7 +365,8 @@ document.addEventListener('click', ev => {
     case 'track': E.chooseTrack(g, v as 'light' | 'dark'); break;
     case 'promote': {
       const before = g.life.level, r = E.tryPromote(g);
-      toast(r.ok && g.life.level > before ? `เลื่อนยศเป็น ${E.careerTitle(g.life.career!, g.life.level, g.life.track)}` : 'ยื่นเรื่องไม่ผ่านคราวนี้ ลองใหม่ภายหลัง');
+      if (r.ok && g.life.level > before) celebrate(E.careerTitle(g.life.career!, g.life.level, g.life.track));
+      else toast('ยื่นเรื่องไม่ผ่านคราวนี้ ลองใหม่ภายหลัง');
       break;
     }
     case 'citem': E.buyCareerItem(g); break;
@@ -347,7 +397,51 @@ document.addEventListener('click', ev => {
   save(); renderHud(); renderTab();
 });
 $('btn-play').addEventListener('click', () => { running = !running; renderHud(); });
+// แตะในฉาก: เก็บของ หรือคุยกับตัวละคร
+$('scene').addEventListener('click', ev => {
+  const p = scene.toCanvas(ev);
+  if (scene.pickup && scene.hitPickup(p.x, p.y)) {
+    const r = E.grantPickup(g, scene.pickup.kind), [kind, a, b2] = r.split(':');
+    scene.collectBurst(scene.pickup.x, scene.pickup.y); scene.pickup = null; playCoin();
+    floatText(kind === 'money' ? `+${baht(+a, 1)}` : kind === 'aff' ? `ความชอบ +${th(a)}` : `${statName(a)} +${pctAuto(+b2)}`, kind === 'money' ? 'money' : kind === 'aff' ? 'aff' : 'stat', p.x / 2.4);
+    save(); renderHud(); return;
+  }
+  if (scene.hitChar(p.x, p.y)) {
+    playTap();
+    const m = currentMood(), el = $('speech');
+    el.textContent = speechFor(g, { rain: m.rain, war: m.war });
+    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+  }
+});
+// คีย์บอร์ด: 1–9 เลือกตัวเลือก · Enter ไปต่อ · Space หยุด/เล่น
+document.addEventListener('keydown', ev => {
+  if ($('modal').classList.contains('show')) {
+    const cs = [...document.querySelectorAll<HTMLButtonElement>('.modal.show .choice')];
+    const n = parseInt(ev.key, 10);
+    if (n >= 1 && n <= cs.length) cs[n - 1].click();
+    else if (ev.key === 'Enter' && cs.length === 1) cs[0].click();
+    return;
+  }
+  if (ev.key === ' ') { ev.preventDefault(); running = !running; renderHud(); }
+});
+// เสียง
+try { const sp = JSON.parse(store()?.getItem('ayothaya.sound') ?? '{}'); sound.sfx = sp.sfx ?? true; if (sp.music) setMusic(true); } catch { /* ใช้ค่าเริ่มต้น */ }
+function renderSound() { $('btn-sound').textContent = sound.music ? '♪ เปิด' : sound.sfx ? '♪ ปิดเพลง' : '🔇'; }
+$('btn-sound').addEventListener('click', () => {
+  // วน: เสียงเอฟเฟกต์อย่างเดียว → + เพลง → ปิดหมด
+  if (sound.sfx && !sound.music) setMusic(true); else if (sound.music) { setMusic(false); sound.sfx = false; } else sound.sfx = true;
+  try { store()?.setItem('ayothaya.sound', JSON.stringify({ sfx: sound.sfx, music: sound.music })); } catch { /* ignore */ }
+  renderSound(); playTap();
+});
+renderSound();
 $('btn-speed').addEventListener('click', () => { speedIdx = (speedIdx + 1) % SPEEDS.length; renderHud(); });
+
+function celebrate(title: string) {
+  scene.celebrate(); playFanfare();
+  const el = $('banner');
+  el.innerHTML = `<small>เลื่อนยศเป็น</small><b>${esc(title)}</b>`;
+  el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+}
 
 let toastTimer = 0;
 function toast(msg: string) {

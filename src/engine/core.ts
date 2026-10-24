@@ -435,6 +435,17 @@ export function buyMega(g: GameState, id: string): boolean {
   L.mega[id] = (L.mega[id] ?? 0) + 1; addMerit(g, m.merit); L.affection += m.affection; return true;
 }
 
+// ---------- ของให้แตะเก็บ (เฉพาะตอนเปิดแอป) ----------
+export type PickupKind = 'coin' | 'flower' | 'leaf';
+export function grantPickup(g: GameState, kind: PickupKind): string {
+  const L = g.life;
+  if (kind === 'coin') { const v = Math.max(0.01, dailyIncome(g) * 7); L.money += v; return `money:${v}`; }
+  if (kind === 'flower') { L.affection += 0.15; return 'aff:0.15'; }
+  const s = L.train[0] ?? 'ความรู้';
+  const before = L.stats[s]; L.stats[s] = Math.min(L.cap, L.stats[s] + 0.003 * L.cap);
+  return `stat:${s}:${(L.stats[s] - before) / L.cap}`;
+}
+
 // ---------- ข้อความสำหรับหน้าจอ ----------
 export function careerTitle(key: string, level: number, track: 'light' | 'dark' | null): string {
   const t = career(key).titles;
