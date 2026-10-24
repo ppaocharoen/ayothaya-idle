@@ -8,7 +8,7 @@ export type StatKey =
 /** ผลของตัวเลือก: สเตตัส +/− (อนาคตเพิ่ม "ความชอบ", "บุญ", "เงิน" ได้) */
 export type Effects = Partial<Record<StatKey | 'ความชอบ', number>>;
 
-export interface Choice { label: string; effects: Effects; }
+export interface Choice { label: string; effects: Effects; sin?: number; }
 
 export interface Stat { key: StatKey; display: string; role: string; }
 

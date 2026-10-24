@@ -10,6 +10,7 @@ import { sound, setMusic } from './sound';
 import { percentile, simulatePeers } from './compare';
 import { speechFor } from './speech';
 import { baht, dateOf, esc, pct, pctAuto, pctFine, th, thInt } from './format';
+import { runAfterlife } from './afterlife';
 import { CAREER_ICON, CHILD_ICON, PATH_ICON, STAT_ICON, icon } from './icons';
 
 const SAVE_KEY = 'ayothaya.save.v1';
@@ -34,9 +35,10 @@ function load(): E.GameState | null {
 let g: E.GameState = load() ?? E.newGame();
 let running = true, speedIdx = 0, acc = 0, tab: 'life' | 'shop' | 'char' | 'log' = 'life';
 let sliceDone = E.ageOf(g.life) >= SLICE_END_AGE;
-let openWare: string | null = null; // ของที่เปิดดูรายละเอียดอยู่
+let openWare: string | null = null;
+let inAfterlife = false; // ของที่เปิดดูรายละเอียดอยู่
 const scene = new Scene($<HTMLCanvasElement>('scene'));
-if (location.search.includes('dev')) (window as unknown as Record<string, unknown>).__dev = { scene, get g() { return g; }, celebrate: (t: string) => celebrate(t) };
+if (location.search.includes('dev')) (window as unknown as Record<string, unknown>).__dev = { scene, get g() { return g; }, celebrate: (t: string) => celebrate(t), afterlife: () => yama(true) };
 
 // เวลาที่ผ่านไปตอนปิดแอป
 const away = E.offlineDays(g);
@@ -69,7 +71,7 @@ function frame(now: number) {
   }
   $('daybar').style.width = `${running && !g.queue.length && !sliceDone ? Math.min(100, acc / B.secondsPerGameDay * 100) : 0}%`;
   scene.alert = g.queue.length > 0;
-  if (g.queue.length && !$('modal').classList.contains('show')) showEvent();
+  if (g.queue.length && !inAfterlife && !$('modal').classList.contains('show')) showEvent();
   const mood = currentMood();
   // ของให้แตะเก็บ: สุ่มหล่นทุก 35–70 วินาทีจริง เฉพาะตอนเวลาเดินและไม่มีป๊อปอัพ
   if (running && !sliceDone && !g.queue.length && !$('modal').classList.contains('show')) {
@@ -359,7 +361,7 @@ function showEvent() {
     return;
   }
   if (e.kind === 'lifeEnd') {
-    openModal(`<h2>สิ้นชีวิต ชาติที่ ${th(e.summary.life)}</h2><p>${e.summary.career ? esc(E.careerTitle(e.summary.career, e.summary.level, g.life.track)) : 'ไม่มีอาชีพ'}</p><button class="choice go" data-act="resolve" data-label="">เกิดใหม่</button>`);
+    openModal(`<h2>สิ้นชีวิต ชาติที่ ${th(e.summary.life)}</h2><p>${e.summary.career ? esc(E.careerTitle(e.summary.career, e.summary.level, g.life.track)) : 'ไม่มีอาชีพ'}</p><button class="choice go" data-act="afterlife">วิญญาณออกจากร่าง…</button>`);
     return;
   }
   if (e.kind === 'finale') {
@@ -390,6 +392,7 @@ function showSliceEnd() {
     <div class="effs"><span>${icon('coin', 18)}${baht(L.money)}</span><span>${icon('lotus', 18)}${thInt(g.merit)}</span><span>${icon('heart', 18)}${th(L.affection.toFixed(1))}</span></div>
     ${compareHtml()}
     <p class="muted">ชิ้นทดลองนี้ครอบคลุมชาติ ๑ อายุ ๙–๒๐ — ลองเล่นแล้วเล่าให้ฟังว่าตรงไหนสนุก ตรงไหนน่าเบื่อหรือไม่เข้าใจ</p>
+    <button class="choice" data-act="yama-preview"><span class="n">${icon('crown', 18)}</span><span>ลองดูยมโลก <small>ตัวอย่างฉากหลังความตาย (ยังไม่มีผลต่อเกม)</small></span></button>
     <button class="choice go" data-act="restart">เริ่มใหม่</button><button class="choice" data-act="close"><span>ดูสถานะต่อ</span></button>`);
 }
 
@@ -531,6 +534,8 @@ document.addEventListener('click', ev => {
       break;
     }
     case 'close': S.playTap(); closeModal(); break;
+    case 'afterlife': closeModal(); yama(false); return;
+    case 'yama-preview': closeModal(); yama(true); return;
     case 'help': S.playTap(); if (openHelp.has(v)) openHelp.delete(v); else openHelp.add(v); break;
     case 'restart': store()?.removeItem(SAVE_KEY); g = E.newGame(); sliceDone = false; running = true; lifebarFor = ''; closeModal(); break;
   }
@@ -582,6 +587,17 @@ $('btn-sound').addEventListener('click', () => {
   renderHud(); S.playTap();
 });
 $('btn-speed').addEventListener('click', () => { speedIdx = (speedIdx + 1) % SPEEDS.length; S.playTap(); renderHud(); });
+
+/** ฉากหลังความตาย · preview = ลองดูเฉยๆ ไม่จบชาติจริง */
+function yama(preview: boolean) {
+  inAfterlife = true;
+  runAfterlife(g, { preview, onDone: years => {
+    inAfterlife = false;
+    if (preview) { if (sliceDone) showSliceEnd(); return; }
+    g.log.push(`รอเกิดในยมโลก ${years.toFixed(1)} ปี`);
+    E.resolveEvent(g); lifebarFor = ''; save(); renderHud(); renderTab();
+  } });
+}
 
 function celebrate(title: string) {
   scene.celebrate(); S.playFanfare();

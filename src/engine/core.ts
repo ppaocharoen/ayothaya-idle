@@ -43,6 +43,9 @@ export interface LifeState {
   donations: number[]; common: number[]; mega: Record<string, number>;
   lastPromoteDay: number;
   peakFrac: Record<StatKey, number>;
+  sin: number;                          // บาปที่ซ่อนไว้ เปิดเผยตอนตาย
+  meritStart: number;                   // บุญตอนเกิด (ใช้คิดบุญที่ทำในชาตินี้)
+  deeds: { id: string; c: number }[];   // ตัวเลือกที่เลือกในชาตินี้ (พญายมหยิบมาไต่สวน)
   sched: { karma: Scheduled[]; hist: HistSchedule[]; nextGeneric: number; bag: number[]; bagPtr: number };
 }
 
@@ -105,7 +108,7 @@ function makeLife(g: GameState, idx: number, prev: LifeState | null): LifeState 
     path: prev?.path ?? 'balance', train: prev?.train ?? ['ความรู้'], childJob: null, career: null, level: 0, track: null,
     careerItem: {}, accommodation: 0, retainer: 0,
     donations: content.shop.meritItems.map(() => 0), common: content.shop.commonItems.map(() => 0), mega: {},
-    lastPromoteDay: -9999, peakFrac: peak,
+    lastPromoteDay: -9999, peakFrac: peak, sin: 0, meritStart: g.merit, deeds: [],
     sched: { karma: [], hist: [], nextGeneric: 0, bag: [], bagPtr: 0 },
   };
   for (const k of content.karmaFixed.filter(k => k.life === idx))
@@ -159,6 +162,7 @@ function stepDay(g: GameState) {
     L.affection += B.affectionWork * p.work * (1 + B.affectionPerLevel * L.level);
   }
   L.money += dailyIncome(g);
+  if (L.track === 'dark') L.sin += B.sinDarkDaily;
   addMerit(g, (B.meritDaily * p.merit + B.meritPassive) * (1 + B.meritBaramiBonus * frac(L, 'บารมี')));
   for (const s of STAT_KEYS) if (L.stats[s] / L.cap > L.peakFrac[s]) L.peakFrac[s] = L.stats[s] / L.cap;
   if (L.peakFrac['หลบหลีก'] > g.peakFleeFrac) g.peakFleeFrac = L.peakFrac['หลบหลีก'];
@@ -244,6 +248,11 @@ export function autoChoice(g: GameState, e: PendingEvent): number {
 function remember(g: GameState, id: string, choice: number) {
   const c = (g.collection.choices[id] ??= []);
   if (!c.includes(choice)) c.push(choice);
+  g.life.deeds.push({ id, c: choice }); if (g.life.deeds.length > 60) g.life.deeds.shift();
+  // บาปจากตัวเลือก (ถ้าเนื้อหาระบุไว้)
+  const d = content.karmaFixed.find(x => x.id === id) ?? content.karmaGeneric.find(x => x.id === id) ?? content.historical.find(x => x.id === id);
+  const picked = d && (choice < 0 ? (d as { risky?: { sin?: number } }).risky : d.choices?.[choice]);
+  if (picked && (picked as { sin?: number }).sin) g.life.sin += (picked as { sin?: number }).sin!;
 }
 
 function applyKarma(g: GameState, e: { id: string; generic: boolean }, choice: number | 'risky'): ResolveResult {
@@ -475,7 +484,12 @@ export function reignAt(g: GameState) {
 
 // ---------- เซฟ ----------
 export function serialize(g: GameState): string { g.savedAt = Date.now(); return JSON.stringify(g); }
-export function deserialize(s: string): GameState { return JSON.parse(s) as GameState; }
+export function deserialize(s: string): GameState {
+  const g = JSON.parse(s) as GameState;
+  // เซฟรุ่นเก่ายังไม่มีช่องบาป/การกระทำ
+  g.life.sin ??= 0; g.life.meritStart ??= g.merit; g.life.deeds ??= [];
+  return g;
+}
 /** จำนวนวันในเกมที่ควรเดินจากช่วงที่ปิดแอป */
 export function offlineDays(g: GameState, now = Date.now()): number {
   return Math.max(0, Math.floor((now - g.savedAt) / 1000 / B.secondsPerGameDay));
