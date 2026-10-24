@@ -3,31 +3,46 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#2b2118" />
+  <meta name="theme-color" content="#1a110c" />
   <title>อโยธยา Idle</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&family=Charm:wght@700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&family=Charm:wght@700&family=Itim&display=swap" rel="stylesheet" />
 </head>
 <body>
   <div class="app">
     <header class="hud">
-      <button id="btn-play" class="icon" aria-label="หยุด/เล่น">❚❚</button>
-      <div class="when"><div id="hud-when"></div><div id="hud-date" class="date"></div><div id="hud-reign" class="reign"></div></div>
-      <button id="btn-speed" class="icon speed" aria-label="ความเร็ว (ทดสอบ)">×๑</button>
+      <button id="btn-play" class="rbtn" aria-label="หยุด/เล่น"></button>
+      <div class="when">
+        <div class="era"><span id="hud-life"></span><b id="hud-year"></b></div>
+        <div id="hud-date" class="date"></div>
+      </div>
+      <button id="btn-speed" class="rbtn speed" aria-label="ความเร็ว"></button>
+      <button id="btn-sound" class="rbtn" aria-label="เสียง"></button>
     </header>
     <div class="res">
-      <div><small>เงิน</small><b id="res-money"></b></div>
-      <div><small>บุญญาธิการ</small><b id="res-merit"></b></div>
-      <div><small>ความชอบ</small><b id="res-aff"></b></div>
+      <button class="pill" data-tip="money"><span id="ic-money"></span><b id="res-money"></b></button>
+      <button class="pill" data-tip="merit"><span id="ic-merit"></span><b id="res-merit"></b></button>
+      <button class="pill" data-tip="aff"><span id="ic-aff"></span><b id="res-aff"></b></button>
     </div>
-    <div class="stage"><canvas id="scene" aria-label="ฉากตัวละคร แตะเพื่อคุยหรือเก็บของ"></canvas><div id="floats" class="floats"></div><div id="speech" class="speech"></div><div id="banner" class="banner"></div><div class="daytrack"><i id="daybar"></i></div></div>
-    <div class="lifebar"><div class="lifetrack"><i id="lifefill"></i><div id="lifemarks"></div></div><span id="lifeage"></span></div>
-    <div class="statusrow"><div id="status" class="status"></div><button id="btn-sound" class="sound">♪</button></div>
-    <nav id="tabs" class="tabs">
-      <button data-tab="life">ชีวิต</button><button data-tab="shop">ร้านค้า</button><button data-tab="char">ตัวละคร</button><button data-tab="log">บันทึก</button>
-    </nav>
+    <div class="stage">
+      <canvas id="scene" aria-label="ฉากตัวละคร แตะเพื่อคุยหรือเก็บของ"></canvas>
+      <div id="plaque" class="plaque"></div>
+      <div id="reign" class="reign"></div>
+      <div id="floats" class="floats"></div><div id="speech" class="speech"></div><div id="banner" class="banner"></div>
+      <div class="daytrack"><i id="daybar"></i></div>
+    </div>
+    <div class="lifebar">
+      <span id="lifeage" class="age"></span>
+      <div class="lifetrack"><div class="groove"><i id="lifefill"></i></div><div id="lifemarks"></div><span id="lifeme" class="me"></span></div>
+      <span id="lifeend" class="age end"></span>
+    </div>
     <main id="panel" class="panel"></main>
-    <footer class="foot"><a href="./content.html">คลังเนื้อหา</a> · ชิ้นทดลอง ชาติ ๑ อายุ ๙–๒๐</footer>
+    <nav id="tabs" class="tabs">
+      <button data-tab="life"><span data-ic="person"></span><small>ชีวิต</small></button>
+      <button data-tab="shop"><span data-ic="stall"></span><small>ตลาด</small></button>
+      <button data-tab="char"><span data-ic="bars"></span><small>ค่าพลัง</small></button>
+      <button data-tab="log"><span data-ic="scroll"></span><small>บันทึก</small></button>
+    </nav>
   </div>
   <div id="modal" class="modal"><div id="modal-body" class="sheet"></div></div>
   <div id="toast" class="toast"></div>
