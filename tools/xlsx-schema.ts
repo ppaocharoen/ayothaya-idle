@@ -27,8 +27,10 @@ function riskyToText(o: RiskyOutcome): string {
   if (o.affection) parts.push(`ความชอบ${o.affection >= 0 ? '+' : ''}${o.affection}`);
   return parts.filter(Boolean).join(', ');
 }
+function riskySin(t: Cell): { sin?: number } { const v = (textToEffects(t) as Record<string, number>)['บาป']; return v ? { sin: v } : {}; }
 function textToRisky(t: Cell): RiskyOutcome {
   const e = textToEffects(t) as Record<string, number>;
+  delete e['บาป'];
   const o: RiskyOutcome = {};
   if ('บุญ' in e) { o.merit = e['บุญ']; delete e['บุญ']; }
   if ('ความชอบ' in e) { o.affection = e['ความชอบ']; delete e['ความชอบ']; }
@@ -37,13 +39,17 @@ function textToRisky(t: Cell): RiskyOutcome {
 }
 const choiceHeaders = Array.from({ length: MAX_CHOICES }, (_, i) => [`ตัวเลือก ${'ABCD'[i]}`, `ผล ${'ABCD'[i]}`]).flat();
 function choicesToCells(cs: Choice[] | undefined): Cell[] {
-  return Array.from({ length: MAX_CHOICES }, (_, i) => cs?.[i] ? [cs[i].label, effectsToText(cs[i].effects)] : ['', '']).flat();
+  // บาปของตัวเลือกเขียนรวมในช่องผล เช่น "โภคทรัพย์+2, บาป+2"
+  return Array.from({ length: MAX_CHOICES }, (_, i) => cs?.[i] ? [cs[i].label, [effectsToText(cs[i].effects), cs[i].sin ? `บาป+${cs[i].sin}` : ''].filter(Boolean).join(', ')] : ['', '']).flat();
 }
 function cellsToChoices(cells: Cell[]): Choice[] {
   const out: Choice[] = [];
   for (let i = 0; i < MAX_CHOICES; i++) {
     const label = String(cells[i * 2] ?? '').trim();
-    if (label) out.push({ label, effects: textToEffects(cells[i * 2 + 1]) });
+    if (!label) continue;
+    const e = textToEffects(cells[i * 2 + 1]) as Record<string, number>, sin = e['บาป'];
+    delete e['บาป'];
+    out.push({ label, effects: e as Effects, ...(sin ? { sin } : {}) });
   }
   return out;
 }
@@ -148,12 +154,12 @@ export const SHEETS: SheetDef[] = [
     name: 'กงกรรมทั่วไป', note: 'เสี่ยงดวง: โอกาส 0–1, ผลใส่ "บุญ+2" หรือ "ความชอบ+0.05" ได้',
     headers: ['id', 'ชื่อ', ...choiceHeaders, 'เสี่ยงดวง', 'โอกาส', 'พลังงานที่เสีย', 'ผลสำเร็จ', 'ผลล้มเหลว'],
     toRows: c => c.karmaGeneric.map(k => [k.id, k.title, ...choicesToCells(k.choices),
-      k.risky?.label ?? '', k.risky?.chance ?? '', k.risky?.cost.energy ?? '', k.risky ? riskyToText(k.risky.success) : '', k.risky ? riskyToText(k.risky.fail) : '']),
+      k.risky?.label ?? '', k.risky?.chance ?? '', k.risky?.cost.energy ?? '', k.risky ? [riskyToText(k.risky.success), k.risky.sin ? `บาป+${k.risky.sin}` : ''].filter(Boolean).join(', ') : '', k.risky ? riskyToText(k.risky.fail) : '']),
     fromRows: (r, c) => {
       const o = 2 + MAX_CHOICES * 2;
       c.karmaGeneric = r.map(x => ({
         id: str(x[0]), title: str(x[1]), choices: cellsToChoices(x.slice(2, o)),
-        risky: str(x[o]) ? { label: str(x[o]), chance: num(x[o + 1]), cost: str(x[o + 2]) ? { energy: num(x[o + 2]) } : {}, success: textToRisky(x[o + 3]), fail: textToRisky(x[o + 4]) } : null,
+        risky: str(x[o]) ? { label: str(x[o]), chance: num(x[o + 1]), cost: str(x[o + 2]) ? { energy: num(x[o + 2]) } : {}, success: textToRisky(x[o + 3]), fail: textToRisky(x[o + 4]), ...riskySin(x[o + 3]) } : null,
       }));
     },
   },

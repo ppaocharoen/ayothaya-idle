@@ -14,7 +14,6 @@ import { runAfterlife } from './afterlife';
 import { CAREER_ICON, CHILD_ICON, PATH_ICON, STAT_ICON, icon } from './icons';
 
 const SAVE_KEY = 'ayothaya.save.v1';
-const SLICE_END_AGE = 21; // ชิ้นทดลองจบเมื่ออายุครบ 21
 const SPEEDS = location.search.includes('dev') ? [1, 10, 100, 3000] : [1, 10, 100];
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -34,24 +33,21 @@ function load(): E.GameState | null {
 
 let g: E.GameState = load() ?? E.newGame();
 let running = true, speedIdx = 0, acc = 0, tab: 'life' | 'shop' | 'char' | 'log' = 'life';
-let sliceDone = E.ageOf(g.life) >= SLICE_END_AGE;
+let sliceDone = !!g.ending; // จบเกมแล้ว (ฉากจบ)
 let openWare: string | null = null;
 let inAfterlife = false; // ของที่เปิดดูรายละเอียดอยู่
 const scene = new Scene($<HTMLCanvasElement>('scene'));
-if (location.search.includes('dev')) (window as unknown as Record<string, unknown>).__dev = { scene, get g() { return g; }, celebrate: (t: string) => celebrate(t), afterlife: () => yama(true) };
+if (location.search.includes('dev')) (window as unknown as Record<string, unknown>).__dev = { scene, get g() { return g; }, celebrate: (t: string) => celebrate(t), afterlife: () => yama(true), advance: (d: number) => { E.advance(g, d, { online: false }); renderHud(); renderTab(); } };
 
 // เวลาที่ผ่านไปตอนปิดแอป
 const away = E.offlineDays(g);
-let awayInfo: { days: number; auto: number } | null = null;
+let awayInfo: { days: number; auto: number; eff: number } | null = null;
 if (away > 0 && !sliceDone) {
-  const r = E.advance(g, capToSlice(away), { online: false });
-  awayInfo = { days: r.days, auto: r.autoResolved };
+  const eff = E.awayEff(g.life);
+  const r = E.advance(g, away, { online: false, away: true });
+  awayInfo = { days: r.days, auto: r.autoResolved, eff };
 }
-
-function capToSlice(days: number) {
-  const left = (SLICE_END_AGE - B.startAge) * B.daysPerYear - g.life.day;
-  return g.life.idx === 1 && g.loop === 1 ? Math.max(0, Math.min(days, left)) : days;
-}
+const capToSlice = (days: number) => days;
 
 // ---------- วนเวลา ----------
 let last = performance.now();
@@ -65,7 +61,8 @@ function frame(now: number) {
       const before = snap();
       E.advance(g, capToSlice(days), { online: true });
       if (g.life.idx === before.life) gainFloat(before);
-      if (E.ageOf(g.life) >= SLICE_END_AGE && g.life.idx === 1 && g.loop === 1) { sliceDone = true; showSliceEnd(); }
+      if (g.ending) { sliceDone = true; showSliceEnd(); }
+      healthWarn();
       renderHud(); renderTabSoft();
     }
   }
@@ -134,7 +131,7 @@ function renderLifebar() {
   const pos = L.day / span * 100;
   if (lifebarFor !== key) {
     lifebarFor = key;
-    $('lifemarks').innerHTML = content.historical.filter(h => h.life === L.idx).map(h => {
+    $('lifemarks').innerHTML = content.historical.filter(h => h.yearFrom >= L.startYear && h.yearFrom <= L.endYear).map(h => {
       const p = ((h.yearFrom - L.startYear) * B.daysPerYear) / span * 100;
       return `<i class="mk k-${h.kind}" data-p="${p.toFixed(2)}" style="left:${p.toFixed(2)}%"></i>`;
     }).join('');
@@ -260,11 +257,12 @@ function promoteCard(): string {
   const req = (ic: string, ok: boolean, frac: number, val: string) =>
     `<div class="req ${ok ? 'ok' : ''}">${icon(ic, 20)}<div class="meter"><i style="width:${Math.min(100, frac * 100).toFixed(1)}%"></i></div><span>${val}</span>${icon(ok ? 'check' : 'cross', 18)}</div>`;
   const cooldown = Math.max(0, B.promoteCooldownDays - (L.day - L.lastPromoteDay));
-  return `${sec('ยศถัดไป', '', 'rank')}${helpBox('rank', `ต้องครบทั้ง ๓ อย่าง:<br>${icon(STAT_ICON[c.gateStat], 16)} ${statName(c.gateStat)} ผสม ${statName(c.secondaryStat)} (หลักมีน้ำหนักมากกว่า)<br>${icon('heart', 16)} ความชอบสะสม — ได้จากการทำงาน เหตุการณ์ และงานบุญใหญ่<br>${icon('coin', 16)} ค่ายื่นเรื่อง<br>ยื่นแล้วยังมีโอกาสไม่ผ่าน ถ้าไม่ผ่านต้องรอสักพัก`)}
+  return `${sec('ยศถัดไป', '', 'rank')}${helpBox('rank', `ต้องครบทั้ง ๓ อย่าง:<br>${icon(STAT_ICON[c.gateStat], 16)} ${statName(c.gateStat)} ผสม ${statName(c.secondaryStat)} (หลักมีน้ำหนักมากกว่า)<br>${icon('heart', 16)} ความชอบสะสม — ได้จากการทำงาน เหตุการณ์ และงานบุญใหญ่<br>${icon('coin', 16)} ค่ายื่นเรื่อง<br>${icon('house', 16)} ยศขั้น ๗, ๑๑, ๑๕ ต้องมีบ้านสมฐานะ (เรือนไทย ตึก จวน)<br>ยื่นแล้วยังมีโอกาสไม่ผ่าน ถ้าไม่ผ่านต้องรอสักพัก`)}
     <div class="frame"><div class="rank" data-act="careerinfo" data-v="${L.career}">${icon(cic, 44)}<div><small>ขั้นที่ ${th(t)}</small><b>${esc(splitTitle(E.careerTitle(L.career!, t, L.track))[0])}</b><small>${esc(splitTitle(E.careerTitle(L.career!, t, L.track))[1])}</small></div></div>
       ${req(STAT_ICON[c.gateStat], gv >= gn, gv / gn, `${pct(gv)}/${pct(gn)}`)}
       ${req('heart', L.affection >= aff, L.affection / aff, `${th(L.affection.toFixed(1))}/${th(aff.toFixed(1))}`)}
       ${req('coin', L.money >= cost, L.money / cost, baht(cost, 1))}
+      ${E.houseReq(t) ? req('house', L.accommodation >= E.houseReq(t), L.accommodation / E.houseReq(t), clean(content.shop.accommodations[E.houseReq(t) - 1].name)) : ''}
       <button class="gbtn red" data-act="promote" ${blk ? 'disabled' : ''}>${icon('up', 20)}${blk === 'cooldown' ? `รออีก ${th(cooldown)} วัน` : `ยื่นขอเลื่อนยศ${blk ? '' : ` · ${pct(E.promoteChance(g))}`}`}</button>
     </div>`;
 }
@@ -280,7 +278,7 @@ function wares(): { title: string; sub: string; list: Ware[] }[] {
   const acc2 = sh.accommodations[L.accommodation] ?? sh.accommodations[sh.accommodations.length - 1];
   const ret = sh.retainers[L.retainer] ?? sh.retainers[sh.retainers.length - 1];
   out.push({ title: 'บ้านและบริวาร', sub: L.career ? 'ตามยศศักดิ์' : 'ยังอยู่เรือนพ่อแม่', list: [
-    { id: 'acc', ic: 'house', name: clean(acc2.name), story: acc2.story ?? acc2.desc, effs: [['book', `ฝึกฝน +${pctAuto(B.accommodationTrainPerLevel)}`]], price: sh.accommodations[L.accommodation] ? E.accommodationPrice(L) : null, act: 'acc', v: '', lv: `${th(Math.min(L.accommodation + 1, sh.accommodations.length))}/${th(sh.accommodations.length)}`, req: sh.accommodations[L.accommodation] ? E.accommodationReq(g) : null },
+    { id: 'acc', ic: 'house', name: clean(acc2.name), story: acc2.story ?? acc2.desc, effs: [['book', `ฝึกฝน +${pctAuto(B.accommodationTrainPerLevel)}`], ['clock', `ตอนปิดแอป +${pctAuto(B.awayPerHouse)}`], ['heart', `แก่ช้าลง ${pctAuto(B.healthHouse)}`]], price: sh.accommodations[L.accommodation] ? E.accommodationPrice(L) : null, act: 'acc', v: '', lv: `${th(Math.min(L.accommodation + 1, sh.accommodations.length))}/${th(sh.accommodations.length)}`, req: sh.accommodations[L.accommodation] ? E.accommodationReq(g) : null },
     { id: 'ret', ic: 'people', name: clean(ret.name), story: ret.story ?? ret.desc, effs: [['coin', `รายได้ +${pctAuto(B.retainerIncomePerLevel)}`]], price: sh.retainers[L.retainer] ? E.retainerPrice(L) : null, act: 'ret', v: '', lv: `${th(Math.min(L.retainer + 1, sh.retainers.length))}/${th(sh.retainers.length)}`, req: sh.retainers[L.retainer] ? E.retainerReq(g) : null },
   ] });
   out.push({ title: 'ทำบุญ', sub: 'ทำซ้ำได้', list: sh.meritItems.map((m, i) => ({ id: `donate:${i}`, ic: 'lotus', name: clean(m.name), story: m.story ?? m.effect, effs: [['lotus', `บุญ +${thInt(m.legacyMerit / (1 + g.merit / B.meritSoftcap))}`]] as [string, string][], price: E.donationPrice(L, i), act: 'donate', v: String(i), lv: L.donations[i] ? `×${th(L.donations[i])}` : '' })) });
@@ -320,7 +318,9 @@ function charTab(): string {
       <div class="bar"><i style="width:${(f * 100).toFixed(1)}%"></i></div></div></button>`;
   }).join('');
   const coll = g.collection;
-  return `${sec('ค่าพลัง', `เพดาน ${th(L.cap)}`, 'stats')}${helpBox('stats', 'แตะแต่ละแถวเพื่อดูว่าค่านั้นใช้ทำอะไร · ค่าแสดงเป็น % ของเพดานชาตินี้ (ชาติต่อไปเพดานสูงขึ้น)')}${bars}
+  const hp = Math.max(0, L.health);
+  const health = `<button class="stat health" data-tip="health">${icon('heart', 28)}<div><div class="sl"><b>สุขภาพ</b><span>${th(Math.round(hp * 100))}%</span></div><div class="bar"><i style="width:${(hp * 100).toFixed(1)}%"></i></div></div></button>`;
+  return `${sec('ร่างกาย')}${health}${sec('ค่าพลัง', `เพดาน ${th(L.cap)}`, 'stats')}${helpBox('stats', 'แตะแต่ละแถวเพื่อดูว่าค่านั้นใช้ทำอะไร · ค่าแสดงเป็น % ของเพดานชาตินี้ (ชาติต่อไปเพดานสูงขึ้น)')}${bars}
     ${sec('สมุดสะสม', 'แตะเพื่อเปิดดู')}<div class="coll"><div data-act="coll" data-v="titles"><b>${th(coll.titles.length)}</b><small>ยศที่เคยได้</small></div><div data-act="coll" data-v="choices"><b>${th(Object.keys(coll.choices).length)}</b><small>เหตุการณ์ที่เลือก</small></div><div data-act="coll" data-v="family"><b>${th(coll.family.length)}</b><small>ชาติที่บันทึก</small></div></div>
     <div class="foot"><a href="./content.html">คลังเนื้อหา</a> · ชิ้นทดลอง ชาติ ๑ อายุ ๙–๒๐</div>`;
 }
@@ -361,7 +361,13 @@ function showEvent() {
     return;
   }
   if (e.kind === 'lifeEnd') {
-    openModal(`<h2>สิ้นชีวิต ชาติที่ ${th(e.summary.life)}</h2><p>${e.summary.career ? esc(E.careerTitle(e.summary.career, e.summary.level, g.life.track)) : 'ไม่มีอาชีพ'}</p><button class="choice go" data-act="afterlife">วิญญาณออกจากร่าง…</button>`);
+    const sm = e.summary, age = sm.age ?? E.ageOf(L), full = B.startAge + L.endYear - L.startYear;
+    openModal(`<span class="kind hist">${icon('candle', 16)}สิ้นชีวิต</span><h2>ชาติที่ ${th(sm.life)} · อายุ ${th(age)} ปี</h2>
+      <p>${age < full ? `สุขภาพทรุดลงจนสิ้นลมก่อนอายุขัย (เต็มที่ได้ ${th(full)} ปี)` : 'อยู่จนสุดอายุขัย สิ้นลมอย่างสงบ'}</p>
+      <p>${sm.career ? `ได้เป็น<b>${esc(splitTitle(E.careerTitle(sm.career, sm.level, L.track))[0])}</b> (ยศขั้น ${th(sm.level)})` : 'ไม่ได้รับราชการ'}</p>
+      <div class="effs"><span>${icon('coin', 18)}${baht(sm.money)}</span><span>${icon('lotus', 18)}${thInt(sm.merit)}</span></div>
+      ${sm.life === 1 && g.loop === 1 ? compareHtml(age) : ''}
+      <button class="choice go" data-act="afterlife">วิญญาณออกจากร่าง…</button>`);
     return;
   }
   if (e.kind === 'finale') {
@@ -377,30 +383,28 @@ function showResult(label: string, d: Delta[], risky: E.ResolveResult | null) {
     <button class="choice go" data-act="close">ไปต่อ</button>`);
 }
 
-function compareHtml(): string {
-  const peers = simulatePeers(100, SLICE_END_AGE), L = g.life;
+function compareHtml(toAge: number): string {
+  const peers = simulatePeers(50, toAge), L = g.life;
   const row = (ic: string, p: number) => `<li>${icon(ic, 22)}<div class="pbar"><i style="width:${(p * 100).toFixed(0)}%"></i></div><b>${th(Math.round(p * 100))}%</b></li>`;
-  return `<p class="muted">ทำได้ดีกว่าไพร่จำลองที่เกิดปีเดียวกันกี่คนจาก ๑๐๐</p><ul class="peers">
+  return `<p class="muted">ทำได้ดีกว่าไพร่จำลองที่เกิดปีเดียวกันกี่ % (จำลอง ๕๐ ชีวิต)</p><ul class="peers">
     ${row('crown', percentile(peers.map(p => p.level), L.level))}${row('lotus', percentile(peers.map(p => p.merit), g.merit))}${row('coin', percentile(peers.map(p => p.money), L.money))}</ul>`;
 }
 
+/** ฉากจบเกม */
 function showSliceEnd() {
   running = false;
-  const L = g.life;
-  openModal(`<span class="kind">${icon('star', 16)}จบชิ้นทดลอง</span><h2>อายุ ${th(E.ageOf(L))} ปี</h2>
-    <p>${L.career ? `เป็น<b>${esc(E.careerTitle(L.career, L.level, L.track))}</b> (ยศขั้นที่ ${th(L.level)})` : 'ยังไม่มีอาชีพ'}</p>
-    <div class="effs"><span>${icon('coin', 18)}${baht(L.money)}</span><span>${icon('lotus', 18)}${thInt(g.merit)}</span><span>${icon('heart', 18)}${th(L.affection.toFixed(1))}</span></div>
-    ${compareHtml()}
-    <p class="muted">ชิ้นทดลองนี้ครอบคลุมชาติ ๑ อายุ ๙–๒๐ — ลองเล่นแล้วเล่าให้ฟังว่าตรงไหนสนุก ตรงไหนน่าเบื่อหรือไม่เข้าใจ</p>
-    <button class="choice" data-act="yama-preview"><span class="n">${icon('crown', 18)}</span><span>ลองดูยมโลก <small>ตัวอย่างฉากหลังความตาย (ยังไม่มีผลต่อเกม)</small></span></button>
-    <button class="choice go" data-act="restart">เริ่มใหม่</button><button class="choice" data-act="close"><span>ดูสถานะต่อ</span></button>`);
+  const id = g.ending === 'defended' ? 'defend' : g.ending;
+  const e = content.endings.find(x => x.id === id);
+  openModal(`<span class="kind">${icon('star', 16)}ฉากจบ</span><h2>${esc(e?.name ?? 'จบ')}</h2>
+    <p>${esc(e?.summary ?? '')}</p>
+    <div class="effs"><span>${icon('lotus', 18)}บุญ ${thInt(g.merit)}</span><span>${icon('scroll', 18)}${th(g.collection.family.length)} ชาติ</span><span>${icon('crown', 18)}${th(g.collection.titles.length)} ยศ</span></div>
+    <button class="choice go" data-act="restart">เริ่มใหม่ตั้งแต่ชาติแรก</button><button class="choice" data-act="close"><span>ดูสถานะ</span></button>`);
 }
-
 function showAway() {
   if (!awayInfo) return;
   const y = Math.floor(awayInfo.days / B.daysPerYear), d = awayInfo.days % B.daysPerYear;
   openModal(`<span class="kind">${icon('clock', 16)}ระหว่างที่ท่านไม่อยู่</span><h2>เวลาผ่านไป ${y ? `${th(y)} ปี ` : ''}${th(d)} วัน</h2>
-    <p>${awayInfo.auto ? `กงกรรม ${th(awayInfo.auto)} เรื่องตัดสินใจไปตามแนวทางชีวิตแล้ว` : 'ไม่มีกงกรรมที่ต้องตัดสินใจแทน'}${g.queue.length ? ` · มี ${th(g.queue.length)} เรื่องรอท่านอยู่` : ''}</p>
+    <p>${awayInfo.eff < 1 ? `ตอนไม่อยู่ได้ผล ${th(Math.round(awayInfo.eff * 100))}% ของตอนเล่นเอง — บ้านดีขึ้นได้ผลมากขึ้น · ` : ''}${awayInfo.auto ? `กงกรรม ${th(awayInfo.auto)} เรื่องตัดสินใจไปตามแนวทางชีวิตแล้ว` : 'ไม่มีกงกรรมที่ต้องตัดสินใจแทน'}${g.queue.length ? ` · มี ${th(g.queue.length)} เรื่องรอท่านอยู่` : ''}</p>
     <button class="choice go" data-act="close">ไปต่อ</button>`);
   awayInfo = null;
 }
@@ -473,6 +477,7 @@ const TIPS: Record<string, [string, string]> = {
   money: ['coin', 'เงิน — ได้จากงานทุกวัน ใช้ซื้อของ ทำบุญ และยื่นขอเลื่อนยศ'],
   merit: ['lotus', 'บุญญาธิการ — ติดตัวข้ามชาติ ไม่หายเมื่อตาย ใช้ปลดล็อกทวิภพ'],
   aff: ['heart', 'ความชอบ — ผลงานที่นายเห็น ใช้เลื่อนยศ หายเมื่อสิ้นชาติ'],
+  health: ['heart', 'สุขภาพ — ลดลงตามวัยและเมื่อล้มป่วย หมดเมื่อไรสิ้นชีวิต · บ้านดีและพละกำลังสูงช่วยให้แก่ช้าลง'],
 };
 
 // ---------- ปุ่มต่างๆ ----------
@@ -535,9 +540,8 @@ document.addEventListener('click', ev => {
     }
     case 'close': S.playTap(); closeModal(); break;
     case 'afterlife': closeModal(); yama(false); return;
-    case 'yama-preview': closeModal(); yama(true); return;
     case 'help': S.playTap(); if (openHelp.has(v)) openHelp.delete(v); else openHelp.add(v); break;
-    case 'restart': store()?.removeItem(SAVE_KEY); g = E.newGame(); sliceDone = false; running = true; lifebarFor = ''; closeModal(); break;
+    case 'restart': store()?.removeItem(SAVE_KEY); g = E.newGame(); sliceDone = false; healthWarned = false; running = true; lifebarFor = ''; closeModal(); break;
   }
   if (openWare && $('modal').classList.contains('show')) openModal(wareSheet(openWare));
   save(); renderHud(); renderTab();
@@ -604,10 +608,18 @@ function yama(preview: boolean) {
   inAfterlife = true;
   runAfterlife(g, { preview, onDone: years => {
     inAfterlife = false;
-    if (preview) { if (sliceDone) showSliceEnd(); return; }
-    g.log.push(`รอเกิดในยมโลก ${years.toFixed(1)} ปี`);
-    E.resolveEvent(g); lifebarFor = ''; save(); renderHud(); renderTab();
+    if (preview) return;
+    const y = E.rebirthYear(g, years);
+    E.resolveEvent(g, years); lifebarFor = ''; save(); renderHud(); renderTab();
+    toast(`เกิดใหม่ พ.ศ. ${th(y)} เป็นชาติที่ ${th(g.life.idx)}`, 'lotus');
   } });
+}
+
+let healthWarned = false;
+function healthWarn() {
+  const h = g.life.health;
+  if (h < 0.3 && !healthWarned) { healthWarned = true; toast('สุขภาพเริ่มทรุด — บ้านดีและร่างกายแข็งแรงช่วยให้อยู่ได้นานขึ้น', 'heart'); }
+  if (h > 0.5) healthWarned = false;
 }
 
 function celebrate(title: string) {

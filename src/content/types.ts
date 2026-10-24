@@ -46,7 +46,7 @@ export interface KarmaFixed { id: string; life: number; age: number; year: numbe
 export interface RiskyOutcome { stats?: Effects; merit?: number; affection?: number; }
 export interface KarmaGeneric {
   id: string; title: string; choices: Choice[];
-  risky: null | { label: string; chance: number; cost: { energy?: number }; success: RiskyOutcome; fail: RiskyOutcome };
+  risky: null | { label: string; chance: number; cost: { energy?: number }; success: RiskyOutcome; fail: RiskyOutcome; sin?: number };
 }
 
 export type HistoricalKind = 'narrative' | 'check' | 'choice';

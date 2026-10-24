@@ -23,9 +23,9 @@ export const BALANCE = {
   /** ตัวคูณพรสวรรค์จากอาชีพเดิมที่เคยทำ: 1 + x·เลเวลสูงสุดที่เคยถึง (สายเดียวกัน) */
   lineagePerLevel: 0.03,
   /** + x ต่อจำนวนชาติที่เคยทำอาชีพนี้ (ทำให้ชาติหลังๆ ยังเก่งขึ้นเรื่อยๆ ไม่ตัน) */
-  lineagePerLife: 0.18,
+  lineagePerLife: 0.10,
   careerItemEffPerLevel: 0.08,
-  accommodationTrainPerLevel: 0.05,
+  accommodationTrainPerLevel: 0.06,
   retainerIncomePerLevel: 0.08,
 
   // ---- แนวทางชีวิต: สัดส่วนเวลา ทำงาน/ฝึก/ทำบุญ ----
@@ -92,8 +92,17 @@ export const BALANCE = {
   // ---- งานบุญใหญ่ (ที่ใช้เงินช่วงท้าย) ----
   // ยศขั้นต่ำของที่ต้องได้รับพระราชทาน/ศักดินาถึงจะครอบครองได้ (ดัชนี = ชิ้นที่)
   sinDarkDaily: 0.01,                 // เดินทางมืด บาปสะสมวันละเท่านี้
+  // บ้าน: ยศสูงต้องมีบ้านสมฐานะ [ยศที่จะขึ้น, จำนวนขั้นที่พำนักที่ต้องมี] (4 = เรือนไทย, 5 = ตึก, 6 = จวน)
+  promoteHouseReq: [[7, 4], [11, 5], [15, 6]] as [number, number][],
+  awayBase: 0.7, awayPerHouse: 0.05,  // ผลตอนปิดแอป: 70% + 5% ต่อขั้นบ้าน (ถึง 100%)
+  commonPriceGrowth: 1.25,
+  housePriceK: 2.5, retainerPriceK: 10,  // ราคา = K × ค่ายื่นเลื่อนยศของยศขั้นต่ำ
+  // สุขภาพ (หมด = ตาย) · ลดต่อปี = base + (อายุ−35)×perYear · บ้าน/พละกำลังชะลอ
+  healthBase: 0.004, healthAgeFrom: 35, healthPerYear: 0.0015,
+  healthHouse: 0.06, healthStrength: 0.4,
+  illnessFromAge: 40, illnessChance: 0.07, illnessMin: 0.06, illnessMax: 0.16,
   careerItemMinLevel: [0, 4, 8, 12, 16],
-  accommodationMinLevel: [0, 1, 3, 6, 10, 14],
+  accommodationMinLevel: [0, 1, 3, 5, 9, 13],
   retainerMinLevel: [1, 3, 6, 9, 12, 15],
   megaProjects: [
     { id: 'sala', name: 'สร้างศาลาการเปรียญ', price: 150, merit: 400, affection: 4 },
