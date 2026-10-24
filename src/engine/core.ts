@@ -17,6 +17,13 @@ export type PendingEvent =
 
 export type EndingId = 'fight' | 'flee' | 'reincarnate' | 'defend';
 
+export interface Collection {
+  titles: string[];                    // "อาชีพ|สาย|เลเวล" ที่เคยได้
+  endings: string[];
+  choices: Record<string, number[]>;   // id เหตุการณ์ → ตัวเลือกที่เคยเลือก (-1 = เสี่ยงดวง)
+  family: (LifeSummary & { loop: number })[];
+}
+
 export interface LifeSummary {
   life: number; career: string | null; level: number; merit: number; money: number;
   affection: number; statsFrac: Record<string, number>;
@@ -53,6 +60,8 @@ export interface GameState {
   ending: EndingId | 'defended' | null;
   savedAt: number;                      // เวลาจริงตอนเซฟ (ms) สำหรับคำนวณช่วงที่ปิดแอป
   stats: { promotions: number; eventsSeen: number };
+  /** สมุดสะสม — เก็บข้ามรอบเล่น (ทวิภพไม่ล้าง) */
+  collection: Collection;
 }
 
 // ---------- ตัวช่วย ----------
@@ -77,6 +86,7 @@ export function newGame(seed = Date.now()): GameState {
   const g = {
     version: 1, rng: seed >>> 0, loop: 1, merit: 0, careerMaxLevel: {}, careerLives: {}, peakFleeFrac: 0,
     queue: [], log: [], ending: null, savedAt: Date.now(), stats: { promotions: 0, eventsSeen: 0 },
+    collection: { titles: [], endings: [], choices: {}, family: [] },
   } as unknown as GameState;
   g.life = makeLife(g, 1, null);
   log(g, 'เกิดเป็นไพร่น้อย ณ หนองโสน');
@@ -227,7 +237,13 @@ export function autoChoice(g: GameState, e: PendingEvent): number {
   return best;
 }
 
+function remember(g: GameState, id: string, choice: number) {
+  const c = (g.collection.choices[id] ??= []);
+  if (!c.includes(choice)) c.push(choice);
+}
+
 function applyKarma(g: GameState, e: { id: string; generic: boolean }, choice: number | 'risky') {
+  remember(g, e.id, choice === 'risky' ? -1 : (choice as number));
   const def = karmaDef(e);
   if (choice === 'risky' && 'risky' in def && def.risky) {
     const ok = nextRandom(g) < def.risky.chance, o = ok ? def.risky.success : def.risky.fail;
@@ -259,7 +275,7 @@ export function resolveEvent(g: GameState, choice?: number | 'risky' | EndingId)
       log(g, `${h.title}: ${ok ? 'ผ่าน' : 'ไม่ผ่าน'}`);
       return { success: ok };
     }
-    if (h.kind === 'choice') { const i = (choice as number) ?? autoChoice(g, e); applyEffects(g, h.choices![i].effects); log(g, `${h.title} → ${h.choices![i].label}`); return {}; }
+    if (h.kind === 'choice') { const i = (choice as number) ?? autoChoice(g, e); remember(g, h.id, i); applyEffects(g, h.choices![i].effects); log(g, `${h.title} → ${h.choices![i].label}`); return {}; }
     log(g, h.title);
     return {};
   }
@@ -277,6 +293,7 @@ function endLife(g: GameState) {
   const statsFrac: Record<string, number> = {};
   for (const s of STAT_KEYS) statsFrac[s] = +(L.stats[s] / L.cap).toFixed(3);
   const summary: LifeSummary = { life: L.idx, career: L.career, level: L.level, merit: Math.round(g.merit), money: L.money, affection: L.affection, statsFrac };
+  g.collection.family.push({ ...summary, loop: g.loop });
   log(g, `สิ้นชีวิต — ${L.career ?? 'ไม่มีอาชีพ'} Lv.${L.level}`);
   g.queue = g.queue.filter(isMain);
   if (L.idx < NUM_LIVES) g.queue.push({ kind: 'lifeEnd', summary });
@@ -301,6 +318,7 @@ function chooseEnding(g: GameState, id: EndingId): ResolveResult {
   if (id === 'reincarnate') {
     g.loop++; g.peakFleeFrac = 0;
     g.life = makeLife(g, 1, g.life);
+    if (!g.collection.endings.includes('reincarnate')) g.collection.endings.push('reincarnate');
     log(g, `ทวิภพ — ย้อนกลับมาเกิดใหม่ (รอบที่ ${g.loop})`);
     return { text: 'reincarnate' };
   }
@@ -310,9 +328,11 @@ function chooseEnding(g: GameState, id: EndingId): ResolveResult {
     for (let i = 0; i < content.siege.length; i++) if (nextRandom(g) >= p) fails++;
     const ok = fails <= B.siegeMaxFails;
     g.ending = ok ? 'defended' : 'fight';
+    if (!g.collection.endings.includes(g.ending)) g.collection.endings.push(g.ending);
     return { success: ok, text: `พลาด ${fails} ครั้ง` };
   }
   g.ending = id;
+  if (!g.collection.endings.includes(id)) g.collection.endings.push(id);
   return { text: id };
 }
 
@@ -360,7 +380,12 @@ export function tryPromote(g: GameState): { ok: boolean; block?: PromoteBlock } 
   const L = g.life;
   L.money -= promoteCost(L.level); L.lastPromoteDay = L.day;
   const ok = nextRandom(g) < promoteChance(g);
-  if (ok) { L.level++; g.stats.promotions++; log(g, `เลื่อนเป็น Lv.${L.level}`); }
+  if (ok) {
+    L.level++; g.stats.promotions++;
+    const key = `${L.career}|${L.level < B.lightDarkLevel ? 'ร่วม' : L.track}|${L.level}`;
+    if (!g.collection.titles.includes(key)) g.collection.titles.push(key);
+    log(g, `เลื่อนยศเป็น ${careerTitle(L.career!, L.level, L.track)}`);
+  }
   return { ok };
 }
 
@@ -403,6 +428,17 @@ export function buyMega(g: GameState, id: string): boolean {
   const m = B.megaProjects.find(x => x.id === id)!, L = g.life;
   if (!pay(g, m.price * Math.pow(1.5, L.mega[id] ?? 0), 0)) return false;
   L.mega[id] = (L.mega[id] ?? 0) + 1; addMerit(g, m.merit); L.affection += m.affection; return true;
+}
+
+// ---------- ข้อความสำหรับหน้าจอ ----------
+export function careerTitle(key: string, level: number, track: 'light' | 'dark' | null): string {
+  const t = career(key).titles;
+  if (level < B.lightDarkLevel) return t[String(level) as '0' | '1'];
+  return t[track ?? 'light'][String(level)] ?? '';
+}
+export function reignAt(g: GameState) {
+  const y = yearOf(g.life);
+  return content.reigns.find(r => r.life === g.life.idx && y >= r.from && y <= r.to) ?? content.reigns.find(r => r.life === g.life.idx)!;
 }
 
 // ---------- เซฟ ----------

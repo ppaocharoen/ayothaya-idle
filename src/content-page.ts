@@ -1,5 +1,5 @@
 // หน้าคลังเนื้อหา (ขั้น 2) — ดูข้อมูลทั้งหมดบนมือถือได้ ก่อนเริ่มทำตัวเกมจริงในขั้น 3–4
-import './style.css';
+import './content-page.css';
 import { content, lifeRange, NUM_LIVES } from './content';
 import type { Choice, Effects } from './content/types';
 

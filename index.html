@@ -2,18 +2,34 @@
 <html lang="th">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>อโยธยา Idle — คลังเนื้อหา</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#2b2118" />
+  <title>อโยธยา Idle</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&family=Charm:wght@700&display=swap" rel="stylesheet" />
 </head>
 <body>
-  <header class="top">
-    <div class="brand">อโยธยา <span>Idle</span></div>
-    <div class="sub">คลังเนื้อหา · ก่อนเริ่มทำตัวเกม</div>
-  </header>
-  <nav id="tabs" class="tabs"></nav>
-  <main id="app"></main>
-  <script type="module" src="/src/main.ts"></script>
+  <div class="app">
+    <header class="hud">
+      <button id="btn-play" class="icon" aria-label="หยุด/เล่น">❚❚</button>
+      <div class="when"><div id="hud-when"></div><div id="hud-reign" class="reign"></div></div>
+      <button id="btn-speed" class="icon speed" aria-label="ความเร็ว (ทดสอบ)">×๑</button>
+    </header>
+    <div class="res">
+      <div><small>เงิน</small><b id="res-money"></b></div>
+      <div><small>บุญญาธิการ</small><b id="res-merit"></b></div>
+      <div><small>ความชอบ</small><b id="res-aff"></b></div>
+    </div>
+    <canvas id="scene" aria-label="ฉากตัวละคร"></canvas>
+    <div id="status" class="status"></div>
+    <nav id="tabs" class="tabs">
+      <button data-tab="life">ชีวิต</button><button data-tab="shop">ร้านค้า</button><button data-tab="char">ตัวละคร</button><button data-tab="log">บันทึก</button>
+    </nav>
+    <main id="panel" class="panel"></main>
+    <footer class="foot"><a href="./content.html">คลังเนื้อหา</a> · ชิ้นทดลอง ชาติ ๑ อายุ ๙–๒๐</footer>
+  </div>
+  <div id="modal" class="modal"><div id="modal-body" class="sheet"></div></div>
+  <div id="toast" class="toast"></div>
+  <script type="module" src="/src/game/main.ts"></script>
 </body>
 </html>
