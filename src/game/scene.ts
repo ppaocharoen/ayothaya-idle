@@ -19,6 +19,11 @@ const mix = (a: string, b: string, t: number) => {
 export class Scene {
   private ctx: CanvasRenderingContext2D;
   private sprite = new Image();
+  // ชุดท่า A1: แถวบน = เดิน 4 เฟรม · แถวล่าง = ยืน (หายใจเข้า, หายใจออก, กะพริบตา, มองผู้เล่น)
+  private sheet = new Image();
+  private readonly FW = 56; private readonly FH = 104;
+  private posX = 112; private targetX = 112; private face = 1; private nextWalk = 6; private walkT = 0;
+  private blinkAt = 3; private lookUntil = 0; private nextLook = 10;
   private t = 0;
   private parts: Particle[] = [];
   private jump = 0;
@@ -33,6 +38,7 @@ export class Scene {
     this.ctx = canvas.getContext('2d')!;
     this.ctx.imageSmoothingEnabled = false;
     this.sprite.src = new URL('./art/boy.png', document.baseURI).href;
+    this.sheet.src = new URL('./art/boy_a1.png', document.baseURI).href;
   }
 
   /** แปลงพิกัดคลิกบนหน้าจอเป็นพิกัด canvas */
@@ -93,19 +99,13 @@ export class Scene {
       for (let x = 160; x < SCENE_W; x += 3) { const sway = Math.round(Math.sin(this.t * 2 + x) * 1); c.fillStyle = x % 2 ? '#d9b54a' : '#c9a23c'; c.fillRect(x + sway, GROUND - 7, 1, 7); c.fillRect(x + sway - 1, GROUND - 8, 2, 2); }
     }
     // ---- ตัวละคร ----
-    if (this.sprite.complete && this.sprite.naturalWidth) {
+    if (this.sheet.complete && this.sheet.naturalWidth) this.drawCharacter(L, dt);
+    else if (this.sprite.complete && this.sprite.naturalWidth) {
       const age = ageOf(L), scale = Math.min(1.25, 0.85 + (age - 9) * 0.035);
       const w = Math.round(this.sprite.naturalWidth * scale), h = Math.round(this.sprite.naturalHeight * scale);
-      const bob = Math.floor(this.t * 1.6) % 2;
-      const hop = this.jump > 0 ? Math.round(Math.abs(Math.sin((1 - this.jump) * Math.PI * 3)) * 14 * this.jump) : 0;
-      const x = 112, y = GROUND + 2 - h + bob - hop;
+      const x = 112, y = GROUND + 2 - h;
       this.charBox = { x, y, w, h };
-      c.fillStyle = 'rgba(80,55,30,0.25)'; c.fillRect(x + 2, GROUND, w - 4, 2);
       c.drawImage(this.sprite, x, y, w, h);
-      if (this.alert && Math.floor(this.t * 3) % 2 === 0) {
-        c.fillStyle = '#8e2a1f'; c.fillRect(x + w / 2 - 3, y - 16, 6, 12);
-        c.fillStyle = '#fff'; c.fillRect(x + w / 2 - 1, y - 14, 2, 6); c.fillRect(x + w / 2 - 1, y - 7, 2, 2);
-      }
     }
     // ---- ของให้แตะเก็บ ----
     const p = this.pickup;
@@ -165,6 +165,46 @@ export class Scene {
     for (const [dx, dy, w] of [[-10, 0, 10], [2, 0, 10], [-7, -3, 6], [3, -3, 6], [-3, -5, 6]]) c.fillRect(x + dx, base - h + dy, w, 2);
     c.fillRect(x - 12, base - h + 2, 3, 3); c.fillRect(x + 11, base - h + 2, 3, 3);
   }
+  /** ตัวละครมีชีวิต: ยืนหายใจ กะพริบตา หันมามอง และเดินไปมาเป็นระยะ */
+  private drawCharacter(L: GameState['life'], dt: number) {
+    const c = this.ctx, t = this.t;
+    const age = ageOf(L), scale = Math.min(1.25, 0.85 + (age - 9) * 0.035);
+    const w = Math.round(this.FW * scale), h = Math.round(this.FH * scale);
+    // เดิน: สุ่มจุดหมายใหม่ทุก 8–18 วินาที (หยุดเมื่อมีเหตุการณ์หรือกำลังฉลอง)
+    const busy = this.alert || this.jump > 0;
+    if (!busy && t > this.nextWalk && Math.abs(this.targetX - this.posX) < 1) {
+      this.targetX = 60 + Math.random() * 110; this.nextWalk = t + 8 + Math.random() * 10;
+    }
+    const dx = this.targetX - this.posX, walking = !busy && Math.abs(dx) >= 1;
+    let col: number, row: number;
+    if (walking) {
+      this.face = dx > 0 ? 1 : -1;
+      this.posX += Math.sign(dx) * Math.min(Math.abs(dx), 16 * dt);
+      this.walkT += dt; row = 0; col = Math.floor(this.walkT / 0.16) % 4;
+    } else {
+      row = 1;
+      if (this.alert || t < this.lookUntil) { col = 3; this.face = 1; }
+      else {
+        if (t > this.nextLook) { this.lookUntil = t + 1.6; this.nextLook = t + 12 + Math.random() * 12; }
+        if (t > this.blinkAt) { col = 2; if (t > this.blinkAt + 0.14) this.blinkAt = t + 2.5 + Math.random() * 3; }
+        else col = Math.floor(t / 0.9) % 2;
+      }
+    }
+    const hop = this.jump > 0 ? Math.round(Math.abs(Math.sin((1 - this.jump) * Math.PI * 3)) * 14 * this.jump) : 0;
+    const x = Math.round(this.posX - w / 2), y = GROUND + 2 - h - hop;
+    this.charBox = { x: x + Math.round(w * 0.2), y, w: Math.round(w * 0.6), h };
+    c.fillStyle = 'rgba(80,55,30,0.25)'; c.fillRect(x + Math.round(w * 0.25), GROUND, Math.round(w * 0.5), 2);
+    c.save();
+    if (this.face < 0) { c.translate(x * 2 + w, 0); c.scale(-1, 1); }
+    c.drawImage(this.sheet, col * this.FW, row * this.FH, this.FW, this.FH, x, y, w, h);
+    c.restore();
+    if (this.alert && Math.floor(t * 3) % 2 === 0) {
+      const ax = x + w / 2;
+      c.fillStyle = '#8e2a1f'; c.fillRect(ax - 3, y - 16, 6, 12);
+      c.fillStyle = '#fff'; c.fillRect(ax - 1, y - 14, 2, 6); c.fillRect(ax - 1, y - 7, 2, 2);
+    }
+  }
+
   private house(level: number) {
     const c = this.ctx, x = 24, b = GROUND;
     if (level <= 0) return;
