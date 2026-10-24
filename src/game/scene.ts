@@ -84,7 +84,7 @@ export class Scene {
     // ---- ทัพเดินผ่านยามศึก ----
     if (mood.war) this.army();
     this.palm(150, GROUND, 52); this.palm(226, GROUND, 40);
-    this.house(L.accommodation);
+    this.house(L.career ? L.accommodation : 3); // เด็กยังอยู่เรือนพ่อแม่
     // ---- พื้นดิน + ทุ่งข้าวหน้าเก็บเกี่ยว (เดือนอ้าย–ยี่) ----
     c.fillStyle = '#b08d5a'; c.fillRect(0, GROUND, SCENE_W, SCENE_H - GROUND);
     c.fillStyle = '#9c7a4a'; c.fillRect(0, GROUND, SCENE_W, 2);

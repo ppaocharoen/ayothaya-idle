@@ -90,6 +90,10 @@ export const BALANCE = {
   siegeBase: 0.20, siegeSlope: 0.55, siegeMaxFails: 4,
 
   // ---- งานบุญใหญ่ (ที่ใช้เงินช่วงท้าย) ----
+  // ยศขั้นต่ำของที่ต้องได้รับพระราชทาน/ศักดินาถึงจะครอบครองได้ (ดัชนี = ชิ้นที่)
+  careerItemMinLevel: [0, 4, 8, 12, 16],
+  accommodationMinLevel: [0, 1, 3, 6, 10, 14],
+  retainerMinLevel: [1, 3, 6, 9, 12, 15],
   megaProjects: [
     { id: 'sala', name: 'สร้างศาลาการเปรียญ', price: 150, merit: 400, affection: 4 },
     { id: 'vihara', name: 'สร้างพระวิหาร', price: 900, merit: 1500, affection: 10 },

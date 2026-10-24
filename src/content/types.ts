@@ -20,6 +20,7 @@ export interface CareerTitles {
 export interface Career {
   key: string; fullname: string;
   gateStat: StatKey; secondaryStat: StatKey;
+  desc?: string;
   titles: CareerTitles;
 }
 export interface Monastic { key: string; fullname: string; gateStat: StatKey; titles: Record<string, string>; }

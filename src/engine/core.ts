@@ -405,15 +405,31 @@ export function careerItemPrice(g: GameState): number | null {
   const items = content.shop.careerItems[L.career], lv = L.careerItem[L.career] ?? 0;
   return lv < items.length ? items[lv].legacyPrice : null;
 }
+/** ยศขั้นต่ำที่ต้องมีก่อนซื้อชิ้นถัดไป (null = ซื้อได้) · -1 = ยังไม่มีอาชีพ (เด็กยังอยู่บ้านพ่อแม่) */
+export function careerItemReq(g: GameState): number | null {
+  const L = g.life; if (!L.career) return -1;
+  const need = B.careerItemMinLevel[L.careerItem[L.career] ?? 0] ?? 0;
+  return L.level >= need ? null : need;
+}
+export function accommodationReq(g: GameState): number | null {
+  const L = g.life; if (!L.career) return -1;
+  const need = B.accommodationMinLevel[L.accommodation] ?? 0;
+  return L.level >= need ? null : need;
+}
+export function retainerReq(g: GameState): number | null {
+  const L = g.life; if (!L.career) return -1;
+  const need = B.retainerMinLevel[L.retainer] ?? 0;
+  return L.level >= need ? null : need;
+}
 export function buyCareerItem(g: GameState): boolean {
   const L = g.life, p = careerItemPrice(g);
-  if (p == null || !pay(g, p)) return false;
+  if (p == null || careerItemReq(g) != null || !pay(g, p)) return false;
   L.careerItem[L.career!] = (L.careerItem[L.career!] ?? 0) + 1; return true;
 }
 export const accommodationPrice = (L: LifeState) => content.shop.accommodations[L.accommodation]?.legacyPrice ?? null;
 export const retainerPrice = (L: LifeState) => content.shop.retainers[L.retainer]?.legacyPrice ?? null;
-export function buyAccommodation(g: GameState) { const p = accommodationPrice(g.life); if (p == null || !pay(g, p)) return false; g.life.accommodation++; return true; }
-export function buyRetainer(g: GameState) { const p = retainerPrice(g.life); if (p == null || !pay(g, p)) return false; g.life.retainer++; return true; }
+export function buyAccommodation(g: GameState) { const p = accommodationPrice(g.life); if (p == null || accommodationReq(g) != null || !pay(g, p)) return false; g.life.accommodation++; return true; }
+export function buyRetainer(g: GameState) { const p = retainerPrice(g.life); if (p == null || retainerReq(g) != null || !pay(g, p)) return false; g.life.retainer++; return true; }
 export const donationPrice = (L: LifeState, i: number) => content.shop.meritItems[i].legacyPrice * Math.pow(B.donationPriceGrowth, L.donations[i]);
 export function donate(g: GameState, i: number): boolean {
   const L = g.life;

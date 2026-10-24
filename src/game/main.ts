@@ -164,6 +164,7 @@ function renderHud() {
   if (key === hudKey) return;
   hudKey = key;
   $('plaque').innerHTML = `${icon(ic, 18)}<span>${esc(doing)}</span>`;
+  if (L.career) { $('plaque').dataset.act = 'careerinfo'; $('plaque').dataset.v = L.career; } else delete $('plaque').dataset.act;
   $('btn-play').innerHTML = icon(running ? 'pause' : 'play', 24);
   $('btn-speed').textContent = `×${th(SPEEDS[speedIdx])}`;
   $('btn-sound').innerHTML = icon(sound.music ? 'note' : sound.sfx ? 'speaker' : 'mute', 24);
@@ -258,7 +259,7 @@ function promoteCard(): string {
     `<div class="req ${ok ? 'ok' : ''}">${icon(ic, 20)}<div class="meter"><i style="width:${Math.min(100, frac * 100).toFixed(1)}%"></i></div><span>${val}</span>${icon(ok ? 'check' : 'cross', 18)}</div>`;
   const cooldown = Math.max(0, B.promoteCooldownDays - (L.day - L.lastPromoteDay));
   return `${sec('ยศถัดไป', '', 'rank')}${helpBox('rank', `ต้องครบทั้ง ๓ อย่าง:<br>${icon(STAT_ICON[c.gateStat], 16)} ${statName(c.gateStat)} ผสม ${statName(c.secondaryStat)} (หลักมีน้ำหนักมากกว่า)<br>${icon('heart', 16)} ความชอบสะสม — ได้จากการทำงาน เหตุการณ์ และงานบุญใหญ่<br>${icon('coin', 16)} ค่ายื่นเรื่อง<br>ยื่นแล้วยังมีโอกาสไม่ผ่าน ถ้าไม่ผ่านต้องรอสักพัก`)}
-    <div class="frame"><div class="rank">${icon(cic, 44)}<div><small>ขั้นที่ ${th(t)}</small><b>${esc(splitTitle(E.careerTitle(L.career!, t, L.track))[0])}</b><small>${esc(splitTitle(E.careerTitle(L.career!, t, L.track))[1])}</small></div></div>
+    <div class="frame"><div class="rank" data-act="careerinfo" data-v="${L.career}">${icon(cic, 44)}<div><small>ขั้นที่ ${th(t)}</small><b>${esc(splitTitle(E.careerTitle(L.career!, t, L.track))[0])}</b><small>${esc(splitTitle(E.careerTitle(L.career!, t, L.track))[1])}</small></div></div>
       ${req(STAT_ICON[c.gateStat], gv >= gn, gv / gn, `${pct(gv)}/${pct(gn)}`)}
       ${req('heart', L.affection >= aff, L.affection / aff, `${th(L.affection.toFixed(1))}/${th(aff.toFixed(1))}`)}
       ${req('coin', L.money >= cost, L.money / cost, baht(cost, 1))}
@@ -267,18 +268,18 @@ function promoteCard(): string {
 }
 
 // ---------- ตลาด ----------
-interface Ware { id: string; ic: string; name: string; story: string; effs: [string, string][]; price: number | null; act: string; v: string; lv?: string; }
+interface Ware { id: string; ic: string; name: string; story: string; effs: [string, string][]; price: number | null; act: string; v: string; lv?: string; req?: number | null; }
 function wares(): { title: string; sub: string; list: Ware[] }[] {
   const L = g.life, sh = content.shop, out: { title: string; sub: string; list: Ware[] }[] = [];
   if (L.career) {
     const items = sh.careerItems[L.career], lv = L.careerItem[L.career] ?? 0, it = items[lv] ?? items[items.length - 1];
-    out.push({ title: 'ของประจำอาชีพ', sub: 'ทำงานได้ผลขึ้น', list: [{ id: 'citem', ic: CAREER_ICON[L.career] ?? 'star', name: clean(it.name), story: it.story ?? it.desc, effs: [['up', `ทำงาน +${pctAuto(B.careerItemEffPerLevel)}`]], price: items[lv] ? E.careerItemPrice(g) : null, act: 'citem', v: '', lv: `${th(Math.min(lv + 1, items.length))}/${th(items.length)}` }] });
+    out.push({ title: 'ของประจำอาชีพ', sub: 'ทำงานได้ผลขึ้น', list: [{ id: 'citem', ic: CAREER_ICON[L.career] ?? 'star', name: clean(it.name), story: it.story ?? it.desc, effs: [['up', `ทำงาน +${pctAuto(B.careerItemEffPerLevel)}`]], price: items[lv] ? E.careerItemPrice(g) : null, act: 'citem', v: '', lv: `${th(Math.min(lv + 1, items.length))}/${th(items.length)}`, req: items[lv] ? E.careerItemReq(g) : null }] });
   }
   const acc2 = sh.accommodations[L.accommodation] ?? sh.accommodations[sh.accommodations.length - 1];
   const ret = sh.retainers[L.retainer] ?? sh.retainers[sh.retainers.length - 1];
-  out.push({ title: 'บ้านและบริวาร', sub: '', list: [
-    { id: 'acc', ic: 'house', name: clean(acc2.name), story: acc2.story ?? acc2.desc, effs: [['book', `ฝึกฝน +${pctAuto(B.accommodationTrainPerLevel)}`]], price: sh.accommodations[L.accommodation] ? E.accommodationPrice(L) : null, act: 'acc', v: '', lv: `${th(Math.min(L.accommodation + 1, sh.accommodations.length))}/${th(sh.accommodations.length)}` },
-    { id: 'ret', ic: 'people', name: clean(ret.name), story: ret.story ?? ret.desc, effs: [['coin', `รายได้ +${pctAuto(B.retainerIncomePerLevel)}`]], price: sh.retainers[L.retainer] ? E.retainerPrice(L) : null, act: 'ret', v: '', lv: `${th(Math.min(L.retainer + 1, sh.retainers.length))}/${th(sh.retainers.length)}` },
+  out.push({ title: 'บ้านและบริวาร', sub: L.career ? 'ตามยศศักดิ์' : 'ยังอยู่เรือนพ่อแม่', list: [
+    { id: 'acc', ic: 'house', name: clean(acc2.name), story: acc2.story ?? acc2.desc, effs: [['book', `ฝึกฝน +${pctAuto(B.accommodationTrainPerLevel)}`]], price: sh.accommodations[L.accommodation] ? E.accommodationPrice(L) : null, act: 'acc', v: '', lv: `${th(Math.min(L.accommodation + 1, sh.accommodations.length))}/${th(sh.accommodations.length)}`, req: sh.accommodations[L.accommodation] ? E.accommodationReq(g) : null },
+    { id: 'ret', ic: 'people', name: clean(ret.name), story: ret.story ?? ret.desc, effs: [['coin', `รายได้ +${pctAuto(B.retainerIncomePerLevel)}`]], price: sh.retainers[L.retainer] ? E.retainerPrice(L) : null, act: 'ret', v: '', lv: `${th(Math.min(L.retainer + 1, sh.retainers.length))}/${th(sh.retainers.length)}`, req: sh.retainers[L.retainer] ? E.retainerReq(g) : null },
   ] });
   out.push({ title: 'ทำบุญ', sub: 'ทำซ้ำได้', list: sh.meritItems.map((m, i) => ({ id: `donate:${i}`, ic: 'lotus', name: clean(m.name), story: m.story ?? m.effect, effs: [['lotus', `บุญ +${thInt(m.legacyMerit / (1 + g.merit / B.meritSoftcap))}`]] as [string, string][], price: E.donationPrice(L, i), act: 'donate', v: String(i), lv: L.donations[i] ? `×${th(L.donations[i])}` : '' })) });
   out.push({ title: 'ของใช้', sub: 'ซื้อซ้ำได้', list: sh.commonItems.map((m, i) => ({ id: `common:${i}`, ic: STAT_ICON[m.stat] ?? 'pouch', name: clean(m.name), story: m.story ?? m.desc, effs: [[STAT_ICON[m.stat], `${statName(m.stat)} +${pctAuto(0.004)}`], ...(m.legacyAffection ? [['heart', 'ความชอบ +๐.๓'] as [string, string]] : [])], price: E.commonPrice(L, i), act: 'common', v: String(i), lv: L.common[i] ? `×${th(L.common[i])}` : '' })) });
@@ -288,19 +289,22 @@ function wares(): { title: string; sub: string; list: Ware[] }[] {
 function shopTab(): string {
   const L = g.life;
   return `<div class="purse">${icon('coin', 20)}${baht(L.money, 3)}</div>` + wares().map(s => sec(s.title, s.sub) + `<div class="shopgrid">${s.list.map(w => {
-    const can = w.price != null && L.money >= w.price;
-    return `<button class="ware ${w.price == null ? 'done' : can ? 'can' : 'poor'}" data-act="ware" data-v="${w.id}">${w.lv ? `<span class="lv">${w.lv}</span>` : ''}${icon(w.ic, 36)}<b>${esc(w.name)}</b><span class="price">${w.price == null ? 'ครบแล้ว' : `${icon('coin', 13)}${baht(w.price, 1)}`}</span></button>`;
+    const locked = w.req != null, can = !locked && w.price != null && L.money >= w.price;
+    const price = w.price == null ? 'ครบแล้ว' : locked ? `${icon('lock', 13)}${w.req! < 0 ? 'ยังเด็ก' : `ยศขั้น ${th(w.req!)}`}` : `${icon('coin', 13)}${baht(w.price, 1)}`;
+    return `<button class="ware ${w.price == null ? 'done' : locked ? 'locked' : can ? 'can' : 'poor'}" data-act="ware" data-v="${w.id}">${w.lv ? `<span class="lv">${w.lv}</span>` : ''}${icon(w.ic, 36)}<b>${esc(w.name)}</b><span class="price">${price}</span></button>`;
   }).join('')}</div>`).join('');
 }
 function wareSheet(id: string): string {
   const w = wares().flatMap(s => s.list).find(x => x.id === id);
   if (!w) return '';
-  const L = g.life, can = w.price != null && L.money >= w.price;
+  const L = g.life, locked = w.req != null, can = !locked && w.price != null && L.money >= w.price;
+  const lockMsg = !locked ? '' : w.req! < 0 ? 'ยังเป็นเด็กอยู่เรือนพ่อแม่ — ซื้อได้เมื่อเริ่มรับราชการ' : `ต้องเป็น <b>${esc(splitTitle(E.careerTitle(L.career!, w.req!, L.track ?? 'light'))[0])}</b> (ยศขั้น ${th(w.req!)}) ก่อนจึงจะครอบครองได้`;
   return `<button class="close" data-act="close" aria-label="ปิด">${icon('cross', 16)}</button>
     <div class="head">${icon(w.ic, 48)}<div>${w.lv ? `<div class="eyebrow">${w.lv.startsWith('×') ? `ซื้อแล้ว ${w.lv.slice(1)} ครั้ง` : `ระดับ ${w.lv}`}</div>` : ''}<h2>${esc(w.name)}</h2></div></div>
     <p class="story">${esc(w.story)}</p>
     <div class="effs">${w.effs.map(([ic, t]) => `<span>${icon(ic, 18)}${esc(t)}</span>`).join('')}</div>
-    ${w.price == null ? '<p class="muted">ซื้อครบทุกระดับแล้ว</p>' : `<button class="gbtn" data-act="${w.act}" data-v="${w.v}" ${can ? '' : 'disabled'}>${icon('coin', 20)}${baht(w.price)}${can ? '' : ' <small>(เงินไม่พอ)</small>'}</button>
+    ${lockMsg ? `<div class="odds">${icon('lock', 30)}<div>${lockMsg}</div></div>` : ''}
+    ${w.price == null ? '<p class="muted">ซื้อครบทุกระดับแล้ว</p>' : `<button class="gbtn" data-act="${w.act}" data-v="${w.v}" ${can ? '' : 'disabled'}>${icon('coin', 20)}${baht(w.price)}${can || locked ? '' : ' <small>(เงินไม่พอ)</small>'}</button>
     <p class="muted" style="text-align:center;margin-top:8px">มีอยู่ ${baht(L.money, 3)}</p>`}`;
 }
 
@@ -315,7 +319,7 @@ function charTab(): string {
   }).join('');
   const coll = g.collection;
   return `${sec('ค่าพลัง', `เพดาน ${th(L.cap)}`, 'stats')}${helpBox('stats', 'แตะแต่ละแถวเพื่อดูว่าค่านั้นใช้ทำอะไร · ค่าแสดงเป็น % ของเพดานชาตินี้ (ชาติต่อไปเพดานสูงขึ้น)')}${bars}
-    ${sec('สมุดสะสม')}<div class="coll"><div><b>${th(coll.titles.length)}</b><small>ยศที่เคยได้</small></div><div><b>${th(Object.keys(coll.choices).length)}</b><small>เหตุการณ์ที่เลือก</small></div><div><b>${th(coll.family.length)}</b><small>ชาติที่บันทึก</small></div></div>
+    ${sec('สมุดสะสม', 'แตะเพื่อเปิดดู')}<div class="coll"><div data-act="coll" data-v="titles"><b>${th(coll.titles.length)}</b><small>ยศที่เคยได้</small></div><div data-act="coll" data-v="choices"><b>${th(Object.keys(coll.choices).length)}</b><small>เหตุการณ์ที่เลือก</small></div><div data-act="coll" data-v="family"><b>${th(coll.family.length)}</b><small>ชาติที่บันทึก</small></div></div>
     <div class="foot"><a href="./content.html">คลังเนื้อหา</a> · ชิ้นทดลอง ชาติ ๑ อายุ ๙–๒๐</div>`;
 }
 
@@ -398,14 +402,67 @@ function showAway() {
   awayInfo = null;
 }
 
-function careerSheet(k: string): string {
-  const c = careerOf(k);
+function careerSheet(k: string, choose = true): string {
+  const c = careerOf(k), L = g.life, mine = L.career === k;
+  const t = (lv: number, tr: 'light' | 'dark') => splitTitle(E.careerTitle(k, lv, tr))[0];
+  const step = (label: string, title: string, on = false) => `<li class="${on ? 'on' : ''}"><small>${label}</small>${esc(title)}</li>`;
   return `<button class="close" data-act="close" aria-label="ปิด">${icon('cross', 16)}</button>
     <div class="head">${icon(CAREER_ICON[k] ?? 'star', 48)}<div><div class="eyebrow">${esc(c.fullname)}</div><h2>${esc(k)}</h2></div></div>
-    <p>เริ่มเป็น <b>${esc(c.titles['0'])}</b> ไต่ยศขึ้นไปจนถึง <b>${esc(c.titles.light['2'] ?? '')}</b> หรือ <b>${esc(c.titles.dark['2'] ?? '')}</b></p>
+    ${c.desc ? `<p>${esc(c.desc)}</p>` : ''}
     <div class="effs"><span>${icon(STAT_ICON[c.gateStat], 18)}หลัก ${esc(statName(c.gateStat))}</span><span>${icon(STAT_ICON[c.secondaryStat], 18)}รอง ${esc(statName(c.secondaryStat))}</span></div>
-    <p class="muted">เลือกแล้วเปลี่ยนไม่ได้ในชาตินี้ · ชาติต่อไปอาชีพเดิมจะเก่งเร็วขึ้น</p>
-    <button class="gbtn red" data-act="career" data-v="${k}">${icon('seal', 20)}เข้ารับราชการเป็น${esc(k)}</button>`;
+    <h3 class="sh">เส้นทางยศ</h3>
+    <ul class="ladder">
+      ${step('เริ่ม', t(0, 'light'), mine && L.level === 0)}${step('ขั้น ๑', t(1, 'light'), mine && L.level === 1)}
+      ${mine && L.level >= B.lightDarkLevel ? step(`ตอนนี้ · ขั้น ${th(L.level)}`, t(L.level, L.track ?? 'light'), true) : ''}
+    </ul>
+    <div class="forkline"><div><small>${icon('star', 14)}ทางสว่าง สูงสุด</small>${esc(t(B.maxLevel, 'light'))}</div><div><small>${icon('hood', 14)}ทางมืด สูงสุด</small>${esc(t(B.maxLevel, 'dark'))}</div></div>
+    ${choose ? `<p class="muted">เลือกแล้วเปลี่ยนไม่ได้ในชาตินี้ · ชาติต่อไปอาชีพเดิมจะเก่งเร็วขึ้น</p>
+    <button class="gbtn red" data-act="career" data-v="${k}">${icon('seal', 20)}เข้ารับราชการเป็น${esc(k)}</button>` : ''}`;
+}
+
+function reignSheet(): string {
+  const L = g.life, r = E.reignAt(g), y = E.yearOf(L);
+  const past = content.historical.filter(h => h.life === L.idx && h.yearFrom >= r.from && h.yearFrom <= Math.min(r.to, y));
+  return `<button class="close" data-act="close" aria-label="ปิด">${icon('cross', 16)}</button>
+    <div class="head">${icon('crown', 48)}<div><div class="eyebrow">พ.ศ. ${th(r.from)}–${th(r.to)}</div><h2>${esc(r.king)}</h2></div></div>
+    <p>${esc(r.context)}</p>
+    ${past.length ? `<h3 class="sh">เหตุการณ์ที่ผ่านมาในรัชกาลนี้</h3><ul class="ladder">${past.map(h => `<li><small>พ.ศ. ${th(h.yearFrom)}</small>${esc(h.title)}</li>`).join('')}</ul>` : '<p class="muted">ยังไม่มีเหตุการณ์สำคัญในรัชกาลนี้ที่ท่านได้พบ</p>'}`;
+}
+
+/** หาเหตุการณ์จาก id เพื่อแสดงในสมุดสะสม */
+function eventById(id: string): { title: string; choices: { label: string }[]; risky?: { label: string } } | null {
+  const k = content.karmaFixed.find(x => x.id === id) ?? content.karmaGeneric.find(x => x.id === id);
+  if (k) return k as never;
+  const h = content.historical.find(x => x.id === id);
+  return h ? { title: h.title, choices: h.choices ?? [] } : null;
+}
+function collSheet(tabName: string): string {
+  const coll = g.collection;
+  const tabs = [['titles', 'ยศ'], ['choices', 'เหตุการณ์'], ['family', 'ชาติ'], ['endings', 'ฉากจบ']]
+    .map(([k, l]) => `<button class="ctab ${tabName === k ? 'on' : ''}" data-act="coll" data-v="${k}">${l}</button>`).join('');
+  let body = '';
+  if (tabName === 'titles') {
+    body = content.careers.careers.map(c => {
+      const got = coll.titles.filter(t => t.startsWith(`${c.key}|`)).map(t => { const [, tr, lv] = t.split('|'); return { lv: +lv, title: splitTitle(E.careerTitle(c.key, +lv, tr === 'ร่วม' ? null : tr as 'light' | 'dark'))[0], dark: tr === 'dark' }; }).sort((a, b) => a.lv - b.lv);
+      const total = B.lightDarkLevel + (B.maxLevel - B.lightDarkLevel + 1) * 2 - 1;
+      return `<div class="cgroup"><div class="cg-h">${icon(CAREER_ICON[c.key] ?? 'star', 24)}<b>${esc(c.key)}</b><small>${th(got.length)}/${th(total)}</small></div>
+        <div class="chips">${got.map(x => `<span class="${x.dark ? 'dark' : ''}">${esc(x.title)}</span>`).join('')}${got.length < total ? `<span class="unk">??? ×${th(total - got.length)}</span>` : ''}</div></div>`;
+    }).join('');
+  } else if (tabName === 'choices') {
+    const ids = Object.keys(coll.choices);
+    body = ids.length ? `<ul class="ladder">${ids.map(id => {
+      const e = eventById(id); if (!e) return '';
+      const picks = coll.choices[id].map(i => i < 0 ? e.risky?.label ?? 'เสี่ยงดวง' : e.choices[i]?.label ?? '').filter(Boolean);
+      return `<li><small>${esc(e.title)}</small>${picks.map(esc).join(' · ')}</li>`;
+    }).join('')}</ul>` : '<p class="muted">ยังไม่เคยเลือกอะไรในเหตุการณ์</p>';
+  } else if (tabName === 'family') {
+    body = coll.family.length ? `<ul class="ladder">${coll.family.map(f => `<li><small>รอบที่ ${th(f.loop)} · ชาติที่ ${th(f.life)}</small>${f.career ? esc(splitTitle(E.careerTitle(f.career, f.level, null))[0]) : 'ไม่มีอาชีพ'} · บุญ ${thInt(f.merit)}</li>`).join('')}</ul>` : '<p class="muted">ยังไม่มีชาติที่จบไปแล้ว — ชาติแรกยังดำเนินอยู่</p>';
+  } else {
+    body = `<ul class="ladder">${content.endings.map(e => coll.endings.includes(e.id) ? `<li class="on"><small>ปลดล็อกแล้ว</small>${esc(e.name)}</li>` : `<li><small>ยังไม่พบ</small>???</li>`).join('')}</ul>`;
+  }
+  return `<button class="close" data-act="close" aria-label="ปิด">${icon('cross', 16)}</button>
+    <div class="head">${icon('book', 48)}<div><div class="eyebrow">สิ่งที่สะสมข้ามชาติ</div><h2>สมุดสะสม</h2></div></div>
+    <div class="ctabs">${tabs}</div>${body}`;
 }
 
 // ---------- คำอธิบายเมื่อแตะไอคอน ----------
@@ -438,8 +495,10 @@ document.addEventListener('click', ev => {
       S.playToggle(i < 0); E.setTrain(g, cur); break;
     }
     case 'child': if (g.life.childJob !== v) S.playSelect(); E.chooseChildJob(g, v); break;
-    case 'careerinfo': S.playOpen(); openModal(careerSheet(v)); return;
-    case 'career': E.chooseCareer(g, v); S.playGong(); closeModal(); toast(`เข้ารับราชการเป็น${E.careerTitle(v, 0, null)}`, CAREER_ICON[v]); break;
+    case 'careerinfo': S.playOpen(); openModal(careerSheet(v, !g.life.career)); return;
+    case 'reign': S.playOpen(); openModal(reignSheet()); return;
+    case 'coll': S.playOpen(); openModal(collSheet(v)); return;
+    case 'career': E.chooseCareer(g, v); S.playGong(); closeModal(); toast(`เข้ารับราชการเป็น${splitTitle(E.careerTitle(v, 0, null))[0]}`, CAREER_ICON[v]); break;
     case 'track': E.chooseTrack(g, v as 'light' | 'dark'); S.playGong(); break;
     case 'promote': {
       const before = g.life.level, r = E.tryPromote(g);

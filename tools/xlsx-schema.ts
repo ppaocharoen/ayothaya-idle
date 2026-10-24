@@ -60,13 +60,14 @@ export const SHEETS: SheetDef[] = [
   },
   {
     name: 'อาชีพ', note: 'แถวสุดท้าย "บรรพชิต" คือสายพิเศษ',
-    headers: ['key', 'ชื่อเต็ม', 'สเตตัสหลัก', 'สเตตัสรอง'],
-    toRows: c => [...c.careers.careers.map(x => [x.key, x.fullname, x.gateStat, x.secondaryStat]), [c.careers.monastic.key, c.careers.monastic.fullname, c.careers.monastic.gateStat, '']],
+    headers: ['key', 'ชื่อเต็ม', 'สเตตัสหลัก', 'สเตตัสรอง', 'คำอธิบาย'],
+    toRows: c => [...c.careers.careers.map(x => [x.key, x.fullname, x.gateStat, x.secondaryStat, x.desc ?? '']), [c.careers.monastic.key, c.careers.monastic.fullname, c.careers.monastic.gateStat, '', '']],
     fromRows: (r, c) => {
       const old = new Map(c.careers.careers.map(x => [x.key, x]));
       const mon = r.find(x => str(x[0]) === 'บรรพชิต');
       c.careers.careers = r.filter(x => str(x[0]) !== 'บรรพชิต').map(x => ({
         key: str(x[0]), fullname: str(x[1]), gateStat: str(x[2]) as never, secondaryStat: str(x[3]) as never,
+        ...(str(x[4]) ? { desc: str(x[4]) } : {}),
         titles: old.get(str(x[0]))?.titles ?? { '0': '', '1': '', light: {}, dark: {} },
       }));
       if (mon) Object.assign(c.careers.monastic, { fullname: str(mon[1]), gateStat: str(mon[2]) });
