@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "validate": "tsx tools/validate.ts",
     "xlsx:export": "tsx tools/xlsx-export.ts",
-    "xlsx:import": "tsx tools/xlsx-import.ts"
+    "xlsx:import": "tsx tools/xlsx-import.ts",
+    "sim": "tsx tools/sim.ts",
+    "test": "tsx tools/test-engine.ts"
   },
   "devDependencies": {
     "@types/node": "^20.17.6",

@@ -1,0 +1,98 @@
+// ค่าสมดุลทั้งหมดของเกมอยู่ที่นี่ที่เดียว — แก้ตัวเลขแล้วรัน `npm run sim` เพื่อดูว่ายังผ่านเป้าหมายไหม
+// หลักการ: เกณฑ์ทุกอย่างคิดเป็นสัดส่วนของเพดานสเตตัส (cap) ของชาตินั้น ไม่ใช่เลขตายตัว
+
+export const BALANCE = {
+  // ---- เวลา ----
+  /** วินาทีจริงต่อ 1 วันในเกม (7 ชาติ ≈ 30 วันจริงถ้าเวลาไม่หยุด) */
+  secondsPerGameDay: 16.8,
+  daysPerYear: 365,
+  startAge: 9,
+  careerMinAge: 12,
+
+  // ---- เพดานสเตตัส ----
+  capBase: 100,
+  capPerLife: 15, // ชาติละ +15 สม่ำเสมอ (v0.19 กระโดด 90→190 ตอนชาติ 2)
+  /** สัดส่วนสเตตัสที่ติดตัวไปชาติหน้า (คิดเทียบเพดาน) */
+  carryStatFraction: 0.3,
+
+  // ---- การเติบโตของสเตตัส (เข้าหาเพดานแบบชะลอตัว: dv = k·share·eff·(cap − v)) ----
+  trainRate: 6.0e-5,      // ต่อวัน ต่อสัดส่วนเวลาที่ฝึก
+  workPrimaryRate: 3.5e-5, // สเตตัสหลักของอาชีพโตจากการทำงาน
+  workSecondaryRate: 2.5e-5, // สเตตัสรองโตจากการทำงาน (ทุกอาชีพเท่ากัน)
+  childJobRate: 8.0e-5,
+  /** ตัวคูณพรสวรรค์จากอาชีพเดิมที่เคยทำ: 1 + x·เลเวลสูงสุดที่เคยถึง (สายเดียวกัน) */
+  lineagePerLevel: 0.03,
+  /** + x ต่อจำนวนชาติที่เคยทำอาชีพนี้ (ทำให้ชาติหลังๆ ยังเก่งขึ้นเรื่อยๆ ไม่ตัน) */
+  lineagePerLife: 0.25,
+  careerItemEffPerLevel: 0.08,
+  accommodationTrainPerLevel: 0.05,
+  retainerIncomePerLevel: 0.08,
+
+  // ---- แนวทางชีวิต: สัดส่วนเวลา ทำงาน/ฝึก/ทำบุญ ----
+  paths: {
+    work:    { label: 'ขยันทำงาน', work: 0.65, train: 0.25, merit: 0.10 },
+    study:   { label: 'ใฝ่ศึกษา', work: 0.30, train: 0.60, merit: 0.10 },
+    merit:   { label: 'ทำบุญ',    work: 0.30, train: 0.20, merit: 0.50 },
+    balance: { label: 'สมดุล',    work: 0.45, train: 0.35, merit: 0.20 },
+  },
+
+  // ---- อาชีพ ----
+  maxLevel: 19,
+  /** เกณฑ์สเตตัส (ผสมหลัก/รอง) เป็นสัดส่วนของเพดาน: a + b·(lv/19)^p */
+  gateA: 0.06, gateB: 0.795, gateP: 1.15,
+  secondaryWeightMax: 0.35,
+  /** โอกาสผ่านเมื่อถึงเกณฑ์: base + slope·(ส่วนเกิน/เพดาน) */
+  promoteBaseChance: 0.55, promoteSlope: 3.0, promoteMaxChance: 0.95,
+  promoteCooldownDays: 30,
+  promoteCostBase: 0.08, promoteCostGrowth: 1.32,
+  /** ความชอบที่ต้องมี: A·lv^P (เป็นเกณฑ์ ไม่ถูกหัก กลับเป็น 0 เมื่อตาย) */
+  affectionReqA: 0.6, affectionReqP: 1.55,
+  lightDarkLevel: 2,
+
+  // ---- เงิน ----
+  wageBase: 0.003,   // บาท/วัน ที่เลเวล 0 ทำงานเต็มเวลา
+  wageGrowth: 1.20,  // ต่อเลเวล
+  childWage: 0.0012,
+  /** โภคทรัพย์เพิ่มรายได้: ×(1 + x·v/cap) */
+  poksapIncome: 0.5,
+  /** ไหวพริบลดราคา: สูงสุด x·v/cap */
+  witDiscount: 0.25,
+
+  // ---- บุญ (ทุกทางผ่าน softcap เดียวกัน: ได้จริง = ดิบ / (1 + บุญสะสม/Msoft)) ----
+  meritDaily: 0.35,          // ดิบ/วัน ที่ทำบุญเต็มเวลา
+  meritPassive: 0.04,        // ดิบ/วัน ไม่ว่าแนวทางไหน
+  meritBaramiBonus: 1.0,     // ×(1 + x·บารมี/cap)
+  meritSoftcap: 2500,
+  donationPriceGrowth: 1.12, // ราคาของทำบุญขึ้นทุกครั้งที่ซื้อ (รีเซ็ตทุกชาติ)
+  reincarnateMerit: 8000,
+
+  // ---- ความชอบ ----
+  affectionWork: 0.0016,     // ต่อวัน ต่อสัดส่วนทำงาน
+  affectionPerLevel: 0.12,   // ×(1 + x·เลเวล)
+  affectionHistSuccess: 0.6,
+  affectionPerBarami: 0.15,  // choice ที่ให้บารมี +1 → ความชอบ +x
+
+  // ---- เหตุการณ์ ----
+  /** ผลของ choice (+1..+3): แต่ละแต้มขยับ x ของระยะที่เหลือถึงเพดาน */
+  eventK: 0.0012,
+  genericMinDays: 30, genericMaxDays: 60,
+  genericStartAge: 18,
+  waveMinDays: 365, waveMaxDays: 730,
+  checkBase: 0.30, checkSlope: 0.65, checkMax: 0.95,
+  checkFailLoss: 0.05,       // เสียเงิน/ทรัพย์สิน 5% เมื่อเช็คล้มเหลว
+  offlineQueueMax: 3,
+
+  // ---- เอนดิ้ง ----
+  fleeFrac: 0.6,             // หลบหลีกสูงสุด ≥ 60% ของเพดานชาตินั้น
+  defendTosuFrac: 0.75, defendPoksapFrac: 0.4,
+  siegeBase: 0.25, siegeSlope: 0.55, siegeMaxFails: 4,
+
+  // ---- งานบุญใหญ่ (ที่ใช้เงินช่วงท้าย) ----
+  megaProjects: [
+    { id: 'sala', name: 'สร้างศาลาการเปรียญ', price: 150, merit: 400, affection: 4 },
+    { id: 'vihara', name: 'สร้างพระวิหาร', price: 900, merit: 1500, affection: 10 },
+    { id: 'wat', name: 'สร้างวัดประจำตระกูล', price: 5000, merit: 5000, affection: 25 },
+  ],
+};
+
+export type PathKey = keyof typeof BALANCE.paths;
