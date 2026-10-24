@@ -24,6 +24,12 @@ export class Scene {
   private readonly FW = 56; private readonly FH = 104;
   private posX = 112; private targetX = 112; private face = 1; private nextWalk = 6; private walkT = 0;
   private blinkAt = 3; private lookUntil = 0; private nextLook = 10;
+  // ชุดท่า A2: ฝึกฝน แถว 0 อ่านหนังสือ (นั่ง) · แถว 1 แบกกระสอบ · แถว 2 รำไม้พลอง (แถวละ 2 เฟรม)
+  private sheet2 = new Image();
+  private readonly FW2 = 130; private readonly FH2 = 109;
+  private act: { row: number; until: number } | null = null;
+  /** สเตตัสที่ฝึก → แถวท่าใน sheet2 */
+  private static ACT_ROW: Record<string, number> = { 'ความรู้': 0, 'พละกำลัง': 1, 'ต่อสู้': 2 };
   private t = 0;
   private parts: Particle[] = [];
   private jump = 0;
@@ -39,6 +45,7 @@ export class Scene {
     this.ctx.imageSmoothingEnabled = false;
     this.sprite.src = new URL('./art/boy.png', document.baseURI).href;
     this.sheet.src = new URL('./art/boy_a1.png', document.baseURI).href;
+    this.sheet2.src = new URL('./art/boy_a2.png', document.baseURI).href;
   }
 
   /** แปลงพิกัดคลิกบนหน้าจอเป็นพิกัด canvas */
@@ -172,9 +179,17 @@ export class Scene {
     const w = Math.round(this.FW * scale), h = Math.round(this.FH * scale);
     // เดิน: สุ่มจุดหมายใหม่ทุก 8–18 วินาที (หยุดเมื่อมีเหตุการณ์หรือกำลังฉลอง)
     const busy = this.alert || this.jump > 0;
-    if (!busy && t > this.nextWalk && Math.abs(this.targetX - this.posX) < 1) {
-      this.targetX = 60 + Math.random() * 110; this.nextWalk = t + 8 + Math.random() * 10;
+    if (busy) this.act = null;
+    if (this.act && t > this.act.until) this.act = null;
+    if (!busy && !this.act && t > this.nextWalk && Math.abs(this.targetX - this.posX) < 1) {
+      // ถึงเวลาขยับ: ฝึกท่าตามสเตตัสที่เลือกไว้ (ถ้ามีภาพ) หรือเดินไปจุดอื่น
+      const rows = L.train.map(s => Scene.ACT_ROW[s]).filter(r => r != null);
+      if (rows.length && this.sheet2.complete && this.sheet2.naturalWidth && Math.random() < 0.6) {
+        this.act = { row: rows[Math.floor(Math.random() * rows.length)], until: t + 6 + Math.random() * 4 };
+      } else this.targetX = 60 + Math.random() * 110;
+      this.nextWalk = t + 8 + Math.random() * 10;
     }
+    if (this.act) { this.drawAct(L, this.act.row, scale); return; }
     const dx = this.targetX - this.posX, walking = !busy && Math.abs(dx) >= 1;
     let col: number, row: number;
     if (walking) {
@@ -203,6 +218,19 @@ export class Scene {
       c.fillStyle = '#8e2a1f'; c.fillRect(ax - 3, y - 16, 6, 12);
       c.fillStyle = '#fff'; c.fillRect(ax - 1, y - 14, 2, 6); c.fillRect(ax - 1, y - 7, 2, 2);
     }
+  }
+
+  /** ท่าฝึก (sheet2) วางให้หัวตรงกับตำแหน่งตัวละคร เท้าแตะพื้น */
+  private drawAct(L: GameState['life'], row: number, scale: number) {
+    const c = this.ctx, w = Math.round(this.FW2 * scale), h = Math.round(this.FH2 * scale);
+    const col = Math.floor(this.t / (row === 2 ? 0.45 : 0.8)) % 2;
+    const x = Math.round(this.posX - w / 2), y = GROUND + 2 - h;
+    const bw = Math.round(this.FW * scale * 0.6);
+    this.charBox = { x: Math.round(this.posX - bw / 2), y, w: bw, h };
+    this.face = 1;
+    c.fillStyle = 'rgba(80,55,30,0.25)'; c.fillRect(Math.round(this.posX - bw / 2), GROUND, bw, 2);
+    c.drawImage(this.sheet2, col * this.FW2, row * this.FH2, this.FW2, this.FH2, x, y, w, h);
+    void L;
   }
 
   private house(level: number) {

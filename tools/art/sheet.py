@@ -1,9 +1,11 @@
 # ตัดสไปรต์จากภาพ Gemini พื้นเขียว → เฟรมขนาด native แบบพิกเซลคม
-# ใช้: python3 sheet.py in.jpg cols rows target_h out.png [ref_row]
+# ใช้: python3 sheet.py in.jpg cols rows target_h out.png [ref_row | px=7.7]
+#   ref_row = แถวท่ายืนที่ใช้เทียบความสูง · px= กำหนดจำนวนพิกเซลภาพต่อ 1 พิกเซลเกมเอง (ใช้กับท่านั่ง/ถือของ)
 import sys, numpy as np
 from PIL import Image
 src, cols, rows, target_h, out = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4]), sys.argv[5]
-ref_row = int(sys.argv[6]) if len(sys.argv) > 6 else rows - 1
+arg = sys.argv[6] if len(sys.argv) > 6 else str(rows - 1)
+ref_row = -1 if arg.startswith('px=') else int(arg)
 im = np.asarray(Image.open(src).convert('RGB')).astype(np.int16)
 H, W, _ = im.shape
 r, g, b = im[..., 0], im[..., 1], im[..., 2]
@@ -17,8 +19,8 @@ for j in range(rows):
         ys = np.where(m.sum(1) > 3)[0]; xs = np.where(m.sum(0) > 3)[0]
         cells.append((j, i, ys.min(), ys.max(), xs.min(), xs.max()))
 # สเกลเดียวกันทุกเฟรม: ให้ความสูงเฉลี่ยของแถวอ้างอิง (ท่ายืน) = target_h
-ref_h = np.mean([c[3] - c[2] + 1 for c in cells if c[0] == ref_row])
-s = target_h / ref_h
+if arg.startswith('px='): s = 1 / float(arg[3:])
+else: s = target_h / np.mean([c[3] - c[2] + 1 for c in cells if c[0] == ref_row])
 print('scale', round(1/s, 2), 'px per pixel')
 frames = []
 for (j, i, y0, y1, x0, x1) in cells:
