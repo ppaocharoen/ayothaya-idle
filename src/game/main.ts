@@ -416,28 +416,23 @@ function showAway() {
   awayInfo = null;
 }
 
-/** แผ่นอาชีพ: คำอธิบายสาย + ทุกยศพร้อมคำอธิบาย (สลับทางสว่าง/มืด) */
-function careerSheet(k: string, choose = true, side: 'light' | 'dark' = 'light'): string {
+/** แผ่นอาชีพ: คำอธิบายสาย + ยศที่เป็นอยู่ (และยศถัดไป) — ตอนเลือกอาชีพแสดงยศแรก */
+function careerSheet(k: string, choose = true): string {
   const c = careerOf(k), L = g.life, mine = L.career === k;
-  const myTrack = mine ? (L.track ?? 'light') : null;
-  const rank = (lv: number, tr: 'light' | 'dark') => {
-    const [name, desc] = splitTitle(E.careerTitle(k, lv, tr));
-    const cur = mine && L.level === lv && (lv < B.lightDarkLevel || myTrack === tr);
-    const got = g.collection.titles.includes(`${k}|${lv < B.lightDarkLevel ? 'ร่วม' : tr}|${lv}`) || (mine && lv === 0);
-    return `<li class="${cur ? 'on' : ''} ${got ? 'got' : ''}"><small>${lv === 0 ? 'เริ่ม' : `ขั้น ${th(lv)}`}${cur ? ' · ตอนนี้' : got ? ' · เคยได้' : ''}</small><b>${esc(name)}</b>${desc ? `<p>${esc(desc)}</p>` : ''}</li>`;
+  const rank = (lv: number, label: string, on = false) => {
+    const [name, desc] = splitTitle(E.careerTitle(k, lv, L.track));
+    return `<li class="${on ? 'on' : ''}"><small>${label}</small><b>${esc(name)}</b>${desc ? `<p>${esc(desc)}</p>` : ''}</li>`;
   };
-  const ranks = [0, 1].map(lv => rank(lv, side)).join('') + `<li class="fork">${icon(side === 'light' ? 'star' : 'hood', 16)} แยกทาง${side === 'light' ? 'สว่าง' : 'มืด'}ตั้งแต่ขั้น ${th(B.lightDarkLevel)}</li>`
-    + Array.from({ length: B.maxLevel - B.lightDarkLevel + 1 }, (_, i) => rank(B.lightDarkLevel + i, side)).join('');
-  const tab = (sd: 'light' | 'dark', label: string) => `<button class="ctab ${side === sd ? 'on' : ''}" data-act="careerinfo" data-v="${k}|${sd}">${label}</button>`;
+  const ranks = mine
+    ? rank(L.level, `ยศที่เป็นอยู่ · ขั้น ${th(L.level)}`, true) + (L.level < B.maxLevel && (L.level + 1 < B.lightDarkLevel || L.track) ? rank(L.level + 1, `ยศถัดไป · ขั้น ${th(L.level + 1)}`) : '')
+    : rank(0, 'ยศแรกเมื่อเข้ารับราชการ', true);
   return `<button class="close" data-act="close" aria-label="ปิด">${icon('cross', 16)}</button>
     <div class="head">${icon(CAREER_ICON[k] ?? 'star', 48)}<div><div class="eyebrow">${esc(c.fullname)}</div><h2>${esc(k)}</h2></div></div>
     ${c.desc ? `<p>${esc(c.desc)}</p>` : ''}
     <div class="effs"><span>${icon(STAT_ICON[c.gateStat], 18)}หลัก ${esc(statName(c.gateStat))}</span><span>${icon(STAT_ICON[c.secondaryStat], 18)}รอง ${esc(statName(c.secondaryStat))}</span></div>
-    ${choose ? `<button class="gbtn red" data-act="career" data-v="${k}">${icon('seal', 20)}เข้ารับราชการเป็น${esc(k)}</button>
-    <p class="muted">เลือกแล้วเปลี่ยนไม่ได้ในชาตินี้ · ชาติต่อไปอาชีพเดิมจะเก่งเร็วขึ้น</p>` : ''}
-    <h3 class="sh">ยศทั้งหมด ${th(B.maxLevel + 1)} ขั้น</h3>
-    <div class="ctabs">${tab('light', 'ทางสว่าง')}${tab('dark', 'ทางมืด')}</div>
-    <ul class="ladder ranks">${ranks}</ul>`;
+    <ul class="ladder ranks">${ranks}</ul>
+    ${choose ? `<p class="muted">เลือกแล้วเปลี่ยนไม่ได้ในชาตินี้ · ชาติต่อไปอาชีพเดิมจะเก่งเร็วขึ้น</p>
+    <button class="gbtn red" data-act="career" data-v="${k}">${icon('seal', 20)}เข้ารับราชการเป็น${esc(k)}</button>` : ''}`;
 }
 
 function reignSheet(): string {
@@ -516,9 +511,7 @@ document.addEventListener('click', ev => {
       S.playToggle(i < 0); E.setTrain(g, cur); break;
     }
     case 'child': if (g.life.childJob !== v) S.playSelect(); E.chooseChildJob(g, v); break;
-    case 'careerinfo': { S.playOpen(); const [ck, sd] = v.split('|'); const keep = $('modal-body').scrollTop;
-      openModal(careerSheet(ck, !g.life.career, (sd as 'light' | 'dark') ?? (g.life.career === ck ? g.life.track ?? 'light' : 'light')));
-      if (sd) $('modal-body').querySelector('.ctabs')?.scrollIntoView({ block: 'start' }); void keep; return; }
+    case 'careerinfo': S.playOpen(); openModal(careerSheet(v, !g.life.career)); return;
     case 'reign': S.playOpen(); openModal(reignSheet()); return;
     case 'coll': S.playOpen(); openModal(collSheet(v)); return;
     case 'career': E.chooseCareer(g, v); S.playGong(); closeModal(); toast(`เข้ารับราชการเป็น${splitTitle(E.careerTitle(v, 0, null))[0]}`, CAREER_ICON[v]); break;
