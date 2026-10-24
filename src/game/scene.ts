@@ -23,8 +23,10 @@ export class Scene {
     this.t += dt;
     const c = this.ctx, L = g.life;
     // ท้องฟ้าแบ่งแถบแบบ pixel
-    const sky = ['#f6e7c8', '#f3dfbb', '#efd5ad', '#e9c99c', '#e2bc8c'];
-    sky.forEach((col, i) => { c.fillStyle = col; c.fillRect(0, i * 22, SCENE_W, 22); });
+    // วาดท้องฟ้าเต็มถึงพื้นทุกเฟรม (เดิมแถบฟ้าไม่ถึงพื้น ภาพตัวละครเฟรมก่อนเลยค้างเป็นเงาดำ)
+    c.clearRect(0, 0, SCENE_W, SCENE_H);
+    const sky = ['#f6e7c8', '#f3dfbb', '#efd5ad', '#e9c99c', '#e2bc8c'], band = Math.ceil(GROUND / sky.length);
+    sky.forEach((col, i) => { c.fillStyle = col; c.fillRect(0, i * band, SCENE_W, band); });
     c.fillStyle = '#f2c46d'; this.disc(186, 30, 11);
     // เมฆลอยช้าๆ
     const cx = (this.t * 3) % (SCENE_W + 60) - 40;
