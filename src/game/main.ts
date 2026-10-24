@@ -586,7 +586,18 @@ $('btn-sound').addEventListener('click', () => {
   try { store()?.setItem('ayothaya.sound', JSON.stringify({ sfx: sound.sfx, music: sound.music })); } catch { /* ignore */ }
   renderHud(); S.playTap();
 });
-$('btn-speed').addEventListener('click', () => { speedIdx = (speedIdx + 1) % SPEEDS.length; S.playTap(); renderHud(); });
+// ความเร็ว: แตะแล้วเลือกจากเมนู (เพิ่มหรือลดก็ได้)
+const SPEED_LABEL: Record<number, string> = { 1: 'ปกติ', 10: 'เร็ว', 100: 'เร็วมาก', 3000: 'ทดสอบ' };
+$('btn-speed').addEventListener('click', ev => {
+  ev.stopPropagation(); S.playTap();
+  const pop = $('speedpop');
+  if (pop.classList.toggle('show')) pop.innerHTML = SPEEDS.map((v, i) => `<button class="${i === speedIdx ? 'on' : ''}" data-speed="${i}"><b>×${th(v)}</b><small>${SPEED_LABEL[v] ?? ''}</small></button>`).join('');
+});
+$('speedpop').addEventListener('click', ev => {
+  const b = (ev.target as HTMLElement).closest<HTMLElement>('[data-speed]'); if (!b) return;
+  ev.stopPropagation(); speedIdx = +b.dataset.speed!; S.playSelect(); $('speedpop').classList.remove('show'); renderHud();
+});
+document.addEventListener('click', () => $('speedpop').classList.remove('show'));
 
 /** ฉากหลังความตาย · preview = ลองดูเฉยๆ ไม่จบชาติจริง */
 function yama(preview: boolean) {
