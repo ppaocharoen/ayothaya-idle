@@ -32,6 +32,10 @@ const SHEETS: Record<string, { cols: number; rows: number; sx: number[]; sy: num
   b6: { cols: 3, rows: 2, sx: [6.62 / 8.4], sy: [6.62 / 8.4], stand: [[0, 0]], walk: [[1, 0], [2, 0]] },
   // T3 วัยรุ่นชุดธรรมดา: ดีใจ 2 · เสียใจ ตกใจ · นอน หลบฝน (แทน A5)
   t3: { cols: 2, rows: 3, sx: [6.63 / 8.4], sy: [6.63 / 8.4] },
+  // P1–P3 พราหมณ์ชุดธรรมดา (เกล้ามวย โจงกระเบนขาว) แทน T1–T3 เมื่อเป็นปุโรหิต
+  p1: { cols: 2, rows: 3, sx: [6.63 / 8.93], sy: [6.63 / 8.93] },
+  p2: { cols: 2, rows: 3, sx: [6.63 / 8.93], sy: [6.63 / 8.93] },
+  p3: { cols: 2, rows: 3, sx: [6.63 / 8.4], sy: [6.63 / 8.4] },
   // T1 วัยรุ่นชุดธรรมดา ทรงมหาดไทย: อ่าน แบก รำไม้ (แทน A2)
   t1: { cols: 2, rows: 3, sx: [6.63 / 8.93], sy: [6.63 / 8.93] },
   // T2 วัยรุ่นชุดธรรมดา: นั่งสมาธิ/ไหว้ · ย่องพรางกาย · จุดเทียน (แทน A3)
@@ -113,7 +117,7 @@ export class Scene {
     this.loCtx = this.lo.getContext('2d')!; this.frCtx = this.fr.getContext('2d')!;
     this.ctx = this.loCtx;
     this.sprite.src = new URL('./art/boy.png', document.baseURI).href;
-    for (const k of ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 't1', 't2', 't3', 'p1', 'p2', 'p3', ...BREEDS.flatMap(b => b.art ? [b.art] : [])]) { const im = new Image(); im.src = new URL(`./art/${k.startsWith('pet_') ? k : `boy_${k}`}.png`, document.baseURI).href; im.onerror = () => { delete this.actSheets[k]; }; this.actSheets[k] = im; }
+    for (const k of ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 't1', 't2', 't3', 'p1', 'p2', 'p3', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'u1', 'u2', 'u3', 'up1', 'up2', 'up3', ...BREEDS.flatMap(b => b.art ? [b.art] : [])]) { const im = new Image(); im.src = new URL(`./art/${k.startsWith('pet_') ? k : `boy_${k}`}.png`, document.baseURI).href; im.onerror = () => { delete this.actSheets[k]; }; this.actSheets[k] = im; }
     for (const k of ['city', 'houses']) { const im = new Image(); im.src = new URL(`./art/bg_${k}.png`, document.baseURI).href; this.bg[k] = im; }
   }
 
@@ -304,16 +308,23 @@ export class Scene {
   private static TEEN_WORK: Record<string, string> = { b1: 'spear', b2: 'trade', b3: 'harvest', b4: 'write', b5: 'pray', b6: 'spy' };
   private look(L: GameState['life']): string {
     const age = ageOf(L), k = L.career ? Scene.TEEN[L.career] : undefined;
-    return k && age >= 12 && this.hasSheet(k) ? k : 'a1'; // ผู้ใหญ่ใช้ชุดลูกมือไปก่อน (ขยายตัวใหญ่ขึ้น) จนกว่าจะมีชุด C
+    if (!k || age < 12 || !this.hasSheet(k)) return 'a1';
+    return this.grown(k); // ผู้ใหญ่ใช้ชุด C ถ้ามีภาพ ไม่งั้นใช้ชุดลูกมือขยายตัวใหญ่ขึ้น
   }
+  /** ชุดผู้ใหญ่ (18+) ที่แก้มาจากชุดวัยรุ่น: B→C · T→U · P→UP (ใช้เมื่อมีภาพแล้ว) */
+  private static ADULT: Record<string, string> = { b1: 'c1', b2: 'c2', b3: 'c3', b4: 'c4', b5: 'c5', b6: 'c6', t1: 'u1', t2: 'u2', t3: 'u3', p1: 'up1', p2: 'up2', p3: 'up3' };
+  private grown(k: string) { const a = Scene.ADULT[k]; return this.curAge >= 18 && a && this.hasSheet(a) && SHEETS[a] ? a : k; }
+  /** ชุดผู้ใหญ่ที่ใช้อยู่จริงหรือไม่ (ใช้ปรับขนาดตัว) */
+  private usesAdultArt(L: GameState['life']) { return /^(c|u)/.test(this.look(L)); }
   /** ท่าทำงานของอาชีพ (ถ้ามีภาพ) */
   private workAnim(L: GameState['life']): string | null {
     if (ageOf(L) < 12) return L.childJob ? Scene.JOB_ANIM[L.childJob] ?? null : null;
-    return Scene.TEEN_WORK[this.look(L)] ?? null;
+    const k = L.career ? Scene.TEEN[L.career] : undefined;
+    return k && this.look(L) !== 'a1' ? Scene.TEEN_WORK[k] ?? null : null;
   }
   /** ขนาดตัวละคร: โตตามวัย × ระยะใกล้/ไกล แล้วปัดเป็นขั้น 0.25 */
   private charScale(L: GameState['life']) {
-    const age = ageOf(L), base = age < 12 ? 0.75 : age < 18 ? 0.85 : 1;
+    const age = ageOf(L), base = age < 12 ? 0.75 : age < 18 ? 0.85 : this.usesAdultArt(L) ? 0.85 : 1; // ภาพผู้ใหญ่วาดตัวสูงกว่าอยู่แล้ว
     return base * (1 + 0.5 * this.z);
   }
   /** ตำแหน่งเท้า: ไกล = เส้นพื้น · ใกล้ = เลื่อนลงมาหน้าจอ */
@@ -451,7 +462,8 @@ export class Scene {
     const a0 = Scene.ANIMS[id];
     let teen = this.curAge >= 12 ? Scene.TEEN_CASUAL[a0.sheet] : undefined;
     if (teen && this.curCareer === 'ปุโรหิต' && this.hasSheet(Scene.PRIEST_CASUAL[teen])) teen = Scene.PRIEST_CASUAL[teen];
-    const a = teen && this.hasSheet(teen) ? { ...a0, sheet: teen } : a0;
+    let a = teen && this.hasSheet(teen) ? { ...a0, sheet: teen } : a0;
+    if (this.curAge >= 18 && this.grown(a.sheet) !== a.sheet) a = { ...a, sheet: this.grown(a.sheet) };
     const k = Math.floor(this.t / a.speed) % a.frames.length, [col, row] = a.frames[k];
     this.face = flip ? -1 : 1;
     this.drawFrame(a.sheet, col, row, scale, flip, (a.lift?.[k] ?? 0) * scale);
