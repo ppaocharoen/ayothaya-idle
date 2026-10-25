@@ -42,6 +42,13 @@ const SHEETS: Record<string, { cols: number; rows: number; sx: number[]; sy: num
   t2: { cols: 2, rows: 3, sx: [6.63 / 8.93], sy: [6.63 / 8.93] },
 };
 
+/** ชุดผู้ใหญ่/ชราแก้มาจากชุดวัยรุ่น ขนาดและการจัดช่องเท่าต้นฉบับ → ใช้ค่าของต้นฉบับ */
+const SHEET_BASE: Record<string, string> = {
+  c1: 'b1', c2: 'b2', c3: 'b3', c4: 'b4', c5: 'b5', c6: 'b6', d1: 'b1', d2: 'b2', d3: 'b3', d4: 'b4', d5: 'b5', d6: 'b6',
+  u1: 't1', u2: 't2', u3: 't3', v1: 't1', v2: 't2', v3: 't3', up1: 'p1', up2: 'p2', up3: 'p3', vp1: 'p1', vp2: 'p2', vp3: 'p3',
+};
+const sheetMeta = (k: string) => SHEETS[k] ?? SHEETS[SHEET_BASE[k]];
+
 export interface SceneMood { dayFrac: number; month: number; rain: boolean; war: boolean; }
 export type PickupKind = 'coin' | 'flower' | 'leaf';
 interface Particle { x: number; y: number; vx: number; vy: number; life: number; color: string; }
@@ -117,7 +124,7 @@ export class Scene {
     this.loCtx = this.lo.getContext('2d')!; this.frCtx = this.fr.getContext('2d')!;
     this.ctx = this.loCtx;
     this.sprite.src = new URL('./art/boy.png', document.baseURI).href;
-    for (const k of ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 't1', 't2', 't3', 'p1', 'p2', 'p3', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'u1', 'u2', 'u3', 'up1', 'up2', 'up3', ...BREEDS.flatMap(b => b.art ? [b.art] : [])]) { const im = new Image(); im.src = new URL(`./art/${k.startsWith('pet_') ? k : `boy_${k}`}.png`, document.baseURI).href; im.onerror = () => { delete this.actSheets[k]; }; this.actSheets[k] = im; }
+    for (const k of ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 't1', 't2', 't3', 'p1', 'p2', 'p3', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'u1', 'u2', 'u3', 'up1', 'up2', 'up3', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6', 'v1', 'v2', 'vp1', 'vp2', 'vp3', ...BREEDS.flatMap(b => b.art ? [b.art] : [])]) { const im = new Image(); im.src = new URL(`./art/${k.startsWith('pet_') ? k : `boy_${k}`}.png`, document.baseURI).href; im.onerror = () => { delete this.actSheets[k]; }; this.actSheets[k] = im; }
     for (const k of ['city', 'houses']) { const im = new Image(); im.src = new URL(`./art/bg_${k}.png`, document.baseURI).href; this.bg[k] = im; }
   }
 
@@ -313,9 +320,16 @@ export class Scene {
   }
   /** ชุดผู้ใหญ่ (18+) ที่แก้มาจากชุดวัยรุ่น: B→C · T→U · P→UP (ใช้เมื่อมีภาพแล้ว) */
   private static ADULT: Record<string, string> = { b1: 'c1', b2: 'c2', b3: 'c3', b4: 'c4', b5: 'c5', b6: 'c6', t1: 'u1', t2: 'u2', t3: 'u3', p1: 'up1', p2: 'up2', p3: 'up3' };
-  private grown(k: string) { const a = Scene.ADULT[k]; return this.curAge >= 18 && a && this.hasSheet(a) && SHEETS[a] ? a : k; }
+  /** ชุดชรา (55+) ที่แก้มาจากชุดผู้ใหญ่: C→D · U→V · UP→VP */
+  private static ELDER: Record<string, string> = { c1: 'd1', c2: 'd2', c3: 'd3', c4: 'd4', c5: 'd5', c6: 'd6', u1: 'v1', u2: 'v2', u3: 'v3', up1: 'vp1', up2: 'vp2', up3: 'vp3' };
+  private grown(k: string) {
+    const ok = (x?: string) => !!x && this.hasSheet(x) && !!sheetMeta(x);
+    let r = k;
+    if (this.curAge >= 18 && ok(Scene.ADULT[r])) r = Scene.ADULT[r];
+    if (this.curAge >= 55 && ok(Scene.ELDER[r])) r = Scene.ELDER[r];
+    return r;
+  }
   /** ชุดผู้ใหญ่ที่ใช้อยู่จริงหรือไม่ (ใช้ปรับขนาดตัว) */
-  private usesAdultArt(L: GameState['life']) { return /^(c|u)/.test(this.look(L)); }
   /** ท่าทำงานของอาชีพ (ถ้ามีภาพ) */
   private workAnim(L: GameState['life']): string | null {
     if (ageOf(L) < 12) return L.childJob ? Scene.JOB_ANIM[L.childJob] ?? null : null;
@@ -324,7 +338,7 @@ export class Scene {
   }
   /** ขนาดตัวละคร: โตตามวัย × ระยะใกล้/ไกล แล้วปัดเป็นขั้น 0.25 */
   private charScale(L: GameState['life']) {
-    const age = ageOf(L), base = age < 12 ? 0.75 : age < 18 ? 0.85 : this.usesAdultArt(L) ? 0.85 : 1; // ภาพผู้ใหญ่วาดตัวสูงกว่าอยู่แล้ว
+    const age = ageOf(L), base = age < 12 ? 0.75 : age < 18 ? 0.85 : 1; // ผู้ใหญ่ตัวใหญ่กว่าวัยรุ่น (ภาพผู้ใหญ่วาดขนาดหัวเท่าวัยรุ่น)
     return base * (1 + 0.5 * this.z);
   }
   /** ตำแหน่งเท้า: ไกล = เส้นพื้น · ใกล้ = เลื่อนลงมาหน้าจอ */
@@ -374,7 +388,7 @@ export class Scene {
     const lk = this.look(L);
     if (lk !== 'a1') {
       // ชุดลูกมือ (B): แถว 0 ยืน (หายใจ 2 เฟรม) · แถว 1 เดิน 2 เฟรม
-      const m = SHEETS[lk], seq = walking ? m.walk ?? [[0, 1], [1, 1]] : m.stand ?? [[0, 0], [1, 0]];
+      const m = sheetMeta(lk)!, seq = walking ? m.walk ?? [[0, 1], [1, 1]] : m.stand ?? [[0, 0], [1, 0]];
       const [fc, fr] = seq[Math.floor(walking ? this.walkT / 0.3 : t / 0.9) % seq.length];
       this.drawFrame(lk, fc, fr, scale, this.face < 0, hop);
       return;
@@ -383,7 +397,7 @@ export class Scene {
   }
   /** วาด 1 เฟรมจากชุดภาพ: หัวอยู่ตรง posX เท้าแตะพื้น (ยกขึ้นได้) · กลับซ้าย-ขวาได้ */
   private drawFrame(key: string, col: number, row: number, scale: number, flip: boolean, lift = 0) {
-    const im = this.actSheets[key], m = SHEETS[key], c = this.dc;
+    const im = this.actSheets[key], m = sheetMeta(key)!, c = this.dc;
     const fw = im.naturalWidth / m.cols, fh = im.naturalHeight / m.rows;
     const w = fw * scale * (m.sx[row] ?? m.sx[0]), h = fh * scale * (m.sy[row] ?? m.sy[0]);
     // ปัดตำแหน่งให้ตรงเม็ดพิกเซลจอ
