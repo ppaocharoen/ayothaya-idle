@@ -23,6 +23,8 @@ const SHEETS: Record<string, { cols: number; rows: number; sx: number[]; sy: num
   b2: { cols: 2, rows: 3, sx: [6.62 / 8.1], sy: [6.63 / 8.1] },
   // B3 ลูกมือชาวนา: ยืนถือเคียว · เดินแบกฟ่อนข้าว · เกี่ยวข้าว
   b3: { cols: 2, rows: 3, sx: [6.65 / 8.1], sy: [6.63 / 8.1] },
+  // T1 วัยรุ่นชุดธรรมดา: อ่าน แบก รำไม้ (สัดส่วนเหมือน A2)
+  t1: { cols: 2, rows: 3, sx: [6.63 / 9.5, 6.63 / 8.3, 6.63 / 8.3], sy: [6.63 / 9.5, 6.63 / 8.3, 6.63 / 8.3] },
 };
 
 export interface SceneMood { dayFrac: number; month: number; rain: boolean; war: boolean; }
@@ -94,7 +96,7 @@ export class Scene {
     this.loCtx = this.lo.getContext('2d')!; this.frCtx = this.fr.getContext('2d')!;
     this.ctx = this.loCtx;
     this.sprite.src = new URL('./art/boy.png', document.baseURI).href;
-    for (const k of ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', ...BREEDS.flatMap(b => b.art ? [b.art] : [])]) { const im = new Image(); im.src = new URL(`./art/${k.startsWith('pet_') ? k : `boy_${k}`}.png`, document.baseURI).href; this.actSheets[k] = im; }
+    for (const k of ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', 't1', ...BREEDS.flatMap(b => b.art ? [b.art] : [])]) { const im = new Image(); im.src = new URL(`./art/${k.startsWith('pet_') ? k : `boy_${k}`}.png`, document.baseURI).href; this.actSheets[k] = im; }
   }
 
   /** แปลงพิกัดคลิกบนหน้าจอเป็นพิกัด canvas */
@@ -256,7 +258,7 @@ export class Scene {
 
   /** ตัวละครมีชีวิต: ยืนหายใจ กะพริบตา หันมามอง เดินไปมา และทำท่าตามสิ่งที่ทำอยู่ */
   private drawCharacter(L: GameState['life'], dt: number) {
-    const t = this.t;
+    const t = this.t; this.curAge = ageOf(L);
     const busy = this.alert || this.jump > 0 || this.paused;
     if (this.alert || (this.paused && this.act?.id !== 'happy')) this.act = null;
     if (this.act && t > this.act.until) this.act = null;
@@ -359,8 +361,12 @@ export class Scene {
   }
 
   /** ท่าอื่นๆ */
+  /** ชุดธรรมดาวัยรุ่น (12–17) แทนชุดเด็กเมื่อมีภาพ: A2→T1, A3→T2, A5→T3 */
+  private static TEEN_CASUAL: Record<string, string> = { a2: 't1', a3: 't2', a5: 't3' };
+  private curAge = 9;
   private drawAct(id: string, scale: number, flip = this.face < 0) {
-    const a = Scene.ANIMS[id];
+    const a0 = Scene.ANIMS[id], teen = this.curAge >= 12 && this.curAge < 18 ? Scene.TEEN_CASUAL[a0.sheet] : undefined;
+    const a = teen && this.hasSheet(teen) ? { ...a0, sheet: teen } : a0;
     const k = Math.floor(this.t / a.speed) % a.frames.length, [col, row] = a.frames[k];
     this.face = flip ? -1 : 1;
     this.drawFrame(a.sheet, col, row, scale, flip, (a.lift?.[k] ?? 0) * scale);
