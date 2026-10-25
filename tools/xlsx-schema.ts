@@ -151,15 +151,16 @@ export const SHEETS: SheetDef[] = [
     fromRows: (r, c) => { c.karmaFixed = r.map(x => ({ id: str(x[0]), life: num(x[1]), age: num(x[2]), year: num(x[3]), title: str(x[4]), choices: cellsToChoices(x.slice(5)) })); },
   },
   {
-    name: 'กงกรรมทั่วไป', note: 'เสี่ยงดวง: โอกาส 0–1, ผลใส่ "บุญ+2" หรือ "ความชอบ+0.05" ได้',
-    headers: ['id', 'ชื่อ', ...choiceHeaders, 'เสี่ยงดวง', 'โอกาส', 'พลังงานที่เสีย', 'ผลสำเร็จ', 'ผลล้มเหลว'],
+    name: 'กงกรรมทั่วไป', note: 'เสี่ยงดวง: โอกาส 0–1, ผลใส่ "บุญ+2" หรือ "ความชอบ+0.05" ได้ · หมวด: fun สันทนาการ / health สุขภาพ / vice อบายมุข / ว่าง = ทั่วไป (fun/health ขึ้นได้ตั้งแต่วัยรุ่น และขึ้นบ่อยขึ้นเมื่อความสำราญ/สุขภาพต่ำ)',
+    headers: ['id', 'ชื่อ', ...choiceHeaders, 'เสี่ยงดวง', 'โอกาส', 'พลังงานที่เสีย', 'ผลสำเร็จ', 'ผลล้มเหลว', 'หมวด'],
     toRows: c => c.karmaGeneric.map(k => [k.id, k.title, ...choicesToCells(k.choices),
-      k.risky?.label ?? '', k.risky?.chance ?? '', k.risky?.cost.energy ?? '', k.risky ? [riskyToText(k.risky.success), k.risky.sin ? `บาป+${k.risky.sin}` : ''].filter(Boolean).join(', ') : '', k.risky ? riskyToText(k.risky.fail) : '']),
+      k.risky?.label ?? '', k.risky?.chance ?? '', k.risky?.cost.energy ?? '', k.risky ? [riskyToText(k.risky.success), k.risky.sin ? `บาป+${k.risky.sin}` : ''].filter(Boolean).join(', ') : '', k.risky ? riskyToText(k.risky.fail) : '', k.tag ?? '']),
     fromRows: (r, c) => {
       const o = 2 + MAX_CHOICES * 2;
       c.karmaGeneric = r.map(x => ({
         id: str(x[0]), title: str(x[1]), choices: cellsToChoices(x.slice(2, o)),
         risky: str(x[o]) ? { label: str(x[o]), chance: num(x[o + 1]), cost: str(x[o + 2]) ? { energy: num(x[o + 2]) } : {}, success: textToRisky(x[o + 3]), fail: textToRisky(x[o + 4]), ...riskySin(x[o + 3]) } : null,
+        ...(str(x[o + 5]) ? { tag: str(x[o + 5]) as 'fun' } : {}),
       }));
     },
   },

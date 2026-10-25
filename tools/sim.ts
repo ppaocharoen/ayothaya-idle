@@ -94,7 +94,7 @@ function play(s: Strategy, maxLoops = 2): RunRec {
 
 // ---------- รัน ----------
 const detail = process.argv.includes('--detail');
-const seeds = process.argv.includes('--quick') ? [1] : [1, 2, 3];
+const seeds = process.argv.includes('--quick') ? [1] : (process.env.SEEDS ? process.env.SEEDS.split(',').map(Number) : [1, 2, 3]);
 const runs: RunRec[] = [];
 for (const c of content.careers.careers) for (const path of ['work', 'balance', 'merit'] as PathKey[]) for (const seed of seeds)
   runs.push(play({ career: c.key, path, spend: path === 'merit' ? 'merit' : 'growth', seed }));

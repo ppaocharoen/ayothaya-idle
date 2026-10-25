@@ -47,6 +47,8 @@ export interface KarmaFixed { id: string; life: number; age: number; year: numbe
 export interface RiskyOutcome { stats?: Effects; merit?: number; affection?: number; }
 export interface KarmaGeneric {
   id: string; title: string; choices: Choice[];
+  /** หมวด: fun = สันทนาการ · health = สุขภาพ · vice = อบายมุข (ผู้ใหญ่เท่านั้น) · ไม่ใส่ = ทั่วไป (ผู้ใหญ่) */
+  tag?: 'fun' | 'health' | 'vice';
   risky: null | { label: string; chance: number; cost: { energy?: number }; success: RiskyOutcome; fail: RiskyOutcome; sin?: number };
 }
 

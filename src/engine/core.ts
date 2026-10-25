@@ -53,7 +53,7 @@ export interface LifeState {
   deathAge: number | null;              // อายุตอนตาย (null = ยังมีชีวิต)
   meritStart: number;                   // บุญตอนเกิด (ใช้คิดบุญที่ทำในชาตินี้)
   deeds: { id: string; c: number }[];   // ตัวเลือกที่เลือกในชาตินี้ (พญายมหยิบมาไต่สวน)
-  sched: { karma: Scheduled[]; hist: HistSchedule[]; nextGeneric: number; bag: number[]; bagPtr: number };
+  sched: { karma: Scheduled[]; hist: HistSchedule[]; nextGeneric: number; bag: number[]; bagPtr: number; recent?: string[] };
 }
 
 export interface GameState {
@@ -135,7 +135,7 @@ function makeLife(g: GameState, idx: number, prev: LifeState | null, startYear?:
     const start = h.yearFrom === r.from && h.kind === 'narrative' ? 1 : (y0 - r.from) * D + randInt(g, 0, D - 1);
     L.sched.hist.push({ id: h.id, next: start, until: (h.yearTo - r.from + 1) * D - 1, repeat: h.kind === 'check' && h.yearTo > h.yearFrom });
   }
-  L.sched.nextGeneric = (B.genericStartAge - B.startAge) * D + randInt(g, B.genericMinDays, B.genericMaxDays);
+  L.sched.nextGeneric = (B.teenGenericFromAge - B.startAge) * D + randInt(g, B.teenGenericMinDays, B.teenGenericMaxDays);
   L.sched.bag = shuffle(g, content.karmaGeneric.length);
   return L;
 }
@@ -267,17 +267,43 @@ function collectDue(g: GameState): PendingEvent[] {
       if (h.next > h.until) h.next = -1;
     }
   }
-  const fixedPending = L.sched.karma.some(k => k.day >= L.day);
-  if (L.day >= L.sched.nextGeneric && !fixedPending) {
-    const idx = L.sched.bag[L.sched.bagPtr++];
-    if (L.sched.bagPtr >= L.sched.bag.length) { L.sched.bag = shuffle(g, content.karmaGeneric.length); L.sched.bagPtr = 0; }
-    out.push({ kind: 'karma', id: content.karmaGeneric[idx].id, generic: true });
-    L.sched.nextGeneric = L.day + randInt(g, B.genericMinDays, B.genericMaxDays);
+  const fixedNear = L.sched.karma.some(k => k.day >= L.day && k.day - L.day <= B.genericGapToFixed);
+  if (L.day >= L.sched.nextGeneric && !fixedNear) {
+    const k = pickGeneric(g);
+    if (k) out.push({ kind: 'karma', id: k.id, generic: true });
+    const teen = ageOf(L) < B.genericStartAge;
+    L.sched.nextGeneric = L.day + (teen ? randInt(g, B.teenGenericMinDays, B.teenGenericMaxDays) : randInt(g, B.genericMinDays, B.genericMaxDays));
   }
   return out;
 }
 
 export const isMain = (e: PendingEvent) => e.kind !== 'karma';
+
+/** เลือกกงกรรมทั่วไปถัดไป: วัยรุ่นได้เฉพาะสันทนาการ/สุขภาพ · ความสำราญ/สุขภาพต่ำ มีโอกาสได้หมวดนั้นก่อน · ไม่ซ้ำเรื่องที่เพิ่งเห็น */
+function pickGeneric(g: GameState) {
+  const L = g.life, all = content.karmaGeneric, sc = L.sched;
+  sc.recent ??= [];
+  if (sc.bag.length !== all.length || sc.bagPtr >= sc.bag.length) { sc.bag = shuffle(g, all.length); sc.bagPtr = 0; } // เซฟเก่าที่ถุงยังไม่มีเรื่องใหม่
+  const teen = ageOf(L) < B.genericStartAge;
+  const allowed = (k: typeof all[number]) => !teen || k.tag === 'fun' || k.tag === 'health';
+  const fresh = (k: typeof all[number]) => !sc.recent!.includes(k.id);
+  let want: 'fun' | 'health' | null = null;
+  if (L.health < B.needHealthBelow && nextRandom(g) < B.needHealthChance) want = 'health';
+  else if (L.joy < B.needJoyBelow && nextRandom(g) < B.needChance) want = 'fun';
+  let pick: typeof all[number] | undefined;
+  if (want) {
+    const pool = all.filter(k => (k.tag === want || (want === 'fun' && k.tag === 'vice' && !teen)) && fresh(k));
+    if (pool.length) pick = pool[randInt(g, 0, pool.length - 1)];
+  }
+  // ไม่งั้นหยิบจากถุงสุ่ม (ข้ามเรื่องที่วัยนี้ไม่ควรเจอ)
+  for (let tries = 0; !pick && tries < all.length; tries++) {
+    if (sc.bagPtr >= sc.bag.length) { sc.bag = shuffle(g, all.length); sc.bagPtr = 0; }
+    const k = all[sc.bag[sc.bagPtr++]];
+    if (allowed(k) && fresh(k)) pick = k;
+  }
+  if (pick) { sc.recent.push(pick.id); if (sc.recent.length > 12) sc.recent.shift(); }
+  return pick;
+}
 /** ตอนปิดแอปได้ผลน้อยกว่าเปิดเล่น — บ้านดี (พักผ่อนดี) ได้ผลใกล้เต็ม */
 export const awayEff = (L: LifeState) => Math.min(1, B.awayBase + B.awayPerHouse * L.accommodation);
 
@@ -298,8 +324,15 @@ export function advance(g: GameState, days: number, opts: { online: boolean; awa
     if (yearOf(g.life) > g.life.endYear || g.life.health <= 0) { endLife(g); continue; }
     for (const e of collectDue(g)) {
       g.stats.eventsSeen++;
-      if (isMain(e) || opts.online || g.queue.length < B.offlineQueueMax) g.queue.push(e);
-      else { applyKarma(g, e as Extract<PendingEvent, { kind: 'karma' }>, autoChoice(g, e)); auto++; }
+      if (isMain(e) || opts.online || g.queue.length < B.offlineQueueMax) { g.queue.push(e); continue; }
+      // ช่องเก็บตอนปิดแอปเต็ม: เก็บเรื่องสันทนาการ/สุขภาพไว้ให้ผู้เล่นเลือกเอง แทนเรื่องทั่วไปที่ค้างอยู่
+      let ke = e as Extract<PendingEvent, { kind: 'karma' }>;
+      const tagged = (x: PendingEvent) => x.kind === 'karma' && x.generic && !!content.karmaGeneric.find(k => k.id === x.id)?.tag;
+      if (tagged(e)) {
+        const i = g.queue.findIndex(x => x.kind === 'karma' && !tagged(x));
+        if (i >= 0) { const old = g.queue[i] as typeof ke; g.queue[i] = e; ke = old; }
+      }
+      applyKarma(g, ke, autoChoice(g, ke)); auto++;
     }
   }
   return { days: n, stopped: g.queue.length ? 'event' : 'done', autoResolved: auto };

@@ -79,6 +79,12 @@ export const BALANCE = {
   riskyMult: 4,
   genericMinDays: 30, genericMaxDays: 60,
   genericStartAge: 18,
+  /** วัยรุ่น 12–17 ได้กงกรรมสันทนาการ/สุขภาพ ห่างกว่าผู้ใหญ่ */
+  teenGenericFromAge: 12, teenGenericMinDays: 70, teenGenericMaxDays: 130,
+  /** ความสำราญ/สุขภาพต่ำกว่านี้ → โอกาสสุ่มได้กงกรรมหมวดนั้นก่อน */
+  needJoyBelow: 0.45, needHealthBelow: 0.5, needChance: 0.4, needHealthChance: 0,
+  /** ไม่สุ่มกงกรรมทั่วไปถ้ามีกงกรรมประจำชาติจะเกิดภายในกี่วัน */
+  genericGapToFixed: 20,
   waveMinDays: 365, waveMaxDays: 730,
   checkBase: 0.30, checkSlope: 0.65, checkMax: 0.95,
   checkFailLoss: 0.05,       // เสียเงิน/ทรัพย์สิน 5% เมื่อเช็คล้มเหลว
