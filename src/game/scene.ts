@@ -16,6 +16,8 @@ const SHEETS: Record<string, { cols: number; rows: number; sx: number[]; sy: num
   a3: { cols: 2, rows: 3, sx: [9.36 / 9.6], sy: [9.38 / 9.6] },
   a4: { cols: 2, rows: 3, sx: [6.62 / 8.6], sy: [6.63 / 8.6] },
   a5: { cols: 2, rows: 3, sx: [6.62 / 8.6], sy: [6.63 / 8.6] },
+  // B1 ลูกมือทหาร 12–17: แถว 0 ยืนถือหอก · แถว 1 เดินแบกหอก · แถว 2 ซ้อมแทงหอก
+  b1: { cols: 2, rows: 3, sx: [6.63 / 8.1], sy: [6.62 / 8.1] },
 };
 
 export interface SceneMood { dayFrac: number; month: number; rain: boolean; war: boolean; }
@@ -48,6 +50,7 @@ export class Scene {
     forage: { sheet: 'a4', frames: [[0, 0], [1, 0]], speed: 0.9 }, sweep: { sheet: 'a4', frames: [[0, 1], [1, 1]], speed: 0.4 }, pole: { sheet: 'a4', frames: [[0, 2], [1, 2]], speed: 0.35 },
     happy: { sheet: 'a5', frames: [[0, 0], [1, 0]], speed: 0.35, lift: [0, 12] }, sad: { sheet: 'a5', frames: [[0, 1]], speed: 1 }, surprised: { sheet: 'a5', frames: [[1, 1]], speed: 1 },
     sleep: { sheet: 'a5', frames: [[0, 2]], speed: 1 }, rain: { sheet: 'a5', frames: [[1, 2]], speed: 1 },
+    spear: { sheet: 'b1', frames: [[0, 2], [1, 2]], speed: 0.5 },
   };
   /** เกมหยุดอยู่ (ตัวละครนอน) · ฝนตก (ถือใบตองบังฝน) — ตั้งจาก main */
   paused = false;
@@ -84,7 +87,7 @@ export class Scene {
     this.loCtx = this.lo.getContext('2d')!; this.frCtx = this.fr.getContext('2d')!;
     this.ctx = this.loCtx;
     this.sprite.src = new URL('./art/boy.png', document.baseURI).href;
-    for (const k of ['a1', 'a2', 'a3', 'a4', 'a5']) { const im = new Image(); im.src = new URL(`./art/boy_${k}.png`, document.baseURI).href; this.actSheets[k] = im; }
+    for (const k of ['a1', 'a2', 'a3', 'a4', 'a5', 'b1']) { const im = new Image(); im.src = new URL(`./art/boy_${k}.png`, document.baseURI).href; this.actSheets[k] = im; }
   }
 
   /** แปลงพิกัดคลิกบนหน้าจอเป็นพิกัด canvas */
@@ -223,6 +226,16 @@ export class Scene {
     for (const [dx, dy, w] of [[-10, 0, 10], [2, 0, 10], [-7, -3, 6], [3, -3, 6], [-3, -5, 6]]) c.fillRect(x + dx, base - h + dy, w, 2);
     c.fillRect(x - 12, base - h + 2, 3, 3); c.fillRect(x + 11, base - h + 2, 3, 3);
   }
+  /** ชุดภาพหลักตามวัยและอาชีพ: ลูกมือทหาร 12–17 ใช้ B1 (ยืน/เดินถือหอก) · อื่นๆ ใช้ A1 */
+  private look(L: GameState['life']): 'a1' | 'b1' {
+    const age = ageOf(L);
+    return L.career === 'ทหาร' && age >= 12 && age < 18 && this.hasSheet('b1') ? 'b1' : 'a1';
+  }
+  /** ท่าทำงานของอาชีพ (ถ้ามีภาพ) */
+  private workAnim(L: GameState['life']): string | null {
+    if (ageOf(L) < 12) return L.childJob ? Scene.JOB_ANIM[L.childJob] ?? null : null;
+    return this.look(L) === 'b1' ? 'spear' : null;
+  }
   /** ขนาดตัวละคร: โตตามวัย × ระยะใกล้/ไกล แล้วปัดเป็นขั้น 0.25 */
   private charScale(L: GameState['life']) {
     const age = ageOf(L), base = age < 12 ? 0.75 : age < 18 ? 0.85 : 1;
@@ -241,8 +254,9 @@ export class Scene {
       // ถึงเวลาขยับ: ทำงานเด็ก/ฝึกตามสเตตัสที่เลือก (ถ้ามีภาพ) หรือเดินไปจุดอื่น — สุ่มระยะใกล้/ไกลใหม่
       const ids = L.train.map(s => Scene.STAT_ANIM[s]).filter(id => id && this.hasAnim(id));
       if (L.path === 'merit' && this.hasAnim('meditate')) ids.push('meditate');
-      const job = ageOf(L) < 12 && L.childJob ? Scene.JOB_ANIM[L.childJob] : null;
-      if (job && this.hasAnim(job)) ids.push(job, job); // ช่วงเด็กทำงานเด็กบ่อยกว่า
+      const job = this.workAnim(L);
+      if (job && this.hasAnim(job)) ids.push(job, job); // ท่าทำงานออกบ่อยกว่า
+      if (this.look(L) === 'b1') for (let i = 0; i < ids.length; i++) if (ids[i] === 'staff') ids[i] = 'spear'; // ทหารฝึกต่อสู้ด้วยหอก
       this.pickDepth();
       if (ids.length && Math.random() < 0.6) { this.posX = 50 + Math.random() * 140; this.showAnim(ids[Math.floor(Math.random() * ids.length)], 6 + Math.random() * 4); }
       else this.targetX = 50 + Math.random() * 140;
@@ -271,6 +285,12 @@ export class Scene {
       }
     }
     const hop = this.jump > 0 ? Math.round(Math.abs(Math.sin((1 - this.jump) * Math.PI * 3)) * 14 * this.jump) : 0;
+    if (this.look(L) === 'b1') {
+      // B1: แถว 0 ยืน (หายใจ 2 เฟรม) · แถว 1 เดิน 2 เฟรม
+      const k = walking ? Math.floor(this.walkT / 0.3) % 2 : Math.floor(t / 0.9) % 2;
+      this.drawFrame('b1', k, walking ? 1 : 0, scale, this.face < 0, hop);
+      return;
+    }
     this.drawFrame('a1', col, row, scale, this.face < 0, hop);
   }
   /** วาด 1 เฟรมจากชุดภาพ: หัวอยู่ตรง posX เท้าแตะพื้น (ยกขึ้นได้) · กลับซ้าย-ขวาได้ */

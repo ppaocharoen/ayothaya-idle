@@ -578,7 +578,9 @@ $('scene').addEventListener('click', ev => {
   if (scene.hitChar(p.x, p.y)) {
     S.playTap();
     const m = currentMood(), el = $('speech');
-    el.textContent = speechFor(g, { rain: m.rain, war: m.war });
+    const sp = speechFor(g, { rain: m.rain, war: m.war, month: m.month });
+    el.textContent = sp.text;
+    if (sp.anim) scene.showAnim(sp.anim, 3.5);
     el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
   }
 });
