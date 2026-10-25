@@ -49,6 +49,7 @@ const SHEET_BASE: Record<string, string> = {
 };
 const sheetMeta = (k: string) => SHEETS[k] ?? SHEETS[SHEET_BASE[k]];
 
+type Place = 'out' | 'in' | 'work';
 export interface SceneMood { dayFrac: number; month: number; rain: boolean; war: boolean; }
 export type PickupKind = 'coin' | 'flower' | 'leaf';
 interface Particle { x: number; y: number; vx: number; vy: number; life: number; color: string; }
@@ -125,7 +126,7 @@ export class Scene {
     this.ctx = this.loCtx;
     this.sprite.src = new URL('./art/boy.png', document.baseURI).href;
     for (const k of ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 't1', 't2', 't3', 'p1', 'p2', 'p3', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'u1', 'u2', 'u3', 'up1', 'up2', 'up3', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6', 'v1', 'v2', 'vp1', 'vp2', 'vp3', ...BREEDS.flatMap(b => b.art ? [b.art] : [])]) { const im = new Image(); im.src = new URL(`./art/${k.startsWith('pet_') ? k : `boy_${k}`}.png`, document.baseURI).href; im.onerror = () => { delete this.actSheets[k]; }; this.actSheets[k] = im; }
-    for (const k of ['city', 'houses', 'in0', 'in1', 'in2', 'in3', 'in4', 'in5', 'inP']) { const im = new Image(); im.src = new URL(`./art/bg_${k}.png`, document.baseURI).href; this.bg[k] = im; }
+    for (const k of ['city', 'houses', 'work1', 'work2', 'work3', 'work4', 'work5', 'work6', 'in0', 'in1', 'in2', 'in3', 'in4', 'in5', 'inP']) { const im = new Image(); im.src = new URL(`./art/bg_${k}.png`, document.baseURI).href; this.bg[k] = im; }
   }
 
   /** แปลงพิกัดคลิกบนหน้าจอเป็นพิกัด canvas */
@@ -160,8 +161,11 @@ export class Scene {
     const d = this.dc;
     // ---- ในบ้าน/นอกบ้าน: ท่าในบ้านพาเข้าฉากในบ้าน (ถ้ามีภาพ) มืดลงแว้บหนึ่งตอนเปลี่ยน ----
     const inImg = this.interior(L);
-    this.updateInside(!!inImg && (this.paused || Scene.INDOOR.has(this.act?.id ?? '') || this.t < this.petHappyUntil), dt);
-    const indoor = this.inside && !!inImg;
+    const wkImg = this.workScene(L), actId = this.act?.id ?? '';
+    // ที่ทำงาน: ท่าทำงานของอาชีพ (ผู้ใหญ่) · ในบ้าน: นอน อ่าน สมาธิ ฯลฯ · ที่เหลืออยู่หน้าบ้าน
+    const want: Place = wkImg && Scene.WORK_ANIMS.has(actId) ? 'work' : inImg && (this.paused || Scene.INDOOR.has(actId) || this.t < this.petHappyUntil) ? 'in' : 'out';
+    this.updatePlace(want, dt);
+    const indoor = this.place === 'in' && !!inImg, atWork = this.place === 'work' && !!wkImg;
     if (indoor) this.drawInterior(inImg!);
     else {
     // ---- ท้องฟ้าตามเวลาของวัน (เช้าชมพูอ่อน กลางวันครีม เย็นส้ม) และฝน ----
@@ -188,9 +192,9 @@ export class Scene {
     if (artBg) {
       // ---- ทิวเมือง (ภาพ E4) วาดความละเอียดจริง เลื่อนช้ากว่าตัวละครเล็กน้อย ----
       this.blitLo();
-      this.drawCity(mood, tDawn, tDusk);
+      this.drawCity(mood, tDawn, tDusk, atWork ? wkImg! : this.bg.city, atWork ? 0.55 : 0.6);
       if (mood.war) { this.army(); this.blitLo(); }
-      this.drawHouse(L.career ? L.accommodation : 3);
+      if (!atWork) this.drawHouse(L.career ? L.accommodation : 3);
     } else {
       // ---- เจดีย์/ปรางค์ไกลๆ (วาดด้วยโค้ด ถ้าภาพยังไม่โหลด) ----
       c.fillStyle = mood.rain ? '#a9a08c' : '#cdb08a';
@@ -244,22 +248,31 @@ export class Scene {
 
   /** ท่าที่ทำในบ้าน */
   private static INDOOR = new Set(['sleep', 'read', 'meditate', 'candle', 'sad', 'pray', 'write']);
-  private inside = false; private insideSince = -99; private fadeT = -1; private fadeTo = false;
+  /** ท่าทำงานของอาชีพ → ไปทำที่ที่ทำงาน (ถ้ามีภาพฉากทำงาน) */
+  private static WORK_ANIMS = new Set(['spear', 'trade', 'harvest', 'write', 'pray', 'spy']);
+  private static WORK_SCENE: Record<string, number> = { 'ทหาร': 1, 'พ่อค้า': 2, 'เกษตรกร': 3, 'บริหาร': 4, 'ปุโรหิต': 5, 'สายลับ': 6 };
+  private place: Place = 'out'; private insideSince = -99; private fadeT = -1; private fadeTo: Place = 'out';
+  /** ฉากที่ทำงานตามอาชีพ (ผู้ใหญ่ 18+) */
+  private workScene(L: GameState['life']) {
+    if (!L.career || ageOf(L) < 18) return null;
+    const im = this.bg[`work${Scene.WORK_SCENE[L.career]}`];
+    return this.hasImg(im) ? im : null;
+  }
   /** ภาพในบ้านตามที่พำนัก (เด็กยังไม่มีอาชีพ = เรือนพ่อแม่) */
   private interior(L: GameState['life']) {
     const im = this.bg[L.career ? `in${Math.max(0, Math.min(5, L.accommodation))}` : 'inP'];
     return this.hasImg(im) ? im : null;
   }
-  private updateInside(want: boolean, dt: number) {
+  private updatePlace(want: Place, dt: number) {
     if (this.fadeT >= 0) {
       const was = this.fadeT;
       this.fadeT += dt / 0.55;
-      if (was < 0.5 && this.fadeT >= 0.5) { this.inside = this.fadeTo; this.insideSince = this.t; }
+      if (was < 0.5 && this.fadeT >= 0.5) { this.place = this.fadeTo; this.insideSince = this.t; }
       if (this.fadeT >= 1) this.fadeT = -1;
       return;
     }
-    if (want === this.inside) return;
-    if (!want && this.t - this.insideSince < 4) return; // อยู่ในบ้านอย่างน้อยสักพัก กันสลับไปมา
+    if (want === this.place) return;
+    if (want === 'out' && this.t - this.insideSince < 4) return; // อยู่ในบ้าน/ที่ทำงานอย่างน้อยสักพัก กันสลับไปมา
     this.fadeT = 0; this.fadeTo = want;
   }
   /** ฉากในบ้าน: ขยายเต็มกว้าง ชิดขอบล่าง (พื้นห้องอยู่ระดับเดียวกับพื้นดินข้างนอก) */
@@ -278,11 +291,11 @@ export class Scene {
     this.loCtx.clearRect(0, 0, SCENE_W, SCENE_H);
   }
   /** ทิวเมือง: ย้อมสีตามเวลา/ฝน (เก็บแคชไว้) · ขอบล่างภาพ (ทุ่งนา) ชนเส้นพื้น */
-  private drawCity(mood: SceneMood, tDawn: number, tDusk: number) {
-    const im = this.bg.city, d = this.dc, K = this.K;
-    const key = mood.rain ? 'r' : `${Math.round(tDawn * 4)}-${Math.round(tDusk * 4)}`;
+  private drawCity(mood: SceneMood, tDawn: number, tDusk: number, im: HTMLImageElement = this.bg.city, s = 0.6) {
+    const d = this.dc, K = this.K;
+    const key = (mood.rain ? 'r' : `${Math.round(tDawn * 4)}-${Math.round(tDusk * 4)}`) + im.src;
     const tc = this.bgTint;
-    if (tc.key !== key || tc.cv.width !== im.naturalWidth) {
+    if (tc.key !== key) {
       tc.key = key; tc.cv.width = im.naturalWidth; tc.cv.height = im.naturalHeight;
       const x = tc.cv.getContext('2d')!; x.clearRect(0, 0, tc.cv.width, tc.cv.height); x.drawImage(im, 0, 0);
       x.globalCompositeOperation = 'source-atop';
@@ -292,7 +305,7 @@ export class Scene {
       else if (tDawn > 0) { x.fillStyle = `rgba(240,200,190,${(Math.round(tDawn * 4) / 4 * 0.3).toFixed(2)})`; x.fillRect(0, 0, tc.cv.width, tc.cv.height); }
       x.globalCompositeOperation = 'source-over';
     }
-    const s = 0.6, w = im.naturalWidth * s, h = im.naturalHeight * s;
+    const w = im.naturalWidth * s, h = im.naturalHeight * s;
     const pan = (this.posX - SCENE_W / 2) * 0.12;
     const x = Math.round(((SCENE_W - w) / 2 - pan) * K), y = Math.round((GROUND + 2 - h) * K);
     d.setTransform(1, 0, 0, 1, 0, 0); d.imageSmoothingEnabled = false;

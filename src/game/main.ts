@@ -15,6 +15,8 @@ import { CHANGELOG, VERSION } from './changelog';
 import { BREEDS, breedOf, feedPrice, petAge, petPrice, petStage } from '../engine/pets';
 import { CAREER_ICON, CHILD_ICON, PATH_ICON, STAT_ICON, icon } from './icons';
 
+/** เหตุการณ์ประวัติศาสตร์ที่มีภาพประกอบ (public/art/H-<id>.jpg) */
+const HIST_ART = new Set(['L1-H02', 'L2-H04']);
 const SAVE_KEY = 'ayothaya.save.v1';
 const SPEEDS = location.search.includes('dev') ? [1, 10, 100, 3000] : [1, 10, 100];
 
@@ -415,7 +417,8 @@ function showEvent() {
   }
   if (e.kind === 'hist') {
     const h = content.historical.find(x => x.id === e.id)!;
-    let body = `${head}<span class="kind hist">${icon('scroll', 16)}พงศาวดาร</span><h2>${esc(h.title)}</h2>${h.desc ? `<p>${esc(h.desc)}</p>` : ''}`;
+    const art = HIST_ART.has(h.id) ? `<img class="hart" src="./art/H-${h.id}.jpg" alt="">` : '';
+    let body = `${head}<span class="kind hist">${icon('scroll', 16)}พงศาวดาร</span>${art}<h2>${esc(h.title)}</h2>${h.desc ? `<p>${esc(h.desc)}</p>` : ''}`;
     if (h.kind === 'choice') body += h.choices!.map((c, i) => choiceBtn(i + 1, c.label, String(i))).join('');
     else if (h.kind === 'check') {
       const p = Math.min(B.checkMax, B.checkBase + B.checkSlope * E.frac(L, h.checkStat!));

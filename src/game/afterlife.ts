@@ -1,5 +1,5 @@
 // ฉากหลังความตาย: บัญชีบุญบาป → พญายมไต่สวน 3 ข้อ → ชดใช้กรรม (มินิเกมแตะจังหวะ) → เกิดใหม่
-// ภาพในนี้วาดด้วยโค้ดชั่วคราว รอภาพจริง (ดู docs/art-todo.md หมวด "ยมโลก")
+// ใช้ภาพจริงเมื่อมี (bg_court/hell/river/heaven, yama, pret) ไม่งั้นวาดด้วยโค้ด
 import type { GameState } from '../engine/core';
 import { REALM, answerEffect, judge, rebirthYears, type Answer, type Verdict } from '../engine/afterlife';
 import { esc, th, thInt } from './format';
@@ -13,11 +13,25 @@ export function runAfterlife(g: GameState, opts: { preview?: boolean; onDone: (y
   const v: Verdict = judge(g);
   const root = document.createElement('div');
   root.className = 'yama';
-  root.innerHTML = `<canvas width="${W}" height="${H}"></canvas><div class="ybox"></div>`;
+  root.innerHTML = `<canvas width="${W * 2}" height="${H * 2}"></canvas><div class="ybox"></div>`;
   document.body.appendChild(root);
   const cv = root.querySelector('canvas')!, c = cv.getContext('2d')!, box = root.querySelector<HTMLElement>('.ybox')!;
   c.imageSmoothingEnabled = false;
-  const sprite = new Image(); sprite.src = new URL('./art/boy.png', document.baseURI).href;
+  c.setTransform(2, 0, 0, 2, 0, 0); // ผืนจริง 2 เท่า ภาพฉากจะคมขึ้น โค้ดวาดยังใช้พิกัด 240×168
+  const img = (f: string) => { const im = new Image(); im.src = new URL(`./art/${f}`, document.baseURI).href; return im; };
+  const sprite = img('boy.png');
+  const art = { court: img('bg_court.png'), hell: img('bg_hell.png'), river: img('bg_river.png'), heaven: img('bg_heaven.png'), yama: img('yama.png'), pret: img('pret.png') };
+  const ok = (im: HTMLImageElement) => im.complete && im.naturalWidth > 0;
+  /** ภาพฉากเต็มจอ (ขยายให้เต็ม ชิดล่าง) */
+  function backdrop(im: HTMLImageElement) {
+    const s = Math.max(W / im.naturalWidth, H / im.naturalHeight), w = im.naturalWidth * s, h = im.naturalHeight * s;
+    c.drawImage(im, (W - w) / 2, H - h, w, h);
+  }
+  /** วาด 1 ช่องจากภาพชุด (cols×rows) ให้สูง h ฐานอยู่ที่ (x, base) */
+  function cell(im: HTMLImageElement, cols: number, rows: number, i: number, x: number, base: number, h: number) {
+    const fw = im.naturalWidth / cols, fh = im.naturalHeight / rows, w = h * fw / fh;
+    c.drawImage(im, (i % cols) * fw, Math.floor(i / cols) * fh, fw, fh, Math.round(x - w / 2), Math.round(base - h), Math.round(w), Math.round(h));
+  }
 
   let phase: Phase = 'ledger', q = 0, judgeYears = 0, hits = 0, misses = 0, t = 0, raf = 0;
   let zone = 0.5, zoneW = 0.24, slip = 0, last = performance.now();
@@ -42,6 +56,14 @@ export function runAfterlife(g: GameState, opts: { preview?: boolean; onDone: (y
     c.restore();
   }
   function court() {
+    if (ok(art.court) && ok(art.yama)) {
+      backdrop(art.court);
+      // พญายม: อ่านบัญชีตอนเปิดบัญชี · ชี้นิ้วตอนถาม · ฟาดไม้ตอนตัดสิน
+      const f = phase === 'ledger' ? 2 : phase === 'ask' ? (Math.floor(t / 1.6) % 2 ? 1 : 0) : 3;
+      cell(art.yama, 2, 2, f, 176, 140, 104);
+      soul(62, 160, 46);
+      return;
+    }
     for (let i = 0; i < 6; i++) { c.fillStyle = ['#1a0606', '#240909', '#2e0c0b', '#3a100d', '#47140f', '#521811'][i]; c.fillRect(0, i * 22, W, 22); }
     c.fillStyle = '#2a0d08'; c.fillRect(0, 132, W, 36); c.fillStyle = '#5c1d12'; c.fillRect(0, 132, W, 2);
     for (const x of [18, 58, 182, 222]) { c.fillStyle = '#3b1209'; c.fillRect(x - 5, 20, 10, 112); c.fillStyle = '#a8792a'; c.fillRect(x - 6, 20, 12, 3); c.fillRect(x - 6, 128, 12, 4); }
@@ -59,6 +81,12 @@ export function runAfterlife(g: GameState, opts: { preview?: boolean; onDone: (y
     soul(62, 160, 46);
   }
   function hell() {
+    if (ok(art.hell)) {
+      backdrop(art.hell);
+      const goal = realm.rounds, y = 150 - (hits / Math.max(1, goal)) * 115 + slip;
+      soul(70, y, 40); // ต้นงิ้วในภาพอยู่ค่อนซ้าย
+      return;
+    }
     for (let i = 0; i < 6; i++) { c.fillStyle = ['#2a0505', '#3a0707', '#4d0a08', '#62100a', '#7a180c', '#93220e'][i]; c.fillRect(0, i * 25, W, 25); }
     c.fillStyle = '#c0432c'; c.fillRect(0, 150, W, 18); c.fillStyle = '#e08a3a';
     for (let x = 0; x < W; x += 9) c.fillRect(x + Math.round(Math.sin(t * 4 + x) * 2), 150 + (x % 3), 4, 2);
@@ -71,6 +99,16 @@ export function runAfterlife(g: GameState, opts: { preview?: boolean; onDone: (y
   }
   function bridge() {
     const grey = v.realm === 'preta';
+    if (ok(art.river)) {
+      backdrop(art.river);
+      if (grey) { c.save(); c.fillStyle = 'rgba(40,52,44,.35)'; c.fillRect(0, 0, W, H); c.restore(); }
+      // เปรตยืนโยกอยู่ริมฝั่ง (เฉพาะเปรตวิสัย)
+      if (grey && ok(art.pret)) { c.save(); c.globalAlpha = 0.85; cell(art.pret, 2, 1, Math.floor(t / 0.9) % 2, 16, 166, 112); c.restore(); }
+      const goal = realm.rounds, u = hits / Math.max(1, goal);
+      const x = W * (0.17 + 0.67 * u), y = H * (0.56 + 0.1 * Math.sin(Math.PI * u) + 0.02 * u);
+      soul(x, y + 4 + slip, 34);
+      return;
+    }
     for (let i = 0; i < 6; i++) { c.fillStyle = grey ? ['#1d2320', '#242b27', '#2c342f', '#353e38', '#3e4841', '#47524a'][i] : ['#1a2433', '#20304a', '#283c5a', '#33496a', '#3f577a', '#4b6588'][i]; c.fillRect(0, i * 22, W, 22); }
     c.fillStyle = grey ? '#2f3a33' : '#24384f'; c.fillRect(0, 118, W, 50);              // แม่น้ำเวตรณี
     c.fillStyle = grey ? '#5a6b5f' : '#5a7aa0'; for (let x = 0; x < W; x += 12) c.fillRect((x + t * 20) % W, 128 + (x % 4) * 6, 6, 1);
@@ -82,6 +120,7 @@ export function runAfterlife(g: GameState, opts: { preview?: boolean; onDone: (y
     soul(x, 110 + slip, 36);
   }
   function heaven() {
+    if (ok(art.heaven)) { backdrop(art.heaven); soul(120, 152, 44); return; }
     for (let i = 0; i < 6; i++) { c.fillStyle = ['#f6dc8a', '#f3d27a', '#efc66a', '#e8b85c', '#e0aa50', '#d89c46'][i]; c.fillRect(0, i * 28, W, 28); }
     c.fillStyle = '#fbf3e2';
     for (const [x, y] of [[20, 120], [70, 130], [150, 124], [200, 134]]) { c.fillRect((x + t * 6) % (W + 40) - 20, y, 40, 8); c.fillRect((x + t * 6) % (W + 40) - 12, y - 5, 24, 6); }
@@ -90,7 +129,7 @@ export function runAfterlife(g: GameState, opts: { preview?: boolean; onDone: (y
     soul(120, 150, 44);
   }
   function draw() {
-    c.clearRect(0, 0, W, H);
+    c.clearRect(0, 0, W, H); c.imageSmoothingEnabled = false;
     if (phase === 'ledger' || phase === 'ask') court();
     else if (phase === 'heaven') heaven();
     else if (phase === 'stage') climb ? hell() : bridge();

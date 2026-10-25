@@ -22,6 +22,9 @@ export const BREEDS: PetBreed[] = [
   { key: 'wichienmaat', species: 'cat', name: 'แมววิเชียรมาศ', desc: 'แมวมงคลในตำราแมวสมัยอยุธยา ขนสีงาแต้มน้ำตาลเข้ม ตาสีฟ้า เชื่อกันว่าเลี้ยงแล้วจะได้ยศถาบรรดาศักดิ์', stats: ['บารมี'], joy: 0.10, life: [30, 40], stages: [2.5, 22], art: 'pet_wichienmaat', scale: 0.3 },
   { key: 'langan', species: 'dog', name: 'หมาหลังอาน', desc: 'หมาไทยขนสั้นสีแดง มีขนแนวสันหลังขึ้นย้อนเป็นรูปอาน ปราดเปรียว กล้าหาญ นักล่าคู่ใจชาวบ้าน', stats: ['ต่อสู้'], joy: 0.08, life: [28, 36], stages: [2.5, 20], art: 'pet_langan', scale: 0.44 },
   { key: 'korat', species: 'cat', name: 'แมวสีสวาด', desc: 'แมวขนสีเทาเงินเหลือบ ตาเขียวใส ตำราว่าเป็นแมวนำโชค เลี้ยงแล้วเงินทองไหลมาเทมา', stats: ['โภคทรัพย์'], joy: 0.10, life: [30, 40], stages: [2.5, 22], art: 'pet_korat', scale: 0.31 },
+  { key: 'khaomanee', species: 'cat', name: 'แมวขาวมณี', desc: 'แมวขาวปลอดทั้งตัว ตาสองสีข้างหนึ่งฟ้าข้างหนึ่งทอง คนโบราณถือเป็นแมวมงคล เลี้ยงไว้ในวังและบ้านขุนนาง', stats: ['ไสยเวทย์'], joy: 0.10, life: [30, 40], stages: [2.5, 22], art: 'pet_khaomanee', scale: 0.29 },
+  { key: 'bulbul', species: 'bird', name: 'นกกรงหัวจุก', desc: 'นกหงอนแหลมแก้มแดง ร้องเสียงใสไพเราะ ปราดเปรียวว่องไว ชาวบ้านนิยมเลี้ยงไว้ฟังเสียงร้อง', stats: ['หลบหลีก'], joy: 0.16, life: [20, 26], stages: [1.5, 13], art: 'pet_bulbul', scale: 0.19 },
+  { key: 'myna', species: 'bird', name: 'นกเอี้ยง', desc: 'นกปากเหลืองช่างเลียนเสียง ฉลาดแสนรู้ สอนให้พูดตามได้', stats: ['ความรู้'], joy: 0.14, life: [22, 30], stages: [1.5, 15], art: 'pet_myna', scale: 0.2 },
   { key: 'nokkhao', species: 'bird', name: 'นกเขาชวา', desc: 'นกเสียงขันไพเราะ คนโบราณถือว่าเสียงขันเป็นมงคล ฟังแล้วใจสงบ', stats: ['ไหวพริบ'], joy: 0.16, life: [20, 28], stages: [1.5, 14], art: 'pet_nokkhao', scale: 0.22 },
 ];
 export const breedOf = (k: string) => BREEDS.find(b => b.key === k)!;
