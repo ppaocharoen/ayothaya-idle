@@ -189,7 +189,7 @@ function stepDay(g: GameState, eff = 1) {
     if (job) for (const s of job.stats) grow(L, s, B.childJobRate * p.work / job.stats.length * eff);
   } else if (L.career) {
     const c = career(L.career), we = workEff(g) * eff;
-    grow(L, c.gateStat, B.workPrimaryRate * p.work * we);
+    grow(L, c.gateStat, B.workPrimaryRate * (B.careerWorkMul[c.key] ?? 1) * p.work * we);
     grow(L, c.secondaryStat, B.workSecondaryRate * p.work * we);
     L.affection += B.affectionWork * p.work * (1 + B.affectionPerLevel * L.level);
   }

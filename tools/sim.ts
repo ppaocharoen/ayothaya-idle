@@ -103,7 +103,7 @@ const first = (r: RunRec, f: (l: LifeRec) => boolean) => { const l = r.lives.fin
 const loop1 = (r: RunRec) => r.lives.filter(l => l.loop === 1);
 
 if (detail) {
-  for (const r of runs.filter(r => r.s.seed === 1 && (!process.argv.includes('--work') || r.s.path === 'work'))) {
+  for (const r of runs.filter(r => (process.env.SEEDS ? true : r.s.seed === 1) && (!process.argv.includes('--work') || r.s.path === 'work'))) {
     console.log(`\n${r.s.career} / ${r.s.path} → ${r.ending}${r.siegeOk != null ? ` (ล้อมกรุง ${r.siegeOk ? 'รอด' : 'แตก'})` : ''}`);
     for (const l of r.lives.filter(l => l.loop === 1)) console.log(`  รอบ${l.loop} ชาติ${l.life}: Lv${l.level}${l.lv19Age ? `(19@${l.lv19Age})` : ''} g19=${(l as any).g19} บุญ ${l.merit}${l.meritHitAge ? `(8000@${l.meritHitAge})` : ''} รายได้ ${l.income.toFixed(1)} เหลือ ${l.moneyLeft.toFixed(1)} ติดความชอบ ${l.affBlockDays}/${l.checks} หลบหลีก ${(l.fleeFrac * 100).toFixed(0)}% เหตุการณ์ย่อย ${l.minor} หลัก ${l.main}`);
   }
