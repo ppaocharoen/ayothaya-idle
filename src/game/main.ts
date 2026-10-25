@@ -31,18 +31,48 @@ const clean = (s: string) => s.replace(/\s*\([^)]*\)\s*/g, ' ').trim(); // ต�
 
 // ---------- โหลด/เซฟ ----------
 function store(): Storage | null { try { return window.localStorage; } catch { return null; } }
-/** รหัสเซฟสำหรับย้ายข้ามเบราว์เซอร์/แอปหน้าจอโฮม (base64 ของ JSON) */
-function saveCode(): string {
-  const bytes = new TextEncoder().encode(E.serialize(g)); let bin = '';
-  bytes.forEach(b => { bin += String.fromCharCode(b); });
-  return 'AY1:' + btoa(bin);
+/** รหัสเซฟสำหรับย้ายข้ามเบราว์เซอร์/แอปหน้าจอโฮม
+ *  AY2z:<base64 ของ JSON ที่บีบอัด>:<ความยาว> (ใส่ความยาวไว้ตรวจว่าคัดลอกมาครบ) · อ่านรหัสรุ่น AY1 เดิมได้ */
+const b64 = (u: Uint8Array) => { let bin = ''; for (let i = 0; i < u.length; i += 0x8000) bin += String.fromCharCode(...u.subarray(i, i + 0x8000)); return btoa(bin); };
+const unb64 = (t: string) => { const bin = atob(t); return Uint8Array.from(bin, c => c.charCodeAt(0)); };
+async function pipe(u: Uint8Array, stream: TransformStream<Uint8Array, Uint8Array>) {
+  return new Uint8Array(await new Response(new Blob([u]).stream().pipeThrough(stream)).arrayBuffer());
 }
-function loadCode(code: string): E.GameState | null {
+async function saveCode(): Promise<string> {
+  const raw = new TextEncoder().encode(E.serialize(g));
+  let tag = 'AY2', body = raw;
+  if (typeof CompressionStream !== 'undefined') { try { body = await pipe(raw, new CompressionStream('deflate-raw')); tag = 'AY2z'; } catch { body = raw; } }
+  const t = b64(body);
+  return `${tag}:${t}:${t.length}`;
+}
+async function loadCode(text: string): Promise<{ g: E.GameState } | { err: string }> {
+  const m = text.replace(/\s+/g, '').match(/(AY1|AY2z?):([A-Za-z0-9+/=_-]+)(?::(\d+))?/);
+  if (!m) return { err: 'ไม่พบรหัสเซฟในข้อความที่วาง (ต้องขึ้นต้นด้วย AY)' };
+  let t = m[2].replace(/-/g, '+').replace(/_/g, '/');
+  if (m[1] !== 'AY1' && !m[3]) return { err: `รหัสไม่ครบ (ท้ายรหัสหายไป) — ได้ ${t.length.toLocaleString()} ตัวอักษร ลองคัดลอกใหม่ให้ครบ หรือใช้ “บันทึกเป็นไฟล์” แทน` };
+  if (m[3] && t.length !== +m[3]) return { err: `รหัสไม่ครบ — ได้ ${t.length.toLocaleString()} จาก ${(+m[3]).toLocaleString()} ตัวอักษร ลองคัดลอกใหม่ หรือใช้ “บันทึกเป็นไฟล์” แทน` };
+  while (t.length % 4) t += '=';
   try {
-    const bin = atob(code.replace(/^AY1:/, '').replace(/\s+/g, ''));
-    const json = new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
-    const ng = E.deserialize(json); return ng && ng.life ? ng : null;
-  } catch { return null; }
+    let u = unb64(t);
+    if (m[1] === 'AY2z') {
+      if (typeof DecompressionStream === 'undefined') return { err: 'เครื่องนี้เปิดรหัสแบบบีบอัดไม่ได้ (iOS ต้องเป็น 16.4 ขึ้นไป)' };
+      u = await pipe(u, new DecompressionStream('deflate-raw'));
+    }
+    const ng = E.deserialize(new TextDecoder().decode(u));
+    return ng && ng.life ? { g: ng } : { err: 'รหัสอ่านได้แต่ข้อมูลเซฟไม่สมบูรณ์' };
+  } catch (e) { return { err: `อ่านรหัสไม่ได้ (${(e as Error).name}) ลองคัดลอกใหม่ หรือใช้ไฟล์แทน` }; }
+}
+let readyCode = '';
+async function prepareCode() { save(); readyCode = await saveCode(); }
+function applyLoaded(ng: E.GameState) {
+  g = ng; save(); sliceDone = false; healthWarned = false; lifebarFor = ''; running = true;
+  closeMenu(); renderHud(); renderTab(); S.playSelect();
+  toast('โหลดเซฟแล้ว เล่นต่อได้เลย', 'check');
+}
+async function tryLoad(text: string) {
+  const r = await loadCode(text);
+  if ('err' in r) { const el = document.getElementById('save-msg'); if (el) el.textContent = r.err; S.playTap(); return; }
+  applyLoaded(r.g);
 }
 function save() { try { store()?.setItem(SAVE_KEY, E.serialize(g)); } catch { /* ไม่มีที่เก็บก็เล่นต่อได้ */ } }
 function load(): E.GameState | null {
@@ -683,11 +713,16 @@ function renderMenu() {
         : '<p>เปิดเมนูของเบราว์เซอร์ (⋮) แล้วเลือก <b>เพิ่มลงในหน้าจอหลัก</b> หรือ <b>ติดตั้งแอป</b></p>'}
       <div class="mnote">${icon('scroll', 18)}<span><b>หมายเหตุ:</b> เกมที่เปิดจากไอคอนหน้าจอโฮมจะ<b>เก็บเซฟแยก</b>จากที่เล่นใน Safari จึงเริ่มเล่นเป็นเซฟใหม่ ไม่ใช่เซฟเดิม — ถ้าอยากเล่นเซฟเดิมต่อ ให้ใช้ “ย้ายเซฟ” ข้างล่าง</span></div>
       <div class="mlabel">ย้ายเซฟ</div>
-      <ol class="msteps"><li>ในที่ที่มีเซฟเดิม กด <b>คัดลอกรหัสเซฟ</b></li><li>เปิดเกมอีกที่ (เช่นจากหน้าจอโฮม) มาหน้านี้ วางรหัสลงช่อง แล้วกด <b>โหลดเซฟนี้</b></li></ol>
-      <button class="gbtn" data-m="save-copy">${icon('scroll', 20)}คัดลอกรหัสเซฟ</button>
-      <textarea id="save-in" class="msave" rows="3" placeholder="วางรหัสเซฟที่นี่"></textarea>
-      <button class="gbtn dark" data-m="save-load">${icon('check', 20)}โหลดเซฟนี้</button>
+      <ol class="msteps"><li>ในที่ที่มีเซฟเดิม กด <b>คัดลอกรหัสเซฟ</b> (หรือ <b>บันทึกเป็นไฟล์</b>)</li><li>เปิดเกมอีกที่ (เช่นจากหน้าจอโฮม) มาหน้านี้ กด <b>วางรหัส</b> แล้ว <b>โหลดเซฟนี้</b> (หรือ <b>เปิดไฟล์เซฟ</b>)</li></ol>
+      <div class="mchips"><button class="gbtn" data-m="save-copy">${icon('scroll', 20)}คัดลอกรหัสเซฟ</button><button class="gbtn dark" data-m="save-file">${icon('pouch', 20)}บันทึกเป็นไฟล์</button></div>
+      <textarea id="save-in" class="msave" rows="3" placeholder="วางรหัสเซฟที่นี่" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+      <div class="mchips"><button class="gbtn dark" data-m="save-paste">${icon('scroll', 20)}วางรหัส</button><button class="gbtn" data-m="save-load">${icon('check', 20)}โหลดเซฟนี้</button></div>
+      <label class="gbtn dark mfile">${icon('house', 20)}เปิดไฟล์เซฟ<input id="save-filein" type="file" accept=".txt,text/plain" hidden></label>
       <p id="save-msg" class="muted"></p>`;
+    void prepareCode();
+    ($('save-filein') as HTMLInputElement).addEventListener('change', async ev => {
+      const f = (ev.target as HTMLInputElement).files?.[0]; if (f) await tryLoad(await f.text());
+    });
     return;
   }
   const sp = SPEEDS.map((v, i) => `<button class="mchip ${i === speedIdx ? 'on' : ''}" data-m="speed" data-v="${i}"><b>×${th(v)}</b><small>${SPEED_LABEL[v] ?? ''}</small></button>`).join('');
@@ -718,22 +753,32 @@ $('menu').addEventListener('click', ev => {
     try { store()?.setItem('ayothaya.sound', JSON.stringify({ sfx: sound.sfx, music: sound.music })); } catch { /* ignore */ }
     S.playTap(); renderMenu(); return;
   }
-  if (m === 'save-copy') {
-    save();
-    const code = saveCode();
-    const done = (ok: boolean) => { const el = $('save-msg'); el.textContent = ok ? 'คัดลอกแล้ว — ไปวางในเกมอีกที่ได้เลย' : 'คัดลอกอัตโนมัติไม่ได้ — กดค้างที่ช่องแล้วเลือกคัดลอกเอง'; };
+  if (m === 'save-copy' || m === 'save-file') {
+    const msg = $('save-msg');
+    if (!readyCode) { msg.textContent = 'กำลังเตรียมรหัส ลองกดอีกครั้ง'; void prepareCode(); return; }
+    const code = readyCode;
+    if (m === 'save-file') {
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([code], { type: 'text/plain' }));
+      a.download = `ayothaya-save-${new Date().toISOString().slice(0, 10)}.txt`; document.body.appendChild(a); a.click(); a.remove();
+      msg.textContent = 'บันทึกไฟล์แล้ว (บน iPhone อยู่ในแอปไฟล์ › ดาวน์โหลด) — เปิดเกมอีกที่แล้วกด “เปิดไฟล์เซฟ”';
+      S.playTap(); return;
+    }
     const ta = $('save-in') as HTMLTextAreaElement;
-    navigator.clipboard?.writeText(code).then(() => done(true), () => { ta.value = code; ta.select(); done(false); }) ?? (ta.value = code, ta.select(), done(false));
-    S.playTap(); return;
+    const manual = () => { ta.value = code; ta.focus(); ta.setSelectionRange(0, code.length); msg.textContent = 'คัดลอกอัตโนมัติไม่ได้ — กดค้างที่ช่องแล้วเลือก “คัดลอก” (ต้องเลือกทั้งหมด) หรือใช้ “บันทึกเป็นไฟล์”'; };
+    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(code).then(() => { msg.textContent = `คัดลอกแล้ว (${code.length.toLocaleString()} ตัวอักษร) — ไปวางในเกมอีกที่ได้เลย`; }, manual);
+    else manual();
+    S.playTap(); void prepareCode(); return;
+  }
+  if (m === 'save-paste') {
+    const ta = $('save-in') as HTMLTextAreaElement;
+    if (navigator.clipboard?.readText) navigator.clipboard.readText().then(t => { ta.value = t; void tryLoad(t); }, () => { $('save-msg').textContent = 'อ่านคลิปบอร์ดไม่ได้ — กดค้างที่ช่องแล้วเลือก “วาง” แทน'; ta.focus(); });
+    else ta.focus();
+    return;
   }
   if (m === 'save-load') {
-    const txt = ($('save-in') as HTMLTextAreaElement).value.trim();
-    const ng = txt ? loadCode(txt) : null;
-    if (!ng) { $('save-msg').textContent = 'รหัสเซฟไม่ถูกต้อง ลองคัดลอกมาใหม่อีกครั้ง'; return; }
-    g = ng; save(); sliceDone = false; healthWarned = false; lifebarFor = ''; running = true;
-    closeMenu(); renderHud(); renderTab(); S.playSelect();
-    toast('โหลดเซฟแล้ว เล่นต่อได้เลย', 'check');
-    return;
+    const txt = ($('save-in') as HTMLTextAreaElement).value;
+    if (!txt.trim()) { $('save-msg').textContent = 'ยังไม่ได้วางรหัส'; return; }
+    void tryLoad(txt); return;
   }
   if (m === 'do-install' && installEvt) { installEvt.prompt(); installEvt = null; renderMenu(); return; }
   if (m === 'quit') {
