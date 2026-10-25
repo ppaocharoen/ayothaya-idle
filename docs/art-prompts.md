@@ -3,7 +3,9 @@
 วิธีใช้: เปิด Gemini (Nano Banana) → แนบ `boy_pixel_x8.png` (ตัวคน) หรือรูปสัตว์ชุดก่อน (สัตว์) → วางพรอมต์ทั้งก้อน → เซฟเป็น `.jpg` ใส่ `art/raw/` ตามชื่อที่บอก แล้วบอก Claude ว่า "ใส่แล้ว"
 ถ้ามีช่องไหนตัวโดนตัด พิมพ์ต่อในแชทเดิม: `Same sheet, but zoom out: make the character 25% smaller in every frame so the whole body including feet fits with margin.`
 
-ลำดับแนะนำ: **T3 → B5 → B6 → E4 → E2 → P4 → F1 → F5** → U1–U3 → C ชุดผู้ใหญ่ → D/V ชรา → E3 → P5+
+เสร็จแล้ว: T3 B5 B6 E4 E2 ✅
+
+ลำดับแนะนำต่อไป: **TP1–TP3 (พราหมณ์ชุดธรรมดา) → P4 → F1 → F5** → U1–U3 → C ชุดผู้ใหญ่ → D/V ชรา → E3 → P5+
 
 ---
 
@@ -15,7 +17,7 @@
 
 ---
 
-## T3 — วัยรุ่นชุดธรรมดา: อารมณ์ → `T3.jpg`
+## T3 — วัยรุ่นชุดธรรมดา: อารมณ์ → `T3.jpg` ✅ ใส่ในเกมแล้ว
 ```
 Pixel-art sprite sheet of the SAME boy from the attached reference image (same face, proportions and outline style), now a teenager about 15 years old, in everyday clothes: shirtless, dark indigo chong kraben with a brown-gold cloth sash, barefoot.
 
@@ -36,7 +38,7 @@ Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighb
 Background: solid pure green #00FF00 everywhere. No shadows, no ground, no text, no grid lines.
 ```
 
-## B5 — ลูกมือพราหมณ์ (ปุโรหิต) → `B5.jpg`
+## B5 — ลูกมือพราหมณ์ (ปุโรหิต) → `B5.jpg` ✅ ใส่ในเกมแล้ว
 ```
 Pixel-art sprite sheet of the SAME boy from the attached reference image (same face, proportions and outline style), now a teenager about 15 years old, an apprentice Brahmin priest at the Ayutthaya royal court.
 
@@ -58,7 +60,7 @@ Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighb
 Background: solid pure green #00FF00 everywhere. No shadows, no ground, no text, no grid lines.
 ```
 
-## B6 — ลูกมือสายลับ → `B6.jpg`
+## B6 — ลูกมือสายลับ → `B6.jpg` ✅ ใส่ในเกมแล้ว
 ```
 Pixel-art sprite sheet of the SAME boy from the attached reference image (same face, proportions and outline style), now a teenager about 15 years old, an apprentice spy/scout in the Ayutthaya kingdom.
 
@@ -90,7 +92,7 @@ Background: solid pure green #00FF00 everywhere. No shadows, no ground, no text,
 3. **E3 ฉากทำงานตามอาชีพ** (ทีหลัง) — แทนทิวเมืองตอนทำงานผู้ใหญ่: ค่ายทหาร ท่าเรือสำเภา ทุ่งนา ศาลาลูกขุน หอพราหมณ์ ตรอกยามค่ำ
 ภาพฉากใช้เม็ดใหญ่กว่าตัวละครเล็กน้อย (1 เม็ด = 1 พิกเซลเกม) ทำให้ฉากดูอยู่ไกลกว่า และโค้ดย้อมสีตามเวลาได้
 
-## E4 — ทิวเมืองอโยธยา → `E4.jpg`
+## E4 — ทิวเมืองอโยธยา → `E4.jpg` ✅ ใส่ในเกมแล้ว
 ```
 Pixel-art background layer for a side-view game: the skyline of the old Thai capital Ayutthaya seen from far away across rice fields. NO people, NO animals, NO sun, NO clouds.
 
@@ -105,7 +107,7 @@ Style: distant background — muted warm palette (dusty ochre, faded brick red, 
 Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighbor — every pixel is a perfect SQUARE block of identical size, aligned to one grid across the whole image. No anti-aliasing, gradients, blur or dithering noise. Flat colors, no black outlines on far buildings (just slightly darker edge colors).
 ```
 
-## E2 — ที่พำนัก ๖ ระดับ → `E2.jpg`
+## E2 — ที่พำนัก ๖ ระดับ → `E2.jpg` ✅ ใส่ในเกมแล้ว
 ```
 Pixel-art sprite sheet of 6 traditional Ayutthaya-era Thai dwellings, from poorest to richest, for a side-view game. NO people, NO animals.
 
@@ -124,6 +126,21 @@ Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighb
 
 Background: solid pure green #00FF00 everywhere. No shadows, no ground, no text, no grid lines.
 ```
+
+---
+
+## TP1–TP3 — พราหมณ์ชุดธรรมดา (แก้ทรงผมจาก T1–T3) → `TP1.jpg` `TP2.jpg` `TP3.jpg`
+ลูกมือพราหมณ์เกล้ามวย แต่ท่าทั่วไป (อ่าน แบก รำไม้ สมาธิ ย่อง จุดเทียน ดีใจ เสียใจ นอน หลบฝน) ใช้ภาพ T1–T3 ที่เป็นทรงมหาดไทย → ผมเปลี่ยนไปมา
+วิธีที่ง่ายสุด: **แนบภาพ T1.jpg** (แล้วทำซ้ำกับ T2, T3) ใช้พรอมต์แก้ภาพนี้ — ไม่ต้องเจนท่าใหม่
+```
+Edit this sprite sheet. Change ONLY the boy's hairstyle in all 6 frames, keep everything else exactly the same (poses, clothes, colors, size, positions, pixel grid, green background).
+New hairstyle: Brahmin style — long black hair pulled back and tied in a small neat round bun on the crown of the head, with a thin white cloth tie around the bun. No shaved sides, no topknot of a child.
+Also change his lower garment to a plain white chong kraben with a white sash (instead of indigo), keep him shirtless.
+Pixel grid: keep the exact same 8× nearest-neighbor square pixel grid, no blur, no anti-aliasing. Background stays solid pure green #00FF00.
+```
+(ถ้าไม่ทำชุดนี้ เกมจะใช้ T1–T3 ทรงมหาดไทยไปก่อน)
+
+**แนวทางเดียวกันใช้กับผู้ใหญ่ได้:** U1–U3 = แนบ T1–T3 แล้วสั่งแก้ "make him about 25 years old: taller, broader shoulders, more defined jaw, thin moustache — keep poses and layout" ประหยัดกว่าเจนใหม่และท่าตรงกันแน่นอน
 
 ---
 

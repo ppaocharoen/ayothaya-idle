@@ -26,6 +26,12 @@ const SHEETS: Record<string, { cols: number; rows: number; sx: number[]; sy: num
   b3: { cols: 2, rows: 3, sx: [6.65 / 8.1], sy: [6.63 / 8.1] },
   // B4 ลูกมือขุนนาง (บริหาร) 3×2: แถว 0 ยืน 1 เฟรม + เดิน 2 เฟรม · แถว 1 นั่งจดสมุดไทย (หัวในท่านั่งวาดใหญ่กว่าเล็กน้อย)
   b4: { cols: 3, rows: 2, sx: [6.62 / 8.38, 6.62 / 9.2], sy: [6.63 / 8.38, 6.63 / 9.2], stand: [[0, 0]], walk: [[1, 0], [2, 0]] },
+  // B5 ลูกมือพราหมณ์ (ปุโรหิต) 3×2: ยืน + เดิน 2 · นั่งคุกเข่าไหว้ จุดธูป ประพรมน้ำมนต์ (ผมเกล้ามวย)
+  b5: { cols: 3, rows: 2, sx: [6.62 / 8.1], sy: [6.62 / 8.1], stand: [[0, 0]], walk: [[1, 0], [2, 0]] },
+  // B6 ลูกมือสายลับ 3×2: ยืนกอดอก + เดิน 2 · หมอบแอบฟัง เหลียวมอง ซ่อนสาร
+  b6: { cols: 3, rows: 2, sx: [6.62 / 8.4], sy: [6.62 / 8.4], stand: [[0, 0]], walk: [[1, 0], [2, 0]] },
+  // T3 วัยรุ่นชุดธรรมดา: ดีใจ 2 · เสียใจ ตกใจ · นอน หลบฝน (แทน A5)
+  t3: { cols: 2, rows: 3, sx: [6.63 / 8.4], sy: [6.63 / 8.4] },
   // T1 วัยรุ่นชุดธรรมดา ทรงมหาดไทย: อ่าน แบก รำไม้ (แทน A2)
   t1: { cols: 2, rows: 3, sx: [6.63 / 8.93], sy: [6.63 / 8.93] },
   // T2 วัยรุ่นชุดธรรมดา: นั่งสมาธิ/ไหว้ · ย่องพรางกาย · จุดเทียน (แทน A3)
@@ -55,6 +61,9 @@ export class Scene {
   // ชุดท่าอื่น (2 คอลัมน์ × 3 แถว, ขนาดเฟรมอ่านจากรูป): A2 อ่าน/แบก/รำไม้ · A3 สมาธิ/ย่อง/จุดเทียน · A4 หาของป่า/กวาดวัด/หาบของ
   private actSheets: Record<string, HTMLImageElement> = {};
   private act: { id: string; until: number; flip: boolean } | null = null;
+  private petWalking = false;
+  private bg: Record<string, HTMLImageElement> = {};
+  private bgTint = { key: '', cv: document.createElement('canvas') };
   // frames = [คอลัมน์, แถว] · lift = ยกตัวขึ้นจากพื้นในเฟรมนั้น (ท่ากระโดด)
   static ANIMS: Record<string, { sheet: string; frames: [number, number][]; speed: number; lift?: number[] }> = {
     read: { sheet: 'a2', frames: [[0, 0], [1, 0]], speed: 0.8 }, carry: { sheet: 'a2', frames: [[0, 1], [1, 1]], speed: 0.8 }, staff: { sheet: 'a2', frames: [[0, 2], [1, 2]], speed: 0.45 },
@@ -66,6 +75,8 @@ export class Scene {
     trade: { sheet: 'b2', frames: [[0, 2], [1, 2]], speed: 1.0 },
     harvest: { sheet: 'b3', frames: [[0, 2], [1, 2]], speed: 0.5 },
     write: { sheet: 'b4', frames: [[0, 1], [1, 1], [2, 1], [1, 1]], speed: 0.45 },
+    pray: { sheet: 'b5', frames: [[0, 1], [1, 1], [2, 1]], speed: 1.1 },
+    spy: { sheet: 'b6', frames: [[0, 1], [1, 1], [2, 1], [1, 1]], speed: 0.7 },
   };
   /** เกมหยุดอยู่ (ตัวละครนอน) · ฝนตก (ถือใบตองบังฝน) — ตั้งจาก main */
   paused = false;
@@ -102,7 +113,8 @@ export class Scene {
     this.loCtx = this.lo.getContext('2d')!; this.frCtx = this.fr.getContext('2d')!;
     this.ctx = this.loCtx;
     this.sprite.src = new URL('./art/boy.png', document.baseURI).href;
-    for (const k of ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', 'b4', 't1', 't2', ...BREEDS.flatMap(b => b.art ? [b.art] : [])]) { const im = new Image(); im.src = new URL(`./art/${k.startsWith('pet_') ? k : `boy_${k}`}.png`, document.baseURI).href; this.actSheets[k] = im; }
+    for (const k of ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 't1', 't2', 't3', 'p1', 'p2', 'p3', ...BREEDS.flatMap(b => b.art ? [b.art] : [])]) { const im = new Image(); im.src = new URL(`./art/${k.startsWith('pet_') ? k : `boy_${k}`}.png`, document.baseURI).href; im.onerror = () => { delete this.actSheets[k]; }; this.actSheets[k] = im; }
+    for (const k of ['city', 'houses']) { const im = new Image(); im.src = new URL(`./art/bg_${k}.png`, document.baseURI).href; this.bg[k] = im; }
   }
 
   /** แปลงพิกัดคลิกบนหน้าจอเป็นพิกัด canvas */
@@ -133,6 +145,7 @@ export class Scene {
     this.ctx = this.loCtx; const c = this.ctx;
     this.raining = mood.rain;
     c.clearRect(0, 0, SCENE_W, SCENE_H);
+    this.dc.setTransform(1, 0, 0, 1, 0, 0); this.dc.clearRect(0, 0, this.canvas.width, this.canvas.height);
     // ---- ท้องฟ้าตามเวลาของวัน (เช้าชมพูอ่อน กลางวันครีม เย็นส้ม) และฝน ----
     const day = ['#f6e7c8', '#f3dfbb', '#efd5ad', '#e9c99c', '#e2bc8c'];
     const dawn = ['#f3d6cf', '#f1d2c0', '#efcdb0', '#ebc7a2', '#e5bd92'];
@@ -153,14 +166,23 @@ export class Scene {
     c.fillRect(cx, 22, 28, 5); c.fillRect(cx + 6, 18, 14, 4);
     c.fillRect((cx + 140) % (SCENE_W + 60) - 40, 44, 22, 4);
     if (mood.rain) { c.fillRect((cx + 70) % (SCENE_W + 60) - 40, 30, 40, 6); c.fillRect((cx + 200) % (SCENE_W + 60) - 40, 14, 34, 6); }
-    // ---- เจดีย์/ปรางค์ไกลๆ ----
-    c.fillStyle = mood.rain ? '#a9a08c' : '#cdb08a';
-    this.prang(40, GROUND - 4, 46); this.prang(64, GROUND - 4, 62); this.prang(88, GROUND - 4, 40);
-    this.chedi(205, GROUND - 4, 44);
-    // ---- ทัพเดินผ่านยามศึก ----
-    if (mood.war) this.army();
-    this.palm(150, GROUND, 52); this.palm(226, GROUND, 40);
-    this.house(L.career ? L.accommodation : 3); // เด็กยังอยู่เรือนพ่อแม่
+    const d = this.dc;
+    const artBg = this.hasImg(this.bg.city);
+    if (artBg) {
+      // ---- ทิวเมือง (ภาพ E4) วาดความละเอียดจริง เลื่อนช้ากว่าตัวละครเล็กน้อย ----
+      this.blitLo();
+      this.drawCity(mood, tDawn, tDusk);
+      if (mood.war) { this.army(); this.blitLo(); }
+      this.drawHouse(L.career ? L.accommodation : 3);
+    } else {
+      // ---- เจดีย์/ปรางค์ไกลๆ (วาดด้วยโค้ด ถ้าภาพยังไม่โหลด) ----
+      c.fillStyle = mood.rain ? '#a9a08c' : '#cdb08a';
+      this.prang(40, GROUND - 4, 46); this.prang(64, GROUND - 4, 62); this.prang(88, GROUND - 4, 40);
+      this.chedi(205, GROUND - 4, 44);
+      if (mood.war) this.army();
+      this.palm(150, GROUND, 52); this.palm(226, GROUND, 40);
+      this.house(L.career ? L.accommodation : 3); // เด็กยังอยู่เรือนพ่อแม่
+    }
     // ---- พื้นดิน + ทุ่งข้าวหน้าเก็บเกี่ยว (เดือนอ้าย–ยี่) ----
     c.fillStyle = '#b08d5a'; c.fillRect(0, GROUND, SCENE_W, SCENE_H - GROUND);
     c.fillStyle = '#9c7a4a'; c.fillRect(0, GROUND, SCENE_W, 2);
@@ -169,10 +191,7 @@ export class Scene {
       for (let x = 160; x < SCENE_W; x += 3) { const sway = Math.round(Math.sin(this.t * 2 + x) * 1); c.fillStyle = x % 2 ? '#d9b54a' : '#c9a23c'; c.fillRect(x + sway, GROUND - 7, 1, 7); c.fillRect(x + sway - 1, GROUND - 8, 2, 2); }
     }
     // ---- ฉากหลังลงจอ แล้ววาดตัวละครที่ความละเอียดจริง ----
-    const d = this.dc;
-    d.setTransform(1, 0, 0, 1, 0, 0); d.imageSmoothingEnabled = false;
-    d.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    d.drawImage(this.lo, 0, 0, this.canvas.width, this.canvas.height);
+    this.blitLo();
     d.setTransform(this.K, 0, 0, this.K, 0, 0); d.imageSmoothingEnabled = false;
     if (this.hasSheet('a1')) this.drawCharacter(L, dt);
     if (g.pet) this.drawPet(g, dt);
@@ -204,6 +223,44 @@ export class Scene {
     d.drawImage(this.fr, 0, 0, this.canvas.width, this.canvas.height);
   }
 
+  private hasImg(im?: HTMLImageElement) { return !!(im && im.complete && im.naturalWidth); }
+  /** วาดชั้นความละเอียดต่ำที่สะสมไว้ลงจอ แล้วล้างไว้วาดชั้นต่อไป */
+  private blitLo() {
+    const d = this.dc;
+    d.setTransform(1, 0, 0, 1, 0, 0); d.imageSmoothingEnabled = false;
+    d.drawImage(this.lo, 0, 0, this.canvas.width, this.canvas.height);
+    this.loCtx.clearRect(0, 0, SCENE_W, SCENE_H);
+  }
+  /** ทิวเมือง: ย้อมสีตามเวลา/ฝน (เก็บแคชไว้) · ขอบล่างภาพ (ทุ่งนา) ชนเส้นพื้น */
+  private drawCity(mood: SceneMood, tDawn: number, tDusk: number) {
+    const im = this.bg.city, d = this.dc, K = this.K;
+    const key = mood.rain ? 'r' : `${Math.round(tDawn * 4)}-${Math.round(tDusk * 4)}`;
+    const tc = this.bgTint;
+    if (tc.key !== key || tc.cv.width !== im.naturalWidth) {
+      tc.key = key; tc.cv.width = im.naturalWidth; tc.cv.height = im.naturalHeight;
+      const x = tc.cv.getContext('2d')!; x.clearRect(0, 0, tc.cv.width, tc.cv.height); x.drawImage(im, 0, 0);
+      x.globalCompositeOperation = 'source-atop';
+      x.fillStyle = 'rgba(246,231,200,0.18)'; x.fillRect(0, 0, tc.cv.width, tc.cv.height); // หมอกไกล
+      if (mood.rain) { x.fillStyle = 'rgba(150,146,132,0.5)'; x.fillRect(0, 0, tc.cv.width, tc.cv.height); }
+      else if (tDusk > 0) { x.fillStyle = `rgba(214,130,80,${(Math.round(tDusk * 4) / 4 * 0.4).toFixed(2)})`; x.fillRect(0, 0, tc.cv.width, tc.cv.height); }
+      else if (tDawn > 0) { x.fillStyle = `rgba(240,200,190,${(Math.round(tDawn * 4) / 4 * 0.3).toFixed(2)})`; x.fillRect(0, 0, tc.cv.width, tc.cv.height); }
+      x.globalCompositeOperation = 'source-over';
+    }
+    const s = 0.6, w = im.naturalWidth * s, h = im.naturalHeight * s;
+    const pan = (this.posX - SCENE_W / 2) * 0.12;
+    const x = Math.round(((SCENE_W - w) / 2 - pan) * K), y = Math.round((GROUND + 2 - h) * K);
+    d.setTransform(1, 0, 0, 1, 0, 0); d.imageSmoothingEnabled = false;
+    d.drawImage(tc.cv, x, y, Math.round(w * K), Math.round(h * K));
+  }
+  /** ที่พำนัก (ภาพ E2 ๖ ช่อง) ทางซ้ายของฉาก */
+  private drawHouse(level: number) {
+    const im = this.bg.houses; if (!this.hasImg(im)) return;
+    const i = Math.max(0, Math.min(5, level)), fw = im.naturalWidth / 3, fh = im.naturalHeight / 2;
+    const s = 0.5, w = fw * s, h = fh * s, K = this.K, d = this.dc;
+    const x = Math.round((50 - w / 2) * K), y = Math.round((GROUND + 4 - h) * K);
+    d.setTransform(1, 0, 0, 1, 0, 0); d.imageSmoothingEnabled = false;
+    d.drawImage(im, (i % 3) * fw, Math.floor(i / 3) * fh, fw, fh, x, y, Math.round(w * K), Math.round(h * K));
+  }
   private drawPickup(kind: PickupKind, x: number, y: number, age: number) {
     const c = this.ctx, glow = Math.floor(age * 4) % 2;
     if (glow) { c.fillStyle = 'rgba(255,240,180,0.7)'; c.fillRect(x - 6, y - 6, 12, 12); }
@@ -243,11 +300,11 @@ export class Scene {
     c.fillRect(x - 12, base - h + 2, 3, 3); c.fillRect(x + 11, base - h + 2, 3, 3);
   }
   /** ชุดภาพหลักตามวัยและอาชีพ: ลูกมือทหาร 12–17 ใช้ B1 (ยืน/เดินถือหอก) · อื่นๆ ใช้ A1 */
-  private static TEEN: Record<string, string> = { 'ทหาร': 'b1', 'พ่อค้า': 'b2', 'เกษตรกร': 'b3', 'บริหาร': 'b4' };
-  private static TEEN_WORK: Record<string, string> = { b1: 'spear', b2: 'trade', b3: 'harvest', b4: 'write' };
+  private static TEEN: Record<string, string> = { 'ทหาร': 'b1', 'พ่อค้า': 'b2', 'เกษตรกร': 'b3', 'บริหาร': 'b4', 'ปุโรหิต': 'b5', 'สายลับ': 'b6' };
+  private static TEEN_WORK: Record<string, string> = { b1: 'spear', b2: 'trade', b3: 'harvest', b4: 'write', b5: 'pray', b6: 'spy' };
   private look(L: GameState['life']): string {
     const age = ageOf(L), k = L.career ? Scene.TEEN[L.career] : undefined;
-    return k && age >= 12 && age < 18 && this.hasSheet(k) ? k : 'a1';
+    return k && age >= 12 && this.hasSheet(k) ? k : 'a1'; // ผู้ใหญ่ใช้ชุดลูกมือไปก่อน (ขยายตัวใหญ่ขึ้น) จนกว่าจะมีชุด C
   }
   /** ท่าทำงานของอาชีพ (ถ้ามีภาพ) */
   private workAnim(L: GameState['life']): string | null {
@@ -264,7 +321,7 @@ export class Scene {
 
   /** ตัวละครมีชีวิต: ยืนหายใจ กะพริบตา หันมามอง เดินไปมา และทำท่าตามสิ่งที่ทำอยู่ */
   private drawCharacter(L: GameState['life'], dt: number) {
-    const t = this.t; this.curAge = ageOf(L);
+    const t = this.t; this.curAge = ageOf(L); this.curCareer = L.career;
     const busy = this.alert || this.jump > 0 || this.paused;
     if (this.alert || (this.paused && this.act?.id !== 'happy')) this.act = null;
     if (this.act && t > this.act.until) this.act = null;
@@ -348,11 +405,27 @@ export class Scene {
     const im = this.actSheets[br.art], fw = im.naturalWidth / 4, fh = im.naturalHeight / 3;
     const stage = petStage(p, g.clock), t = this.t;
     // เดินตามไปอยู่ข้างหลังเจ้าของ
-    const target = this.posX - this.face * (22 + fw * br.scale * 0.35 * (stage + 1)), dx = target - this.petX;
-    const walking = Math.abs(dx) > 2;
+    // ตอนเจ้าของเดิน: ตามอยู่ข้างหลังทิศที่เดิน · ตอนยืน/ทำท่า: อยู่ฝั่งเดิมของตัวเอง (ไม่วิ่งสลับข้างทุกครั้งที่เจ้าของหันหน้า)
+    const gap = 22 + fw * br.scale * 0.35 * (stage + 1), mv = this.targetX - this.posX;
+    const side = Math.abs(mv) > 1 ? -Math.sign(mv) : (this.petX < this.posX ? -1 : 1);
+    const target = this.posX + side * gap, dx = target - this.petX;
+    // เริ่มเดินเมื่อห่างพอ หยุดเมื่อถึง (กันสลับเดิน/หยุดถี่ๆ จนดูรวน)
+    const ownerMoving = Math.abs(mv) > 1;
+    const walking = ownerMoving || (this.petWalking ? Math.abs(dx) > 0.5 : Math.abs(dx) > 8); // เจ้าของเดิน = เดินตามต่อเนื่อง ไม่สลับเดิน/นั่งทุกเฟรม
+    this.petWalking = walking;
+    if (!walking && Math.abs(this.petX - this.posX) > 4) this.petFace = this.posX > this.petX ? 1 : -1; // ยืนเฉยๆ หันหาเจ้าของ
     if (walking) { this.petFace = dx > 0 ? 1 : -1; this.petX += Math.sign(dx) * Math.min(Math.abs(dx), (stage === 2 ? 14 : 22) * dt); this.petWalkT += dt; }
     let col: number, lift = 0;
-    if (walking) col = 1 + Math.floor(this.petWalkT / (stage === 2 ? 0.3 : 0.2)) % 2;
+    if (walking) {
+      const step = Math.floor(this.petWalkT / (stage === 2 ? 0.28 : 0.18));
+      if (br.species === 'bird') {
+        // นก: ไกลก็บิน (ท่ากางปีก) ใกล้ก็กระโดดเหยาะๆ (ท่าเดิน)
+        if (Math.abs(dx) > 30) { col = 1; lift = 6 + Math.round(Math.sin(this.petWalkT * 8) * 2); }
+        else { col = 2; lift = step % 2 ? 2 : 0; }
+      } else if (br.species === 'dog' && stage === 0) {
+        col = 1; lift = step % 2; // ลูกหมา: ภาพเดินช่องที่ 2 ไม่เข้าชุด ใช้ภาพเดียวแล้วเด้งตัวแทน
+      } else { col = 1 + step % 2; lift = step % 2 ? 0 : 0.5; }
+    }
     else if (t < this.petHappyUntil && stage < 2) { col = 3; lift = Math.abs(Math.sin(t * 9)) * 5; }
     else if (stage === 2 && (this.paused || Math.floor(t / 7) % 2)) col = 3; // แก่แล้วชอบนอน
     else col = 0;
@@ -370,9 +443,14 @@ export class Scene {
   /** ท่าอื่นๆ */
   /** ชุดธรรมดาวัยรุ่น (12–17) แทนชุดเด็กเมื่อมีภาพ: A2→T1, A3→T2, A5→T3 */
   private static TEEN_CASUAL: Record<string, string> = { a2: 't1', a3: 't2', a5: 't3' };
+  /** พราหมณ์เกล้ามวย: ใช้ชุดธรรมดาเฉพาะ (P1–P3) ถ้ามีภาพ */
+  private static PRIEST_CASUAL: Record<string, string> = { t1: 'p1', t2: 'p2', t3: 'p3' };
+  private curCareer: string | null = null;
   private curAge = 9;
   private drawAct(id: string, scale: number, flip = this.face < 0) {
-    const a0 = Scene.ANIMS[id], teen = this.curAge >= 12 && this.curAge < 18 ? Scene.TEEN_CASUAL[a0.sheet] : undefined;
+    const a0 = Scene.ANIMS[id];
+    let teen = this.curAge >= 12 ? Scene.TEEN_CASUAL[a0.sheet] : undefined;
+    if (teen && this.curCareer === 'ปุโรหิต' && this.hasSheet(Scene.PRIEST_CASUAL[teen])) teen = Scene.PRIEST_CASUAL[teen];
     const a = teen && this.hasSheet(teen) ? { ...a0, sheet: teen } : a0;
     const k = Math.floor(this.t / a.speed) % a.frames.length, [col, row] = a.frames[k];
     this.face = flip ? -1 : 1;
