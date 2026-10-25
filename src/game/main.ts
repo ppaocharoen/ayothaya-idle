@@ -404,8 +404,12 @@ function showEvent() {
   if (e.kind === 'karma') {
     const d = E.karmaDef(e);
     const n = d.choices.length;
-    const risky = 'risky' in d && d.risky ? choiceBtn(n + 1, d.risky.label, 'risky', `<small>เสี่ยงดวง · โอกาส ${pct(d.risky.chance)}</small>`, 'risky') : '';
-    openModal(`${head}<span class="kind">${icon('bell', 16)}กงกรรม</span><h2>${esc(d.title)}</h2>
+    const work = E.isWork(e.id) && g.life.career ? g.life.career : null;
+    const gate = work ? content.careers.careers.find(c => c.key === work)!.gateStat : null;
+    const chance = E.riskChance(g, e);
+    const risky = 'risky' in d && d.risky ? choiceBtn(n + 1, d.risky.label, 'risky', `<small>เสี่ยงดวง · โอกาส ${pct(chance)}${gate ? ` (ขึ้นกับ${esc(statName(gate))})` : ''}</small>`, 'risky') : '';
+    const kind = work ? `${icon(CAREER_ICON[work] ?? 'star', 16)}ราชการ · ${WORK_TIER[E.workTier(g.life.level)]}` : `${icon('bell', 16)}กงกรรม`;
+    openModal(`${head}<span class="kind${work ? ' work' : ''}">${kind}</span><h2>${esc(d.title)}</h2>
       ${d.choices.map((c, i) => choiceBtn(i + 1, c.label, String(i))).join('')}${risky}`);
     return;
   }
@@ -603,7 +607,10 @@ document.addEventListener('click', ev => {
         const d = diff(before);
         showResult(label, d, v === 'risky' ? r : null);
         // ให้ตัวละครทำท่าที่เข้ากับตัวเลือก (ดูจากคำในตัวเลือกก่อน ถ้าไม่เข้าคำไหนใช้สเตตัสที่เพิ่มมากที่สุด)
-        const kw = v === 'risky' ? (r.success ? 'happy' : 'sad') : d.length && d.every(x => x.v < 0) ? 'sad' : animForLabel(label);
+        const bad = d.length && d.every(x => x.v < 0);
+        // กงการ: ทำท่าทำงานของอาชีพ (ถ้าผลไม่แย่) · อื่นๆ ดูจากคำในตัวเลือก
+        const workKw = e.kind === 'karma' && E.isWork(e.id) && !bad && !(v === 'risky' && !r.success) ? scene.workAnimId(g.life) : null;
+        const kw = workKw ?? (v === 'risky' ? (r.success ? 'happy' : 'sad') : bad ? 'sad' : animForLabel(label));
         if (!(kw && scene.showAnim(kw, 6)))
           for (const x of d.filter(x => x.kind === 'stat' && x.v > 0).sort((p, q) => q.v - p.v)) if (scene.showStat(x.key, 6)) break;
       }
@@ -860,6 +867,7 @@ const ANIM_WORDS: [RegExp, string][] = [
   [/อ่าน|เรียน|ศึกษา|ตำรา|จด|คัดลอก|สอบถาม|ขอดู|หลักฐาน|ภาษา|ตรวจ|สอน|วิชา/, 'read'],
   [/แบก|ขน|แรงงาน|ช่วยแรง|ทำงาน|รับงาน|ยก|ลาก|พาย|ช่วยเพื่อนบ้าน|ขุด|สร้าง|ร่างกาย|แข็งแรง|ที่นา|ทำกิน|เสบียง/, 'carry'],
 ];
+const WORK_TIER = ['ชั้นผู้น้อย', 'ชั้นกลาง', 'ชั้นสูง', 'ชั้นยอด'];
 function animForLabel(label: string): string | null {
   for (const [re, id] of ANIM_WORDS) if (re.test(label)) return id;
   return null;

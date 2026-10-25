@@ -331,6 +331,8 @@ export class Scene {
   }
   /** ชุดผู้ใหญ่ที่ใช้อยู่จริงหรือไม่ (ใช้ปรับขนาดตัว) */
   /** ท่าทำงานของอาชีพ (ถ้ามีภาพ) */
+  /** ท่าทำงานของอาชีพตอนนี้ (ให้หน้าจอเรียกใช้ตอนเลือกกงการ) */
+  workAnimId(L: GameState['life']) { return this.workAnim(L); }
   private workAnim(L: GameState['life']): string | null {
     if (ageOf(L) < 12) return L.childJob ? Scene.JOB_ANIM[L.childJob] ?? null : null;
     const k = L.career ? Scene.TEEN[L.career] : undefined;

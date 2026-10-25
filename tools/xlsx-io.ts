@@ -5,7 +5,7 @@ import type { Content } from '../src/content/types';
 export const ROOT = path.resolve(import.meta.dirname, '..');
 export const DATA_DIR = path.join(ROOT, 'data');
 export const XLSX_PATH = path.join(ROOT, 'content.xlsx');
-export const FILES = ['stats', 'careers', 'childJobs', 'shop', 'reigns', 'karmaFixed', 'karmaGeneric', 'historical', 'siege', 'endings'] as const;
+export const FILES = ['stats', 'careers', 'childJobs', 'shop', 'reigns', 'karmaFixed', 'karmaGeneric', 'work', 'historical', 'siege', 'endings'] as const;
 
 export function readContent(dir = DATA_DIR): Content {
   const c: Record<string, unknown> = {};

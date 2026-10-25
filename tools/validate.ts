@@ -57,6 +57,16 @@ for (const k of content.karmaGeneric) {
   checkChoices(k.id, k.choices);
   if (k.risky) { checkEffects(`${k.id} เสี่ยงดวง(สำเร็จ)`, k.risky.success.stats); checkEffects(`${k.id} เสี่ยงดวง(ล้มเหลว)`, k.risky.fail.stats); }
 }
+unique('กงการ', content.work.map(k => k.id));
+
+for (const k of content.work) {
+  if (!careerKeys.has(k.career)) errors.push(`${k.id}: อาชีพ "${k.career}" ไม่มีในรายการ`);
+  if (![0, 1, 2, 3].includes(k.tier)) errors.push(`${k.id}: ชั้นต้องเป็น 0–3`);
+  checkChoices(k.id, k.choices);
+  if (k.risky?.success.stats) checkEffects(`${k.id} เสี่ยงดวง(สำเร็จ)`, k.risky.success.stats);
+  if (k.risky?.fail.stats) checkEffects(`${k.id} เสี่ยงดวง(ล้มเหลว)`, k.risky.fail.stats);
+}
+for (const c of careerKeys) for (const t of [0, 1, 2, 3]) if (!content.work.some(k => k.career === c && k.tier === t)) warn.push(`กงการ: ${c} ชั้น ${t} ยังไม่มีเรื่อง`);
 for (const h of content.historical) {
   const r = lifeRange(h.life);
   if (h.yearFrom < r.from || h.yearTo > r.to) errors.push(`${h.id}: ปี ${h.yearFrom}–${h.yearTo} อยู่นอกชาติ ${h.life}`);
@@ -71,7 +81,7 @@ for (let life = 1; life <= NUM_LIVES; life++) {
 
 const counts = {
   สเตตัส: content.stats.length, อาชีพ: content.careers.careers.length, งานเด็ก: content.childJobs.length,
-  รัชสมัย: content.reigns.length, กงกรรมต่อชาติ: content.karmaFixed.length, กงกรรมทั่วไป: content.karmaGeneric.length,
+  รัชสมัย: content.reigns.length, กงกรรมต่อชาติ: content.karmaFixed.length, กงกรรมทั่วไป: content.karmaGeneric.length, กงการ: content.work.length,
   เหตุการณ์ประวัติศาสตร์: content.historical.length, ฉากล้อมกรุง: content.siege.length, เอนดิ้ง: content.endings.length,
   ของสามัญ: content.shop.commonItems.length,
 };

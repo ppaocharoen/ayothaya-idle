@@ -346,3 +346,5 @@ p { margin: 4px 0; }
 .menu-panel .gbtn { width: 100%; }
 .menu-panel .mchips .gbtn { flex: 1; width: auto; margin: 4px 0; font-size: 14px; }
 .mfile { display: flex; justify-content: center; align-items: center; gap: 6px; cursor: pointer; margin-top: 4px; }
+
+.kind.work { background: #2f4a6b; color: #f3e6c4; }

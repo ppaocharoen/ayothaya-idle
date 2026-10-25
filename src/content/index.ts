@@ -6,12 +6,13 @@ import shop from '../../data/shop.json';
 import reigns from '../../data/reigns.json';
 import karmaFixed from '../../data/karmaFixed.json';
 import karmaGeneric from '../../data/karmaGeneric.json';
+import work from '../../data/work.json';
 import historical from '../../data/historical.json';
 import siege from '../../data/siege.json';
 import endings from '../../data/endings.json';
 
 export const content = {
-  stats, careers, childJobs, shop, reigns, karmaFixed, karmaGeneric, historical, siege, endings,
+  stats, careers, childJobs, shop, reigns, karmaFixed, karmaGeneric, work, historical, siege, endings,
 } as unknown as Content;
 
 export const START_AGE = 9;

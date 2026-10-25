@@ -165,6 +165,19 @@ export const SHEETS: SheetDef[] = [
     },
   },
   {
+    name: 'กงการ', note: 'อีเวนต์งานตามอาชีพ · ชั้น 0 ผู้น้อย (Lv0–5) / 1 ชั้นกลาง (6–11) / 2 ชั้นสูง (12–16) / 3 ชั้นยอด (17–19) · ผลใส่ "เงิน+2, ความชอบ+1, บาป+2" (ความชอบ 1 = 5% ของที่ต้องใช้เลื่อนขั้นถัดไป) · โอกาสเสี่ยงดวงขยับตามสเตตัสหลักของอาชีพ · ตัวเลือกที่มีบาป ถ้าอยู่ทางมืดได้ผลดีขึ้น',
+    headers: ['id', 'อาชีพ', 'ชั้น', 'ชื่อ', ...choiceHeaders, 'เสี่ยงดวง', 'โอกาส', 'ผลสำเร็จ', 'ผลล้มเหลว'],
+    toRows: c => c.work.map(k => [k.id, k.career, k.tier, k.title, ...choicesToCells(k.choices),
+      k.risky?.label ?? '', k.risky?.chance ?? '', k.risky ? [riskyToText(k.risky.success), k.risky.sin ? `บาป+${k.risky.sin}` : ''].filter(Boolean).join(', ') : '', k.risky ? riskyToText(k.risky.fail) : '']),
+    fromRows: (r, c) => {
+      const o = 4 + MAX_CHOICES * 2;
+      c.work = r.map(x => ({
+        id: str(x[0]), career: str(x[1]), tier: num(x[2]), title: str(x[3]), choices: cellsToChoices(x.slice(4, o)),
+        risky: str(x[o]) ? { label: str(x[o]), chance: num(x[o + 1]), cost: {}, success: textToRisky(x[o + 2]), fail: textToRisky(x[o + 3]), ...riskySin(x[o + 2]) } : null,
+      }));
+    },
+  },
+  {
     name: 'เหตุการณ์ประวัติศาสตร์', note: 'ประเภท: narrative = บรรยาย · check = เช็คสเตตัส · choice = มีตัวเลือก · เหตุการณ์หลายปีใส่ปีเริ่ม–ปีสิ้นสุดต่างกัน',
     headers: ['id', 'ชาติ', 'ประเภท', 'ชื่อ', 'คำอธิบาย', 'ปีเริ่ม', 'ปีสิ้นสุด', 'อายุเริ่ม', 'อายุสิ้นสุด', 'เช็คสเตตัส', ...choiceHeaders],
     toRows: c => c.historical.map(h => [h.id, h.life, h.kind, h.title, h.desc, h.yearFrom, h.yearTo, h.ageFrom, h.ageTo, h.checkStat ?? '', ...choicesToCells(h.choices)]),

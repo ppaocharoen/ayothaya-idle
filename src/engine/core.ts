@@ -2,7 +2,7 @@
 // เวลาเดินทีละ "วัน" · ปิดแอปแล้วกลับมา เรียก advance(จำนวนวันที่หายไป) ได้เลย
 import { content, lifeRange, NUM_LIVES } from '../content';
 import { breedOf, petAge, petPower, petPrice, feedPrice, type Pet, type PetGrave } from './pets';
-import type { Choice, Effects, StatKey } from '../content/types';
+import type { Choice, Effects, KarmaGeneric, StatKey } from '../content/types';
 import { BALANCE as B, type PathKey } from './balance';
 import { nextRandom, randInt } from './rng';
 
@@ -53,7 +53,7 @@ export interface LifeState {
   deathAge: number | null;              // อายุตอนตาย (null = ยังมีชีวิต)
   meritStart: number;                   // บุญตอนเกิด (ใช้คิดบุญที่ทำในชาตินี้)
   deeds: { id: string; c: number }[];   // ตัวเลือกที่เลือกในชาตินี้ (พญายมหยิบมาไต่สวน)
-  sched: { karma: Scheduled[]; hist: HistSchedule[]; nextGeneric: number; bag: number[]; bagPtr: number; recent?: string[] };
+  sched: { karma: Scheduled[]; hist: HistSchedule[]; nextGeneric: number; bag: number[]; bagPtr: number; recent?: string[]; nextWork?: number; recentWork?: string[] };
 }
 
 export interface GameState {
@@ -274,10 +274,42 @@ function collectDue(g: GameState): PendingEvent[] {
     const teen = ageOf(L) < B.genericStartAge;
     L.sched.nextGeneric = L.day + (teen ? randInt(g, B.teenGenericMinDays, B.teenGenericMaxDays) : randInt(g, B.genericMinDays, B.genericMaxDays));
   }
+  // กงการ: เริ่มนับเมื่อมีอาชีพแล้ว
+  if (L.career) {
+    const workGap = () => ageOf(L) < B.genericStartAge ? randInt(g, B.workTeenMinDays, B.workTeenMaxDays) : randInt(g, B.workMinDays, B.workMaxDays);
+    if (L.sched.nextWork == null || L.sched.nextWork < 0) L.sched.nextWork = L.day + workGap();
+    else if (L.day >= L.sched.nextWork && !fixedNear && !out.some(e => e.kind === 'karma')) {
+      const w = pickWork(g);
+      if (w) out.push({ kind: 'karma', id: w.id, generic: true });
+      L.sched.nextWork = L.day + workGap();
+    }
+  }
   return out;
 }
 
 export const isMain = (e: PendingEvent) => e.kind !== 'karma';
+export const isWork = (id: string) => id.startsWith('W-');
+/** ชั้นของกงการตามยศ */
+export const workTier = (level: number) => B.workTierFrom.reduce((t, from, i) => level >= from ? i : t, 0);
+function pickWork(g: GameState) {
+  const L = g.life, sc = L.sched, tier = workTier(L.level);
+  sc.recentWork ??= [];
+  const pool = content.work.filter(w => w.career === L.career && w.tier === tier);
+  const fresh = pool.filter(w => !sc.recentWork!.includes(w.id));
+  const list = fresh.length ? fresh : pool;
+  if (!list.length) return undefined;
+  const w = list[randInt(g, 0, list.length - 1)];
+  sc.recentWork.push(w.id); if (sc.recentWork.length > Math.max(2, pool.length - 1)) sc.recentWork.shift();
+  return w;
+}
+/** โอกาสสำเร็จของตัวเลือกเสี่ยงดวง (กงการขยับตามสเตตัสหลักของอาชีพ) */
+export function riskChance(g: GameState, e: { id: string; generic: boolean }): number {
+  const d = karmaDef(e) as KarmaGeneric;
+  if (!d.risky) return 0;
+  if (!isWork(e.id) || !g.life.career) return d.risky.chance;
+  const f = frac(g.life, career(g.life.career).gateStat);
+  return clamp(d.risky.chance + (f - 0.5) * B.workRiskStat, B.workRiskMin, B.workRiskMax);
+}
 
 /** เลือกกงกรรมทั่วไปถัดไป: วัยรุ่นได้เฉพาะสันทนาการ/สุขภาพ · ความสำราญ/สุขภาพต่ำ มีโอกาสได้หมวดนั้นก่อน · ไม่ซ้ำเรื่องที่เพิ่งเห็น */
 function pickGeneric(g: GameState) {
@@ -327,7 +359,7 @@ export function advance(g: GameState, days: number, opts: { online: boolean; awa
       if (isMain(e) || opts.online || g.queue.length < B.offlineQueueMax) { g.queue.push(e); continue; }
       // ช่องเก็บตอนปิดแอปเต็ม: เก็บเรื่องสันทนาการ/สุขภาพไว้ให้ผู้เล่นเลือกเอง แทนเรื่องทั่วไปที่ค้างอยู่
       let ke = e as Extract<PendingEvent, { kind: 'karma' }>;
-      const tagged = (x: PendingEvent) => x.kind === 'karma' && x.generic && !!content.karmaGeneric.find(k => k.id === x.id)?.tag;
+      const tagged = (x: PendingEvent) => x.kind === 'karma' && x.generic && (isWork(x.id) || !!content.karmaGeneric.find(k => k.id === x.id)?.tag); // กงการกับสันทนาการ/สุขภาพ เก็บไว้ให้เลือกเอง
       if (tagged(e)) {
         const i = g.queue.findIndex(x => x.kind === 'karma' && !tagged(x));
         if (i >= 0) { const old = g.queue[i] as typeof ke; g.queue[i] = e; ke = old; }
@@ -339,24 +371,25 @@ export function advance(g: GameState, days: number, opts: { online: boolean; awa
 }
 
 // ---------- แก้เหตุการณ์ ----------
-function applyEffects(g: GameState, e: Effects, mult = 1) {
+function applyEffects(g: GameState, e: Effects, mult = 1, work = false) {
   const L = g.life;
   for (const [k, v] of Object.entries(e) as [string, number][]) {
-    if (k === 'ความชอบ') { L.affection = Math.max(0, L.affection + v); continue; }
+    if (k === 'ความชอบ') { L.affection = Math.max(0, L.affection + (work ? v * workAffStep(L) : v)); continue; }
     // ค่าชีวิต: เงินคิดเป็นจำนวนวันของรายได้ (ใช้ได้ทุกช่วงยศ) · สุขภาพ/สำราญ เป็นสัดส่วน
     const lm = Math.min(mult, 1.5); // ค่าชีวิตจากการเสี่ยงดวงไม่คูณแรงเท่าสเตตัส
     if (k === 'เงิน') { L.money = Math.max(0, L.money + v * lm * B.effMoneyDays * Math.max(dailyIncome(g), B.childWage * 0.5)); continue; }
-    if (k === 'สุขภาพ') { L.health = Math.min(1, L.health + v * lm * B.effHealth * (v > 0 ? B.effHealthHeal : 1)); continue; }
+    if (k === 'สุขภาพ') { L.health = Math.min(1, L.health + v * lm * B.effHealth * (v > 0 ? B.effHealthHeal : 1) * (work && v < 0 ? B.workHealthMult : 1)); continue; }
     if (k === 'สำราญ') { L.joy = clamp(L.joy + v * lm * B.effJoy, 0, 1); continue; }
     const s = k as StatKey;
     // ผลจากเหตุการณ์คิดจากระยะที่เหลือถึงเพดาน (บวก) หรือค่าที่มี (ลบ) จึงไม่ดันทะลุเพดานแม้เกิดบ่อย
     const x = L.stats[s];
-    L.stats[s] = clamp(x + v * B.eventK * mult * (v > 0 ? L.cap - x : x), 0, L.cap);
+    L.stats[s] = clamp(x + v * B.eventK * mult * (work ? B.workStatMult : 1) * (v > 0 ? L.cap - x : x), 0, L.cap);
     if (s === 'บารมี' && v > 0) L.affection += v * B.affectionPerBarami;
   }
 }
 
 export function karmaDef(e: { id: string; generic: boolean }) {
+  if (isWork(e.id)) return content.work.find(k => k.id === e.id)!;
   return e.generic ? content.karmaGeneric.find(k => k.id === e.id)! : content.karmaFixed.find(k => k.id === e.id)!;
 }
 
@@ -367,7 +400,9 @@ export function autoChoice(g: GameState, e: PendingEvent): number {
   if (L.career) { want.add(career(L.career).gateStat); want.add(career(L.career).secondaryStat); }
   let best = 0, bestScore = -Infinity;
   choices.forEach((c, i) => {
-    const sc = Object.entries(c.effects).reduce((a, [k, v]) => a + (want.has(k) ? 2 : 0.5) * (v as number), 0);
+    // ค่าชีวิต: สุขภาพสำคัญขึ้นเมื่อเหลือน้อย · สำราญสำคัญขึ้นเมื่อต่ำ
+    const wOf = (k: string) => want.has(k) ? 2 : k === 'สุขภาพ' ? (L.health < 0.3 ? 1.5 : 0.5) : k === 'สำราญ' ? (L.joy < B.joyLow ? 1.5 : 0.5) : 0.5;
+    const sc = Object.entries(c.effects).reduce((a, [k, v]) => a + wOf(k) * (v as number), 0) - (c.sin ?? 0) * 0.5;
     if (sc > bestScore) { bestScore = sc; best = i; }
   });
   return best;
@@ -378,24 +413,26 @@ function remember(g: GameState, id: string, choice: number) {
   if (!c.includes(choice)) c.push(choice);
   g.life.deeds.push({ id, c: choice }); if (g.life.deeds.length > 60) g.life.deeds.shift();
   // บาปจากตัวเลือก (ถ้าเนื้อหาระบุไว้)
-  const d = content.karmaFixed.find(x => x.id === id) ?? content.karmaGeneric.find(x => x.id === id) ?? content.historical.find(x => x.id === id);
+  const d = content.karmaFixed.find(x => x.id === id) ?? content.karmaGeneric.find(x => x.id === id) ?? content.work.find(x => x.id === id) ?? content.historical.find(x => x.id === id);
   const picked = d && (choice < 0 ? (d as { risky?: { sin?: number } }).risky : d.choices?.[choice]);
   if (picked && (picked as { sin?: number }).sin) g.life.sin += (picked as { sin?: number }).sin!;
 }
 
 function applyKarma(g: GameState, e: { id: string; generic: boolean }, choice: number | 'risky'): ResolveResult {
   remember(g, e.id, choice === 'risky' ? -1 : (choice as number));
-  const def = karmaDef(e);
+  const def = karmaDef(e), work = isWork(e.id);
   if (choice === 'risky' && 'risky' in def && def.risky) {
-    const ok = nextRandom(g) < def.risky.chance, o = ok ? def.risky.success : def.risky.fail;
-    if (o.stats) applyEffects(g, o.stats, B.riskyMult);
+    const ok = nextRandom(g) < riskChance(g, e), o = ok ? def.risky.success : def.risky.fail;
+    if (o.stats) applyEffects(g, o.stats, B.riskyMult, work);
     if (o.merit) addMerit(g, o.merit * 20);
-    if (o.affection) g.life.affection += o.affection * 10;
+    if (o.affection) { if (work) applyEffects(g, { 'ความชอบ': o.affection }, 1, true); else g.life.affection += o.affection * 10; }
     log(g, `${def.title} → ${def.risky.label} (${ok ? 'สำเร็จ' : 'ล้มเหลว'})`);
     return { success: ok };
   }
   const c = def.choices[choice as number] ?? def.choices[0];
-  applyEffects(g, c.effects);
+  // ทางมืด: ตัวเลือกที่มีบาปได้ผลดีขึ้น (เฉพาะกงการ)
+  const dark = work && !!c.sin && g.life.track === 'dark';
+  applyEffects(g, dark ? Object.fromEntries(Object.entries(c.effects).map(([k, v]) => [k, (v as number) > 0 ? (v as number) * B.workDarkMult : v])) as Effects : c.effects, 1, work);
   log(g, `${def.title} → ${c.label}`);
   return {};
 }
@@ -502,6 +539,8 @@ export function chooseTrack(g: GameState, side: 'light' | 'dark') { if (!g.life.
 
 export const gateFrac = (lv: number) => B.gateA + B.gateB * Math.pow(lv / B.maxLevel, B.gateP);
 export const affectionReq = (lv: number) => B.affectionReqA * Math.pow(lv, B.affectionReqP);
+/** ความชอบ 1 หน่วยในกงการ = สัดส่วนของช่วงความชอบที่ต้องใช้เลื่อนขั้นถัดไป */
+const workAffStep = (L: LifeState) => B.workAffUnit * Math.max(0.5, affectionReq(L.level + 1) - affectionReq(L.level));
 export const promoteCost = (lv: number) => B.promoteCostBase * Math.pow(B.promoteCostGrowth, lv);
 export function gateValue(g: GameState, lv: number): number {
   const L = g.life, c = career(L.career!), w = B.secondaryWeightMax * (lv / B.maxLevel);

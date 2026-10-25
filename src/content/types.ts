@@ -52,6 +52,9 @@ export interface KarmaGeneric {
   risky: null | { label: string; chance: number; cost: { energy?: number }; success: RiskyOutcome; fail: RiskyOutcome; sin?: number };
 }
 
+/** กงการ: อีเวนต์งานตามอาชีพและชั้นยศ (0 ผู้น้อย Lv0–5 · 1 ชั้นกลาง 6–11 · 2 ชั้นสูง 12–16 · 3 ชั้นยอด 17–19) */
+export interface WorkEvent extends KarmaGeneric { career: string; tier: number; }
+
 export type HistoricalKind = 'narrative' | 'check' | 'choice';
 export interface Historical {
   id: string; life: number; kind: HistoricalKind; title: string; desc: string;
@@ -71,6 +74,7 @@ export interface Content {
   reigns: Reign[];
   karmaFixed: KarmaFixed[];
   karmaGeneric: KarmaGeneric[];
+  work: WorkEvent[];
   historical: Historical[];
   siege: SiegeStep[];
   endings: Ending[];

@@ -139,7 +139,7 @@ const siegeRate = soldier.filter(r => r.siegeOk).length / Math.max(1, soldier.le
 const soldierAll = runs.filter(r => r.s.career === 'ทหาร');
 checks.push({ name: 'ทหาร รอบทวิภพ เข้าฉากล้อมกรุงได้ และรอด 10–60%', ok: soldier.length > 0 && siegeRate >= 0.1 && siegeRate <= 0.6, detail: `เข้า ${soldier.length}/${soldierAll.length} รอด ${(siegeRate * 100).toFixed(0)}%` });
 const minorPerYear = runs.flatMap(r => loop1(r)).reduce((a, l) => a + l.minor, 0) / runs.reduce((a, r) => a + loop1(r).length, 0) / 62;
-checks.push({ name: 'เหตุการณ์ย่อย 6–12 ครั้งต่อปีเกม', ok: minorPerYear >= 6 && minorPerYear <= 12, detail: `${minorPerYear.toFixed(1)} ครั้ง/ปี` });
+checks.push({ name: 'เหตุการณ์ย่อย (กงกรรม + กงการ) 8–16 ครั้งต่อปีเกม', ok: minorPerYear >= 8 && minorPerYear <= 16, detail: `${minorPerYear.toFixed(1)} ครั้ง/ปี` });
 
 const allLives = runs.flatMap(r => r.lives.filter(l => l.deathAge > 0));
 const early = allLives.filter(l => l.deathAge < l.maxAge), avgAge = allLives.reduce((a, l) => a + l.deathAge, 0) / allLives.length;
