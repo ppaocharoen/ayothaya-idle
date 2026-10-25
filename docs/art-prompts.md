@@ -189,12 +189,40 @@ Background: solid pure green #00FF00.
 
 ---
 
-## H — ภาพเหตุการณ์ใหญ่ (ภาพนิ่งประกอบเหตุการณ์ประวัติศาสตร์) → `H-ชื่อ.jpg`
+## H — ภาพเหตุการณ์ใหญ่ → `H-<รหัสเหตุการณ์>.jpg`
+ภาพนิ่ง ๑ รูปต่อเหตุการณ์ ไม่ต้องแนบรูป ไม่มีตัวละครของผู้เล่น — เกมจะโชว์ภาพนี้บนการ์ดตอนเหตุการณ์เกิด (ต้องเขียนโค้ดเพิ่ม) · ชื่อไฟล์ตามรหัสเหตุการณ์ในแท็บ "เหตุการณ์ประวัติศาสตร์" ของ Excel
+
+### สถาปนากรุงศรีอยุธยา พ.ศ. ๑๘๙๓ (ชาติ ๑) → `H-L1-H02.jpg`
 ```
-Pixel-art illustration (landscape 16:9) for a Thai historical idle game: [ใส่เหตุการณ์]. Dramatic composition, warm muted palette, Ayutthaya-era costumes and architecture, no text.
-Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighbor — every pixel is a perfect SQUARE block of identical size, aligned to one grid across the whole image. No anti-aliasing, gradients, blur or dithering noise. Flat colors. No text, no labels, no grid lines.
+Pixel-art illustration, landscape 16:9, for a Thai historical game set in the Ayutthaya kingdom. The founding of Ayutthaya in 1350: on an island where three rivers meet, a royal ceremony at dawn — Brahmins blowing conch shells, nobles kneeling in rows, a white ceremonial umbrella, the first wooden palace and city wall being raised, boats on the rivers. Dramatic but respectful composition, warm muted palette, Ayutthaya-era costumes and architecture, figures small to medium size, faces simple and not portraits of real people, no gore, no blood.
+Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighbor — every pixel is a perfect SQUARE block of identical size, aligned to one grid across the whole image. No anti-aliasing, gradients, blur or dithering noise. Flat colors. No text, no labels, no grid lines, no frame or border.
 ```
-เหตุการณ์ที่แนะนำ: สถาปนากรุงศรีอยุธยา พ.ศ. ๑๘๙๓ (H-found) · ยุทธหัตถี (H-elephant) · เสียกรุงครั้งที่ ๑ (H-fall1) · เสียกรุงครั้งที่ ๒ (H-fall2)
+
+### ยุทธหัตถีชิงบัลลังก์ เจ้าอ้ายพระยา–เจ้ายี่พระยา พ.ศ. ๑๙๖๗ (ชาติ ๒) → `H-L2-H04.jpg`
+```
+Pixel-art illustration, landscape 16:9, for a Thai historical game set in the Ayutthaya kingdom. Two royal brothers fighting an elephant duel for the throne: two large war elephants with ornate red and gold harnesses clash tusk to tusk on a bridge, each rider holding a long-handled glaive (ngao), soldiers and parasols on both sides, dust in the air. Dramatic but respectful composition, warm muted palette, Ayutthaya-era costumes and architecture, figures small to medium size, faces simple and not portraits of real people, no gore, no blood.
+Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighbor — every pixel is a perfect SQUARE block of identical size, aligned to one grid across the whole image. No anti-aliasing, gradients, blur or dithering noise. Flat colors. No text, no labels, no grid lines, no frame or border.
+```
+
+### เสียกรุงครั้งที่ ๑ พ.ศ. ๒๑๑๒ (ชาติ ๔) → `H-L4-H09.jpg`
+```
+Pixel-art illustration, landscape 16:9, for a Thai historical game set in the Ayutthaya kingdom. The first fall of Ayutthaya in 1569: the city walls breached, smoke rising from temple spires at dusk, enemy banners entering the gates, townspeople fleeing by boat, a somber orange-grey sky. Dramatic but respectful composition, warm muted palette, Ayutthaya-era costumes and architecture, figures small to medium size, faces simple and not portraits of real people, no gore, no blood.
+Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighbor — every pixel is a perfect SQUARE block of identical size, aligned to one grid across the whole image. No anti-aliasing, gradients, blur or dithering noise. Flat colors. No text, no labels, no grid lines, no frame or border.
+```
+
+### สมเด็จพระนเรศวรประกาศอิสรภาพที่เมืองแครง พ.ศ. ๒๑๒๗ (ชาติ ๔) → `H-L4-H11.jpg`
+```
+Pixel-art illustration, landscape 16:9, for a Thai historical game set in the Ayutthaya kingdom. A young Thai prince declaring independence: standing on a riverbank, pouring water onto the ground from a golden ewer in front of his troops, soldiers with spears and banners raised behind him, morning light. Dramatic but respectful composition, warm muted palette, Ayutthaya-era costumes and architecture, figures small to medium size, faces simple and not portraits of real people, no gore, no blood.
+Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighbor — every pixel is a perfect SQUARE block of identical size, aligned to one grid across the whole image. No anti-aliasing, gradients, blur or dithering noise. Flat colors. No text, no labels, no grid lines, no frame or border.
+```
+
+### เสียกรุงครั้งที่ ๒ พ.ศ. ๒๓๑๐ (ชาติ ๗ — ฉากจบ) → `H-L7-H14.jpg`
+```
+Pixel-art illustration, landscape 16:9, for a Thai historical game set in the Ayutthaya kingdom. The second fall of Ayutthaya in 1767: the great city burning at night, tall prangs and chedis silhouetted against flames and smoke, the river reflecting the fire, small figures of people escaping in the foreground. Tragic, quiet, grand. Dramatic but respectful composition, warm muted palette, Ayutthaya-era costumes and architecture, figures small to medium size, faces simple and not portraits of real people, no gore, no blood.
+Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighbor — every pixel is a perfect SQUARE block of identical size, aligned to one grid across the whole image. No anti-aliasing, gradients, blur or dithering noise. Flat colors. No text, no labels, no grid lines, no frame or border.
+```
+
+เหตุการณ์อื่นทำเพิ่มได้ทีหลัง ใช้พรอมต์เดียวกัน เปลี่ยนประโยคฉาก แล้วตั้งชื่อไฟล์ตามรหัสเหตุการณ์
 
 ---
 
