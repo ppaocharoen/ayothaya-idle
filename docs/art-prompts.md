@@ -20,7 +20,7 @@
 | 2 | P สัตว์เพิ่ม ๓ ตัว: ขาวมณี · นกกรงหัวจุก · นกเอี้ยง | เจนใหม่ (แนบภาพสัตว์ชนิดเดียวกัน) | P_KhaoManee.jpg P_Bulbul.jpg P_Myna.jpg | ✅ |
 | 3 | F1 พญายม · F5 วิญญาณ | เจนใหม่ | F1.jpg F5.jpg | ต้องเขียนโค้ดเพิ่ม (ผมทำให้) |
 | 4 | F3 ศาลยมโลก · F4 นรก/ต้นงิ้ว · F6 แม่น้ำเวตรณี · F8 วิมานสวรรค์ (ฉากหลังมินิเกม) | เจนใหม่ | F3.jpg F4.jpg F6.jpg F8.jpg | ต้องเขียนโค้ดเพิ่ม |
-| 5 | C8 ยศสูงทางสว่าง · C9 ยศสูงทางมืด (๖ อาชีพ × ๒) | แก้จาก C1–C6 | C8-1…C8-6, C9-1…C9-6 | ต้องเขียนโค้ดเพิ่ม |
+| 5 | C8 ยศสูงทางสว่าง · C9 ยศสูงทางมืด (๖ อาชีพ × ๒) แล้วตามด้วย D8/D9 ชราของยศสูง | แก้จาก C1–C6 แล้วแก้ผลที่ได้เป็นชรา | C8-1…C9-6, D8-1…D9-6 (๒๔ รูป) | ต้องเขียนโค้ดเพิ่ม |
 | 6 | E3 ฉากทำงาน ๖ อาชีพ | เจนใหม่ (แบบ E4) | E3-1…E3-6 | ต้องเขียนโค้ดเพิ่ม |
 | 7 | F7 เปรต · H ภาพเหตุการณ์ใหญ่ | เจนใหม่ | ทีหลัง | ต้องเขียนโค้ดเพิ่ม |
 
@@ -151,6 +151,13 @@ Edit this sprite sheet. Upgrade his outfit to a high-ranking but corrupt and sin
 Keep the exact same 8× nearest-neighbor square pixel grid, no blur, no anti-aliasing. Every figure stays fully inside its own cell with empty margin on all sides, the same size in all frames. Background stays solid pure green #00FF00. No text, no labels, no grid lines.
 ```
 
+
+**ชรา + ยศสูง (D8 / D9):** ทำหลังได้ C8/C9 แล้ว — แนบภาพ C8/C9 ที่ได้ แล้วใช้พรอมต์ชราเดิม (ผมขาว ริ้วรอย หลังค่อมนิดๆ) เซฟเป็น `D8-1.jpg` … `D8-6.jpg` และ `D9-1.jpg` … `D9-6.jpg`
+```
+Edit this sprite sheet. Make the man an elderly man about 65 years old in every frame: white hair (same hairstyle), a few wrinkles, a thin white moustache, slightly stooped shoulders, thinner arms. Keep the same clothes, poses, layout and cell positions.
+Keep the exact same 8× nearest-neighbor square pixel grid, no blur, no anti-aliasing. Every figure stays fully inside its own cell with empty margin on all sides, the same size in all frames. Background stays solid pure green #00FF00. No text, no labels, no grid lines.
+```
+ถ้ายังไม่มี D8/D9 เกมจะใช้ชุดชราธรรมดา (D1–D6) ไปก่อน
 ---
 
 ## E3 — ฉากทำงานตามอาชีพ → `E3-1.jpg` … `E3-6.jpg`
