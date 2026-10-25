@@ -11,7 +11,8 @@ const GROUND = 140;
  * ภาพตัวละคร (พิกเซลจริงบนตาราง) ต่อชุด: จำนวนช่อง และขนาด 1 พิกเซลภาพ = กี่พิกเซลเกม (แกน x, y · ชุด a2 ต่างกันรายแถว)
  * ค่ามาจากขนาดเม็ดพิกเซลที่ AI วาดเทียบกับขนาดหัว ให้ทุกท่าหัวใหญ่เท่ากัน (ดู tools/art/snap_sheet.py)
  */
-const SHEETS: Record<string, { cols: number; rows: number; sx: number[]; sy: number[] }> = {
+type Cell = [number, number];
+const SHEETS: Record<string, { cols: number; rows: number; sx: number[]; sy: number[]; stand?: Cell[]; walk?: Cell[] }> = {
   a1: { cols: 4, rows: 2, sx: [8.12 / 7.23], sy: [5.74 / 7.23] },
   a2: { cols: 2, rows: 3, sx: [6.62 / 9.5, 6.62 / 8.3, 6.62 / 8.3], sy: [6.62 / 9.5, 6.62 / 8.3, 6.62 / 8.3] },
   a3: { cols: 2, rows: 3, sx: [9.36 / 9.6], sy: [9.38 / 9.6] },
@@ -23,8 +24,12 @@ const SHEETS: Record<string, { cols: number; rows: number; sx: number[]; sy: num
   b2: { cols: 2, rows: 3, sx: [6.62 / 8.1], sy: [6.63 / 8.1] },
   // B3 ลูกมือชาวนา: ยืนถือเคียว · เดินแบกฟ่อนข้าว · เกี่ยวข้าว
   b3: { cols: 2, rows: 3, sx: [6.65 / 8.1], sy: [6.63 / 8.1] },
-  // T1 วัยรุ่นชุดธรรมดา: อ่าน แบก รำไม้ (สัดส่วนเหมือน A2)
-  t1: { cols: 2, rows: 3, sx: [6.63 / 9.5, 6.63 / 8.3, 6.63 / 8.3], sy: [6.63 / 9.5, 6.63 / 8.3, 6.63 / 8.3] },
+  // B4 ลูกมือขุนนาง (บริหาร) 3×2: แถว 0 ยืน 1 เฟรม + เดิน 2 เฟรม · แถว 1 นั่งจดสมุดไทย (หัวในท่านั่งวาดใหญ่กว่าเล็กน้อย)
+  b4: { cols: 3, rows: 2, sx: [6.62 / 8.38, 6.62 / 9.2], sy: [6.63 / 8.38, 6.63 / 9.2], stand: [[0, 0]], walk: [[1, 0], [2, 0]] },
+  // T1 วัยรุ่นชุดธรรมดา ทรงมหาดไทย: อ่าน แบก รำไม้ (แทน A2)
+  t1: { cols: 2, rows: 3, sx: [6.63 / 8.93], sy: [6.63 / 8.93] },
+  // T2 วัยรุ่นชุดธรรมดา: นั่งสมาธิ/ไหว้ · ย่องพรางกาย · จุดเทียน (แทน A3)
+  t2: { cols: 2, rows: 3, sx: [6.63 / 8.93], sy: [6.63 / 8.93] },
 };
 
 export interface SceneMood { dayFrac: number; month: number; rain: boolean; war: boolean; }
@@ -60,6 +65,7 @@ export class Scene {
     spear: { sheet: 'b1', frames: [[0, 2], [1, 2]], speed: 0.5 },
     trade: { sheet: 'b2', frames: [[0, 2], [1, 2]], speed: 1.0 },
     harvest: { sheet: 'b3', frames: [[0, 2], [1, 2]], speed: 0.5 },
+    write: { sheet: 'b4', frames: [[0, 1], [1, 1], [2, 1], [1, 1]], speed: 0.45 },
   };
   /** เกมหยุดอยู่ (ตัวละครนอน) · ฝนตก (ถือใบตองบังฝน) — ตั้งจาก main */
   paused = false;
@@ -96,7 +102,7 @@ export class Scene {
     this.loCtx = this.lo.getContext('2d')!; this.frCtx = this.fr.getContext('2d')!;
     this.ctx = this.loCtx;
     this.sprite.src = new URL('./art/boy.png', document.baseURI).href;
-    for (const k of ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', 't1', ...BREEDS.flatMap(b => b.art ? [b.art] : [])]) { const im = new Image(); im.src = new URL(`./art/${k.startsWith('pet_') ? k : `boy_${k}`}.png`, document.baseURI).href; this.actSheets[k] = im; }
+    for (const k of ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', 'b4', 't1', 't2', ...BREEDS.flatMap(b => b.art ? [b.art] : [])]) { const im = new Image(); im.src = new URL(`./art/${k.startsWith('pet_') ? k : `boy_${k}`}.png`, document.baseURI).href; this.actSheets[k] = im; }
   }
 
   /** แปลงพิกัดคลิกบนหน้าจอเป็นพิกัด canvas */
@@ -237,8 +243,8 @@ export class Scene {
     c.fillRect(x - 12, base - h + 2, 3, 3); c.fillRect(x + 11, base - h + 2, 3, 3);
   }
   /** ชุดภาพหลักตามวัยและอาชีพ: ลูกมือทหาร 12–17 ใช้ B1 (ยืน/เดินถือหอก) · อื่นๆ ใช้ A1 */
-  private static TEEN: Record<string, string> = { 'ทหาร': 'b1', 'พ่อค้า': 'b2', 'เกษตรกร': 'b3' };
-  private static TEEN_WORK: Record<string, string> = { b1: 'spear', b2: 'trade', b3: 'harvest' };
+  private static TEEN: Record<string, string> = { 'ทหาร': 'b1', 'พ่อค้า': 'b2', 'เกษตรกร': 'b3', 'บริหาร': 'b4' };
+  private static TEEN_WORK: Record<string, string> = { b1: 'spear', b2: 'trade', b3: 'harvest', b4: 'write' };
   private look(L: GameState['life']): string {
     const age = ageOf(L), k = L.career ? Scene.TEEN[L.career] : undefined;
     return k && age >= 12 && age < 18 && this.hasSheet(k) ? k : 'a1';
@@ -300,8 +306,9 @@ export class Scene {
     const lk = this.look(L);
     if (lk !== 'a1') {
       // ชุดลูกมือ (B): แถว 0 ยืน (หายใจ 2 เฟรม) · แถว 1 เดิน 2 เฟรม
-      const k = walking ? Math.floor(this.walkT / 0.3) % 2 : Math.floor(t / 0.9) % 2;
-      this.drawFrame(lk, k, walking ? 1 : 0, scale, this.face < 0, hop);
+      const m = SHEETS[lk], seq = walking ? m.walk ?? [[0, 1], [1, 1]] : m.stand ?? [[0, 0], [1, 0]];
+      const [fc, fr] = seq[Math.floor(walking ? this.walkT / 0.3 : t / 0.9) % seq.length];
+      this.drawFrame(lk, fc, fr, scale, this.face < 0, hop);
       return;
     }
     this.drawFrame('a1', col, row, scale, this.face < 0, hop);
