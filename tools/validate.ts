@@ -10,7 +10,7 @@ const careerKeys = new Set(content.careers.careers.map(c => c.key));
 
 function checkEffects(where: string, e: Effects | undefined) {
   for (const k of Object.keys(e ?? {})) {
-    if (!statKeys.has(k as never) && k !== 'ความชอบ') errors.push(`${where}: ไม่รู้จักสเตตัส "${k}"`);
+    if (!statKeys.has(k as never) && !['ความชอบ', 'เงิน', 'สุขภาพ', 'สำราญ'].includes(k)) errors.push(`${where}: ไม่รู้จักสเตตัส "${k}"`);
   }
 }
 function checkChoices(where: string, cs: Choice[] | undefined) {

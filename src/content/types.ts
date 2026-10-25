@@ -6,7 +6,8 @@ export type StatKey =
   | 'ไสยเวทย์' | 'หลบหลีก' | 'บารมี' | 'โภคทรัพย์';
 
 /** ผลของตัวเลือก: สเตตัส +/− (อนาคตเพิ่ม "ความชอบ", "บุญ", "เงิน" ได้) */
-export type Effects = Partial<Record<StatKey | 'ความชอบ', number>>;
+/** ผลของตัวเลือก: สเตตัส, ความชอบ, และค่าชีวิต (เงิน สุขภาพ สำราญ) */
+export type Effects = Partial<Record<StatKey | 'ความชอบ' | 'เงิน' | 'สุขภาพ' | 'สำราญ', number>>;
 
 export interface Choice { label: string; effects: Effects; sin?: number; }
 

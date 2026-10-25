@@ -298,3 +298,17 @@ p { margin: 4px 0; }
 .ladder.ranks li.got { box-shadow: inset 3px 0 0 var(--gold2), inset 0 0 0 1px #d8bf8e; }
 .ladder.ranks li.on p { color: var(--dim); }
 .ladder li.fork { display: flex; align-items: center; gap: 6px; background: transparent; box-shadow: none; font-size: 12.5px; color: var(--inkdim); padding: 2px 4px; }
+
+.hp.joy .hpbar i { background: linear-gradient(#f6dc8a, #e08a3a); }
+.hp.joy.low .ic { animation: beat 1.4s infinite; }
+.lifebar { gap: 6px; }
+.hpbar { width: 28px; }
+.stat.joyrow .bar i { background: linear-gradient(#f6dc8a, #e08a3a); }
+
+/* ตั้งชื่อ */
+.namebox { display: flex; gap: 8px; align-items: center; margin: 10px 0 4px; }
+.namebox input { flex: 1; min-width: 0; font: 700 22px 'Charm', serif; color: var(--redd); padding: 8px 12px; border-radius: 10px; border: 0; background: #fffaf0; box-shadow: inset 0 0 0 1.5px #b9965c; }
+.namebox .choice { width: auto; margin: 0; flex: none; }
+.who { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.who .rank { flex: 1; margin: 0; }
+.who .gbtn { width: auto; margin: 0; padding: 8px 12px; font-size: 13px; }

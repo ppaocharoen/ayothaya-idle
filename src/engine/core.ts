@@ -27,7 +27,7 @@ export interface Collection {
 export interface LifeSummary {
   life: number; career: string | null; level: number; merit: number; money: number;
   affection: number; statsFrac: Record<string, number>;
-  age?: number | null; year?: number;
+  age?: number | null; year?: number; name?: string;
 }
 
 interface Scheduled { id: string; day: number; }
@@ -46,6 +46,8 @@ export interface LifeState {
   peakFrac: Record<StatKey, number>;
   sin: number;                          // บาปที่ซ่อนไว้ เปิดเผยตอนตาย
   health: number;                       // สุขภาพ 0–1 · หมดเมื่อไรสิ้นชีวิต
+  joy: number;                          // ความสำราญ 0–1 · สูงได้บัฟ ต่ำโดนโทษ
+  name: string; named: boolean;         // ชื่อตัวละครชาตินี้ (named = ผู้เล่นตั้งเองแล้ว)
   deathAge: number | null;              // อายุตอนตาย (null = ยังมีชีวิต)
   meritStart: number;                   // บุญตอนเกิด (ใช้คิดบุญที่ทำในชาตินี้)
   deeds: { id: string; c: number }[];   // ตัวเลือกที่เลือกในชาตินี้ (พญายมหยิบมาไต่สวน)
@@ -88,6 +90,10 @@ function shuffle(g: GameState, n: number): number[] {
 }
 
 // ---------- เริ่มเกม / เริ่มชาติ ----------
+/** ชื่อไทยสมัยอยุธยาสำหรับสุ่มให้ตัวละคร (ผู้เล่นเปลี่ยนเองได้) */
+export const NAMES = ['มั่น', 'คง', 'ทอง', 'ดี', 'จัน', 'บุญ', 'แก้ว', 'เพชร', 'เรือง', 'ศรี', 'อิน', 'ปาน', 'เกิด', 'สิน', 'มี', 'พุ่ม', 'ทับ', 'อ่อน', 'อยู่', 'ยิ้ม', 'ช่วย', 'นาค', 'เมือง', 'เหลือ', 'สุก', 'ขำ', 'เชย', 'จ้อย', 'ทิม', 'บัว'];
+export function setName(g: GameState, name: string) { const n = name.trim().slice(0, 20); if (n) { g.life.name = n; g.life.named = true; } }
+
 export function newGame(seed = Date.now()): GameState {
   const g = {
     version: 1, rng: seed >>> 0, loop: 1, merit: 0, careerMaxLevel: {}, careerLives: {}, peakFleeFrac: 0,
@@ -113,7 +119,7 @@ function makeLife(g: GameState, idx: number, prev: LifeState | null, startYear?:
     path: prev?.path ?? 'balance', train: prev?.train ?? ['ความรู้'], childJob: null, career: null, level: 0, track: null,
     careerItem: {}, accommodation: 0, retainer: 0,
     donations: content.shop.meritItems.map(() => 0), common: content.shop.commonItems.map(() => 0), mega: {},
-    lastPromoteDay: -9999, peakFrac: peak, sin: 0, meritStart: g.merit, deeds: [], health: 1, deathAge: null,
+    lastPromoteDay: -9999, peakFrac: peak, sin: 0, meritStart: g.merit, deeds: [], health: 1, deathAge: null, joy: B.joyStart, name: NAMES[randInt(g, 0, NAMES.length - 1)], named: false,
     sched: { karma: [], hist: [], nextGeneric: 0, bag: [], bagPtr: 0 },
   };
   for (const k of content.karmaFixed.filter(k => k.life === idx))
@@ -160,8 +166,16 @@ export function healthDecay(g: GameState): number {
   return perYear / D * (1 - B.healthHouse * L.accommodation) * (1 - B.healthStrength * frac(L, 'พละกำลัง'));
 }
 
+/** บัฟจากความสำราญ: สูงทำงาน/ฝึกได้ผลมากขึ้น ต่ำได้ผลน้อยลง (ไล่ระดับ) */
+export function joyEff(L: LifeState): number {
+  if (L.joy >= B.joyHigh) return 1 + B.joyBuff * (L.joy - B.joyHigh) / (1 - B.joyHigh);
+  if (L.joy <= B.joyLow) return 1 - B.joyPenalty * (B.joyLow - L.joy) / B.joyLow;
+  return 1;
+}
+
 function stepDay(g: GameState, eff = 1) {
   const L = g.life, p = B.paths[L.path], age = ageOf(L);
+  eff *= joyEff(L);
   // ฝึกฝน
   const te = trainEff(L) * talent(g) * eff;
   for (const s of L.train) grow(L, s, B.trainRate * (p.train / L.train.length) * te);
@@ -177,9 +191,11 @@ function stepDay(g: GameState, eff = 1) {
   }
   L.money += dailyIncome(g) * eff;
   if (L.track === 'dark') L.sin += B.sinDarkDaily;
-  L.health -= healthDecay(g);
-  if (L.day % D === D - 1 && age >= B.illnessFromAge && nextRandom(g) < B.illnessChance) {
-    L.health -= B.illnessMin + nextRandom(g) * (B.illnessMax - B.illnessMin);
+  L.health -= healthDecay(g) * (L.joy > B.joyHigh ? B.joyHealthGood : L.joy < B.joyLow ? B.joyHealthBad : 1);
+  // ความสำราญ: ลดทุกวัน (ทำงานหนักลดเร็ว) · บ้านดีช่วยพยุง
+  L.joy = clamp(L.joy - B.joyDecay * (0.4 + p.work) * (age < 18 ? B.joyChildDecay : 1) / D + B.joyHouse * L.accommodation / D, 0, 1);
+  if (L.day % D === D - 1 && age >= B.illnessFromAge && nextRandom(g) < B.illnessChance * (L.joy < B.joyLow ? 1.5 : 1)) {
+    L.health -= (B.illnessMin + nextRandom(g) * (B.illnessMax - B.illnessMin));
     log(g, 'ล้มป่วยหนัก สุขภาพทรุดลง');
   }
   addMerit(g, (B.meritDaily * p.merit + B.meritPassive) * (1 + B.meritBaramiBonus * frac(L, 'บารมี')) * eff);
@@ -242,6 +258,11 @@ function applyEffects(g: GameState, e: Effects, mult = 1) {
   const L = g.life;
   for (const [k, v] of Object.entries(e) as [string, number][]) {
     if (k === 'ความชอบ') { L.affection = Math.max(0, L.affection + v); continue; }
+    // ค่าชีวิต: เงินคิดเป็นจำนวนวันของรายได้ (ใช้ได้ทุกช่วงยศ) · สุขภาพ/สำราญ เป็นสัดส่วน
+    const lm = Math.min(mult, 1.5); // ค่าชีวิตจากการเสี่ยงดวงไม่คูณแรงเท่าสเตตัส
+    if (k === 'เงิน') { L.money = Math.max(0, L.money + v * lm * B.effMoneyDays * Math.max(dailyIncome(g), B.childWage * 0.5)); continue; }
+    if (k === 'สุขภาพ') { L.health = Math.min(1, L.health + v * lm * B.effHealth * (v > 0 ? B.effHealthHeal : 1)); continue; }
+    if (k === 'สำราญ') { L.joy = clamp(L.joy + v * lm * B.effJoy, 0, 1); continue; }
     const s = k as StatKey;
     // ผลจากเหตุการณ์คิดจากระยะที่เหลือถึงเพดาน (บวก) หรือค่าที่มี (ลบ) จึงไม่ดันทะลุเพดานแม้เกิดบ่อย
     const x = L.stats[s];
@@ -329,7 +350,7 @@ function endLife(g: GameState) {
   if (L.career) { g.careerMaxLevel[L.career] = Math.max(g.careerMaxLevel[L.career] ?? 0, L.level); g.careerLives[L.career] = (g.careerLives[L.career] ?? 0) + 1; }
   const statsFrac: Record<string, number> = {};
   for (const s of STAT_KEYS) statsFrac[s] = +(L.stats[s] / L.cap).toFixed(3);
-  const summary: LifeSummary = { life: L.idx, career: L.career, level: L.level, merit: Math.round(g.merit), money: L.money, affection: L.affection, statsFrac, age: L.deathAge, year: yearOf(L) };
+  const summary: LifeSummary = { life: L.idx, career: L.career, level: L.level, merit: Math.round(g.merit), money: L.money, affection: L.affection, statsFrac, age: L.deathAge, year: yearOf(L), name: L.name };
   g.collection.family.push({ ...summary, loop: g.loop });
   log(g, `สิ้นชีวิตเมื่ออายุ ${L.deathAge} — ${L.career ?? 'ไม่มีอาชีพ'} Lv.${L.level}`);
   g.queue = g.queue.filter(isMain);
@@ -525,7 +546,7 @@ export function serialize(g: GameState): string { g.savedAt = Date.now(); return
 export function deserialize(s: string): GameState {
   const g = JSON.parse(s) as GameState;
   // เซฟรุ่นเก่ายังไม่มีช่องบาป/การกระทำ
-  g.life.sin ??= 0; g.life.meritStart ??= g.merit; g.life.deeds ??= []; g.life.health ??= 1; g.life.deathAge ??= null;
+  g.life.sin ??= 0; g.life.meritStart ??= g.merit; g.life.deeds ??= []; g.life.health ??= 1; g.life.deathAge ??= null; g.life.joy ??= B.joyStart; g.life.name ??= NAMES[0]; g.life.named ??= true;
   return g;
 }
 /** จำนวนวันในเกมที่ควรเดินจากช่วงที่ปิดแอป */

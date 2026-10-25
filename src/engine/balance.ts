@@ -67,7 +67,7 @@ export const BALANCE = {
   reincarnateMerit: 8000,
 
   // ---- ความชอบ ----
-  affectionWork: 0.0016,     // ต่อวัน ต่อสัดส่วนทำงาน
+  affectionWork: 0.0018,     // ต่อวัน ต่อสัดส่วนทำงาน
   affectionPerLevel: 0.12,   // ×(1 + x·เลเวล)
   affectionHistSuccess: 0.6,
   affectionPerBarami: 0.15,  // choice ที่ให้บารมี +1 → ความชอบ +x
@@ -98,9 +98,15 @@ export const BALANCE = {
   commonPriceGrowth: 1.25,
   housePriceK: 2.5, retainerPriceK: 10,  // ราคา = K × ค่ายื่นเลื่อนยศของยศขั้นต่ำ
   // สุขภาพ (หมด = ตาย) · ลดต่อปี = base + (อายุ−35)×perYear · บ้าน/พละกำลังชะลอ
-  healthBase: 0.004, healthAgeFrom: 35, healthPerYear: 0.0015,
+  healthBase: 0.004, healthAgeFrom: 35, healthPerYear: 0.0018,
   healthHouse: 0.06, healthStrength: 0.4,
   illnessFromAge: 40, illnessChance: 0.07, illnessMin: 0.06, illnessMax: 0.16,
+  // ความสำราญ (0–1): ลดต่อปี = joyDecay × (0.4 + สัดส่วนงาน) · บ้านเพิ่ม joyHouse/ปี ต่อขั้น
+  joyStart: 0.7, joyDecay: 0.1, joyHouse: 0.012, joyChildDecay: 0.35,  // เด็กลดช้า (ยังได้วิ่งเล่น)
+  joyHigh: 0.7, joyLow: 0.3, joyBuff: 0.12, joyPenalty: 0.18,  // บัฟสูงสุด +12% · โทษสูงสุด −18%
+  joyHealthGood: 0.9, joyHealthBad: 1.15,                   // สุขภาพเสื่อมช้า/เร็วขึ้น
+  // ผลของตัวเลือก: เงิน ±1 = รายได้ 10 วัน · สุขภาพ ±1 = 2% · สำราญ ±1 = 6%
+  effMoneyDays: 10, effHealth: 0.012, effHealthHeal: 0.4, effJoy: 0.05,  // รักษาได้น้อยกว่าเสียไป
   careerItemMinLevel: [0, 4, 8, 12, 16],
   accommodationMinLevel: [0, 1, 3, 5, 9, 13],
   retainerMinLevel: [1, 3, 6, 9, 12, 15],

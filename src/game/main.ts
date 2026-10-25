@@ -56,7 +56,7 @@ const capToSlice = (days: number) => days;
 let last = performance.now();
 function frame(now: number) {
   const dt = Math.min(0.25, (now - last) / 1000); last = now;
-  if (running && !g.queue.length && !sliceDone) {
+  if (running && !g.queue.length && !sliceDone && g.life.named) {
     acc += dt * SPEEDS[speedIdx];
     const days = Math.floor(acc / B.secondsPerGameDay);
     if (days > 0) {
@@ -72,7 +72,8 @@ function frame(now: number) {
   $('daybar').style.width = `${running && !g.queue.length && !sliceDone ? Math.min(100, acc / B.secondsPerGameDay * 100) : 0}%`;
   scene.alert = g.queue.length > 0;
   scene.paused = !running && !sliceDone;
-  if (g.queue.length && !inAfterlife && !$('modal').classList.contains('show')) showEvent();
+  if (!g.life.named && !inAfterlife && !$('modal').classList.contains('show')) nameSheet();
+  else if (g.queue.length && !inAfterlife && !$('modal').classList.contains('show')) showEvent();
   const mood = currentMood();
   // ของให้แตะเก็บ: สุ่มหล่นทุก 35–70 วินาทีจริง เฉพาะตอนเวลาเดินและไม่มีป๊อปอัพ
   if (running && !sliceDone && !g.queue.length && !$('modal').classList.contains('show')) {
@@ -93,14 +94,14 @@ function currentMood(): SceneMood {
 }
 
 // ---------- ตัวเลขลอยขึ้นจากตัวละคร ----------
-interface Snap { life: number; money: number; merit: number; aff: number; stats: Record<string, number>; }
+interface Snap { life: number; money: number; merit: number; aff: number; hp: number; joy: number; stats: Record<string, number>; }
 interface Delta { key: string; label: string; v: number; text: string; kind: string; }
 function snap(): Snap {
   const L = g.life, stats: Record<string, number> = {};
   for (const k of E.STAT_KEYS) stats[k] = L.stats[k] / L.cap;
-  return { life: L.idx, money: L.money, merit: g.merit, aff: L.affection, stats };
+  return { life: L.idx, money: L.money, merit: g.merit, aff: L.affection, hp: L.health, joy: L.joy, stats };
 }
-const iconOf = (key: string) => key === 'money' ? 'coin' : key === 'merit' ? 'lotus' : key === 'aff' ? 'medal' : STAT_ICON[key] ?? 'star';
+const iconOf = (key: string) => key === 'money' ? 'coin' : key === 'merit' ? 'lotus' : key === 'aff' ? 'medal' : key === 'health' ? 'heart' : key === 'joy' ? 'smile' : STAT_ICON[key] ?? 'star';
 /** ผลต่างก่อน/หลัง (ใช้ทั้งตัวเลขลอยและป๊อปอัพผลลัพธ์) */
 function diff(a: Snap): Delta[] {
   const b = snap(), out: Delta[] = [];
@@ -109,6 +110,8 @@ function diff(a: Snap): Delta[] {
   const dm = b.money - a.money; if (Math.abs(dm) > 1e-7) out.push({ key: 'money', label: 'เงิน', v: dm, text: `${dm > 0 ? '+' : '−'}${baht(Math.abs(dm), 1)}`, kind: 'money' });
   const db = b.merit - a.merit; if (db > 1e-6) out.push({ key: 'merit', label: 'บุญ', v: db, text: `+${th(db < 1 ? db.toFixed(2) : db.toFixed(1))}`, kind: 'merit' });
   const da = b.aff - a.aff; if (Math.abs(da) > 1e-6) out.push({ key: 'aff', label: 'ความชอบ', v: da, text: `${da > 0 ? '+' : '−'}${th(Math.abs(da).toFixed(2))}`, kind: 'aff' });
+  const dh = b.hp - a.hp; if (Math.abs(dh) > 0.004) out.push({ key: 'health', label: 'สุขภาพ', v: dh, text: `${dh > 0 ? '+' : '−'}${pctAuto(Math.abs(dh))}`, kind: 'aff' });
+  const dj = b.joy - a.joy; if (Math.abs(dj) > 0.004) out.push({ key: 'joy', label: 'ความสำราญ', v: dj, text: `${dj > 0 ? '+' : '−'}${pctAuto(Math.abs(dj))}`, kind: 'merit' });
   return out;
 }
 function floatText(ic: string, text: string, kind: string, leftPct = 50) {
@@ -149,13 +152,15 @@ function renderLifebar() {
   const hp = Math.max(0, L.health);
   $('hpfill').style.width = `${(hp * 100).toFixed(1)}%`;
   $('hpbox').classList.toggle('low', hp < 0.3);
+  $('joyfill').style.width = `${(L.joy * 100).toFixed(1)}%`;
+  $('joybox').classList.toggle('low', L.joy < B.joyLow);
 }
 
 // ---------- HUD ----------
 let hudKey = '';
 function renderHud() {
   const L = g.life, r = E.reignAt(g), age = E.ageOf(L);
-  $('hud-life').textContent = `ชาติที่ ${th(L.idx)} · อายุ ${th(age)}`;
+  $('hud-life').textContent = `${L.name} · ชาติ ${th(L.idx)} · อายุ ${th(age)}`;
   $('hud-year').textContent = `พ.ศ. ${th(E.yearOf(L))}`;
   $('hud-date').textContent = dateOf(L.day % B.daysPerYear);
   $('reign').textContent = `รัชสมัย${r.king}`;
@@ -327,7 +332,9 @@ function charTab(): string {
   const coll = g.collection;
   const hp = Math.max(0, L.health);
   const health = `<button class="stat health" data-tip="health">${icon('heart', 28)}<div><div class="sl"><b>สุขภาพ</b><span>${th(Math.round(hp * 100))}%</span></div><div class="bar"><i style="width:${(hp * 100).toFixed(1)}%"></i></div></div></button>`;
-  return `${sec('ร่างกาย')}${health}${sec('ค่าพลัง', `เพดาน ${th(L.cap)}`, 'stats')}${helpBox('stats', 'แตะแต่ละแถวเพื่อดูว่าค่านั้นใช้ทำอะไร · ค่าแสดงเป็น % ของเพดานชาตินี้ (ชาติต่อไปเพดานสูงขึ้น)')}${bars}
+  const jy = `<button class="stat joyrow" data-tip="joy">${icon('smile', 28)}<div><div class="sl"><b>ความสำราญ</b><span>${th(Math.round(L.joy * 100))}%</span></div><div class="bar"><i style="width:${(L.joy * 100).toFixed(1)}%"></i></div></div></button>`;
+  const who = `<div class="frame who"><div class="rank">${icon('person', 40)}<div><small>ชาติที่ ${th(L.idx)}${g.loop > 1 ? ` · รอบที่ ${th(g.loop)}` : ''}</small><b>${esc(L.name)}</b></div></div><button class="gbtn dark" data-act="rename">เปลี่ยนชื่อ</button></div>`;
+  return `${who}${sec('ร่างกายและจิตใจ')}${health}${jy}${sec('ค่าพลัง', `เพดาน ${th(L.cap)}`, 'stats')}${helpBox('stats', 'แตะแต่ละแถวเพื่อดูว่าค่านั้นใช้ทำอะไร · ค่าแสดงเป็น % ของเพดานชาตินี้ (ชาติต่อไปเพดานสูงขึ้น)')}${bars}
     ${sec('สมุดสะสม', 'แตะเพื่อเปิดดู')}<div class="coll"><div data-act="coll" data-v="titles"><b>${th(coll.titles.length)}</b><small>ยศที่เคยได้</small></div><div data-act="coll" data-v="choices"><b>${th(Object.keys(coll.choices).length)}</b><small>เหตุการณ์ที่เลือก</small></div><div data-act="coll" data-v="family"><b>${th(coll.family.length)}</b><small>ชาติที่บันทึก</small></div></div>
     <div class="foot"><a href="./content.html">คลังเนื้อหา</a> · ชิ้นทดลอง ชาติ ๑ อายุ ๙–๒๐</div>`;
 }
@@ -471,7 +478,7 @@ function collSheet(tabName: string): string {
       return `<li><small>${esc(e.title)}</small>${picks.map(esc).join(' · ')}</li>`;
     }).join('')}</ul>` : '<p class="muted">ยังไม่เคยเลือกอะไรในเหตุการณ์</p>';
   } else if (tabName === 'family') {
-    body = coll.family.length ? `<ul class="ladder">${coll.family.map(f => `<li><small>รอบที่ ${th(f.loop)} · ชาติที่ ${th(f.life)}</small>${f.career ? esc(splitTitle(E.careerTitle(f.career, f.level, null))[0]) : 'ไม่มีอาชีพ'} · บุญ ${thInt(f.merit)}</li>`).join('')}</ul>` : '<p class="muted">ยังไม่มีชาติที่จบไปแล้ว — ชาติแรกยังดำเนินอยู่</p>';
+    body = coll.family.length ? `<ul class="ladder">${coll.family.map(f => `<li><small>รอบที่ ${th(f.loop)} · ชาติที่ ${th(f.life)}${f.name ? ` · ${esc(f.name)}` : ''}${f.age ? ` · อายุ ${th(f.age)}` : ''}</small>${f.career ? esc(splitTitle(E.careerTitle(f.career, f.level, null))[0]) : 'ไม่มีอาชีพ'} · บุญ ${thInt(f.merit)}</li>`).join('')}</ul>` : '<p class="muted">ยังไม่มีชาติที่จบไปแล้ว — ชาติแรกยังดำเนินอยู่</p>';
   } else {
     body = `<ul class="ladder">${content.endings.map(e => coll.endings.includes(e.id) ? `<li class="on"><small>ปลดล็อกแล้ว</small>${esc(e.name)}</li>` : `<li><small>ยังไม่พบ</small>???</li>`).join('')}</ul>`;
   }
@@ -485,6 +492,7 @@ const TIPS: Record<string, [string, string]> = {
   money: ['coin', 'เงิน — ได้จากงานทุกวัน ใช้ซื้อของ ทำบุญ และยื่นขอเลื่อนยศ'],
   merit: ['lotus', 'บุญญาธิการ — ติดตัวข้ามชาติ ไม่หายเมื่อตาย ใช้ปลดล็อกทวิภพ'],
   aff: ['medal', 'ความชอบ — ผลงานที่นายเห็น ใช้เลื่อนยศ หายเมื่อสิ้นชาติ'],
+  joy: ['smile', 'ความสำราญ — ลดลงทุกวันเมื่อทำงานหนัก เพิ่มจากสันทนาการ เทศกาล บ้านดี · สูง: ทำงาน/ฝึกได้ผลมากขึ้น แก่ช้าลง · ต่ำ: ได้ผลน้อยลง ป่วยง่าย'],
   health: ['heart', 'สุขภาพ — ลดลงตามวัยและเมื่อล้มป่วย หมดเมื่อไรสิ้นชีวิต · บ้านดีและพละกำลังสูงช่วยให้แก่ช้าลง'],
 };
 
@@ -554,6 +562,9 @@ document.addEventListener('click', ev => {
       break;
     }
     case 'close': S.playTap(); closeModal(); break;
+    case 'name-rand': { const inp = $('nm') as HTMLInputElement; let n = inp.value; while (n === inp.value) n = E.NAMES[Math.floor(Math.random() * E.NAMES.length)]; inp.value = n; S.playTap(); return; }
+    case 'name-ok': E.setName(g, ($('nm') as HTMLInputElement).value || g.life.name); S.playSelect(); closeModal(); break;
+    case 'rename': g.life.named = false; closeModal(); nameSheet(); return;
     case 'afterlife': closeModal(); yama(false); return;
     case 'help': S.playTap(); if (openHelp.has(v)) openHelp.delete(v); else openHelp.add(v); break;
     case 'restart': store()?.removeItem(SAVE_KEY); g = E.newGame(); sliceDone = false; healthWarned = false; running = true; lifebarFor = ''; closeModal(); break;
@@ -590,6 +601,7 @@ document.addEventListener('keydown', ev => {
     const cs = [...document.querySelectorAll<HTMLButtonElement>('.modal.show .choice')];
     const n = parseInt(ev.key, 10);
     if (n >= 1 && n <= cs.length) cs[n - 1].click();
+    else if (ev.key === 'Enter' && $('nm')) (document.querySelector('[data-act=name-ok]') as HTMLButtonElement)?.click();
     else if (ev.key === 'Enter' && cs.length === 1) cs[0].click();
     else if (ev.key === 'Escape' && $('modal-body').querySelector('.close')) closeModal();
     return;
@@ -619,6 +631,17 @@ $('speedpop').addEventListener('click', ev => {
   ev.stopPropagation(); speedIdx = +b.dataset.speed!; S.playSelect(); $('speedpop').classList.remove('show'); renderHud();
 });
 document.addEventListener('click', () => $('speedpop').classList.remove('show'));
+
+/** ตั้งชื่อตัวละคร (เริ่มเกม/เกิดใหม่/เปลี่ยนชื่อ) */
+function nameSheet() {
+  const L = g.life, sug = L.name;
+  openModal(`<span class="kind">${icon('person', 16)}${L.idx === 1 && g.loop === 1 && !L.named ? 'เด็กน้อยแห่งหนองโสน' : `ชาติที่ ${th(L.idx)}`}</span>
+    <h2>ตั้งชื่อตัวละคร</h2>
+    <p class="muted">ชื่อนี้ใช้ตลอดชาตินี้ · ชาติหน้าตั้งใหม่ได้</p>
+    <div class="namebox"><input id="nm" maxlength="20" value="${esc(sug)}" aria-label="ชื่อ"><button class="choice" data-act="name-rand"><span class="n">${icon('star', 16)}</span><span>สุ่ม</span></button></div>
+    <button class="gbtn" data-act="name-ok">${icon('check', 20)}ตกลง</button>`);
+  setTimeout(() => ($('nm') as HTMLInputElement)?.select(), 50);
+}
 
 /** คำในตัวเลือก → ท่าของตัวละคร (เรียงจากเจาะจงไปกว้าง) */
 const ANIM_WORDS: [RegExp, string][] = [
@@ -673,7 +696,7 @@ setInterval(save, 10000);
 document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
 
 // ไอคอนคงที่ในหน้า
-$('ic-money').innerHTML = icon('coin', 22); $('ic-merit').innerHTML = icon('lotus', 22); $('ic-aff').innerHTML = icon('medal', 22); $('ic-hp').innerHTML = icon('heart', 18);
+$('ic-money').innerHTML = icon('coin', 22); $('ic-merit').innerHTML = icon('lotus', 22); $('ic-aff').innerHTML = icon('medal', 22); $('ic-hp').innerHTML = icon('heart', 18); $('ic-joy').innerHTML = icon('smile', 18);
 document.querySelectorAll<HTMLElement>('[data-ic]').forEach(el => { el.outerHTML = icon(el.dataset.ic!, 28); });
 
 renderHud(); renderTab();

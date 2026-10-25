@@ -52,6 +52,8 @@ const ICONS: Record<string, string[]> = {
   bell: ['.....kk.....', '....kggk....', '...kggggk...', '...kgyggk...', '..kggggggk..', '..kggggggk..', '..kggggggk..', '.kggggggggk.', 'kkkkkkkkkkkk', '.....kk.....', '.....kk.....', '............'],
   // เหรียญตราแพรแถบ = ความชอบ (ความดีความชอบจากนาย)
   medal: ['..kkk..kkk..', '..krrk.kuuk.', '...krrkuuk..', '....krruk...', '....kkkkk...', '...kgggggk..', '..kggyyggGk.', '..kgyggggGk.', '..kggggggGk.', '..kgggggGGk.', '...kGGGGGk..', '....kkkkk...'],
+  // ความสำราญ: ดอกไม้ยิ้ม
+  smile: ['....kkkk....', '..kkoyyokk..', '.koyyyyyyok.', '.kyykyykyyk.', 'koyykyykyyok', 'kyyyyyyyyyyk', 'kyykyyyykyyk', 'koyykkkkyyok', '.kyyyyyyyyk.', '.koyyyyyyok.', '..kkoyyokk..', '....kkkk....'],
   lock: ['............', '....kkkk....', '...kaaaak...', '..ka....ak..', '..ka....ak..', '.kkkkkkkkkk.', '.kggggggggk.', '.kggGkkGggk.', '.kgggkkgggk.', '.kgggkkgggk.', '.kGGGGGGGGk.', '.kkkkkkkkkk.'],
   clock: ['...kkkkkk...', '..kwwwwwwk..', '.kwwwkwwwwk.', 'kwwwwkwwwwwk', 'kwwwwkwwwwwk', 'kwwwwkkkkwwk', 'kwwwwwwwwwwk', 'kwwwwwwwwwwk', '.kwwwwwwwwk.', '..kwwwwwwk..', '...kkkkkk...', '............'],
 };
