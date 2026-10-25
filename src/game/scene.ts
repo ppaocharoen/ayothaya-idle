@@ -6,10 +6,17 @@ import { ageOf } from '../engine/core';
 
 export const SCENE_W = 240, SCENE_H = 168;
 const GROUND = 140;
-/** ความละเอียดจริงของ canvas = 4 เท่า เพื่อให้ย่อ/ขยายตัวละครทีละ 0.25 ได้โดยพิกเซลยังคม (ทุกพิกเซลภาพ = 3, 4, 5, 6 พิกเซลจอ) */
-const Q = 4;
-/** ปัดขนาดตัวละครเป็นขั้น 0.25 (พิกเซลคม ไม่มีเส้นหนาบางไม่เท่ากัน) */
-const snap = (s: number) => Math.max(0.5, Math.round(s * Q) / Q);
+/**
+ * ภาพตัวละคร (พิกเซลจริงบนตาราง) ต่อชุด: จำนวนช่อง และขนาด 1 พิกเซลภาพ = กี่พิกเซลเกม (แกน x, y · ชุด a2 ต่างกันรายแถว)
+ * ค่ามาจากขนาดเม็ดพิกเซลที่ AI วาดเทียบกับขนาดหัว ให้ทุกท่าหัวใหญ่เท่ากัน (ดู tools/art/snap_sheet.py)
+ */
+const SHEETS: Record<string, { cols: number; rows: number; sx: number[]; sy: number[] }> = {
+  a1: { cols: 4, rows: 2, sx: [8.12 / 7.23], sy: [5.74 / 7.23] },
+  a2: { cols: 2, rows: 3, sx: [6.62 / 9.5, 6.62 / 8.3, 6.62 / 8.3], sy: [6.62 / 9.5, 6.62 / 8.3, 6.62 / 8.3] },
+  a3: { cols: 2, rows: 3, sx: [9.36 / 9.6], sy: [9.38 / 9.6] },
+  a4: { cols: 2, rows: 3, sx: [6.62 / 8.6], sy: [6.63 / 8.6] },
+  a5: { cols: 2, rows: 3, sx: [6.62 / 8.6], sy: [6.63 / 8.6] },
+};
 
 export interface SceneMood { dayFrac: number; month: number; rain: boolean; war: boolean; }
 export type PickupKind = 'coin' | 'flower' | 'leaf';
@@ -24,8 +31,11 @@ export class Scene {
   private ctx: CanvasRenderingContext2D;
   private sprite = new Image();
   // ชุดท่า A1: แถวบน = เดิน 4 เฟรม · แถวล่าง = ยืน (หายใจเข้า, หายใจออก, กะพริบตา, มองผู้เล่น)
-  private sheet = new Image();
-  private readonly FW = 56; private readonly FH = 104;
+  // ฉากวาดที่ความละเอียดต่ำ (lo/fr) แล้วขยายลงจอ · ตัวละครวาดตรงลงจอที่ความละเอียดจริงของเครื่อง จะได้คมทุกเม็ด
+  private dc: CanvasRenderingContext2D;
+  private lo = document.createElement('canvas'); private fr = document.createElement('canvas');
+  private loCtx: CanvasRenderingContext2D; private frCtx: CanvasRenderingContext2D;
+  private K = 1; // พิกเซลจอต่อ 1 พิกเซลเกม
   private posX = 112; private targetX = 112; private face = 1; private nextWalk = 6; private walkT = 0;
   private blinkAt = 3; private lookUntil = 0; private nextLook = 10;
   // ชุดท่าอื่น (2 คอลัมน์ × 3 แถว, ขนาดเฟรมอ่านจากรูป): A2 อ่าน/แบก/รำไม้ · A3 สมาธิ/ย่อง/จุดเทียน · A4 หาของป่า/กวาดวัด/หาบของ
@@ -45,7 +55,8 @@ export class Scene {
   static STAT_ANIM: Record<string, string> = { 'ความรู้': 'read', 'พละกำลัง': 'carry', 'ต่อสู้': 'staff', 'บารมี': 'meditate', 'หลบหลีก': 'sneak', 'ไสยเวทย์': 'candle' };
   /** งานเด็ก → ท่า */
   static JOB_ANIM: Record<string, string> = { 'หาของป่า': 'forage', 'งานวัด': 'sweep', 'คาราวาน': 'pole' };
-  hasAnim(id: string) { const a = Scene.ANIMS[id], im = a && this.actSheets[a.sheet]; return !!(im && im.complete && im.naturalWidth); }
+  private hasSheet(k: string) { const im = this.actSheets[k]; return !!(im && im.complete && im.naturalWidth); }
+  hasAnim(id: string) { const a = Scene.ANIMS[id]; return !!a && this.hasSheet(a.sheet); }
   /** ให้ตัวละครทำท่านี้สักพัก (เช่น หลังเลือกตัวเลือกในกงกรรม) */
   showAnim(id: string, seconds = 5) {
     if (!this.hasAnim(id)) return false;
@@ -68,12 +79,12 @@ export class Scene {
   charBox = { x: 0, y: 0, w: 0, h: 0 };
 
   constructor(private canvas: HTMLCanvasElement) {
-    canvas.width = SCENE_W * Q; canvas.height = SCENE_H * Q;
-    this.ctx = canvas.getContext('2d')!;
-    this.ctx.imageSmoothingEnabled = false;
+    this.dc = canvas.getContext('2d')!;
+    for (const c of [this.lo, this.fr]) { c.width = SCENE_W; c.height = SCENE_H; }
+    this.loCtx = this.lo.getContext('2d')!; this.frCtx = this.fr.getContext('2d')!;
+    this.ctx = this.loCtx;
     this.sprite.src = new URL('./art/boy.png', document.baseURI).href;
-    this.sheet.src = new URL('./art/boy_a1.png', document.baseURI).href;
-    for (const k of ['a2', 'a3', 'a4', 'a5']) { const im = new Image(); im.src = new URL(`./art/boy_${k}.png`, document.baseURI).href; this.actSheets[k] = im; }
+    for (const k of ['a1', 'a2', 'a3', 'a4', 'a5']) { const im = new Image(); im.src = new URL(`./art/boy_${k}.png`, document.baseURI).href; this.actSheets[k] = im; }
   }
 
   /** แปลงพิกัดคลิกบนหน้าจอเป็นพิกัด canvas */
@@ -96,8 +107,12 @@ export class Scene {
 
   draw(g: GameState, dt: number, mood: SceneMood) {
     this.t += dt;
-    const c = this.ctx, L = g.life;
-    c.setTransform(Q, 0, 0, Q, 0, 0); c.imageSmoothingEnabled = false;
+    // ขนาด canvas = ขนาดที่แสดงจริง × ความละเอียดจอ (เบราว์เซอร์ไม่ต้องย่อ/ขยายเอง)
+    const cw = Math.max(SCENE_W, Math.round(this.canvas.clientWidth * (window.devicePixelRatio || 1)));
+    if (this.canvas.width !== cw) { this.canvas.width = cw; this.canvas.height = Math.round(cw * SCENE_H / SCENE_W); }
+    this.K = this.canvas.width / SCENE_W;
+    const L = g.life;
+    this.ctx = this.loCtx; const c = this.ctx;
     this.raining = mood.rain;
     c.clearRect(0, 0, SCENE_W, SCENE_H);
     // ---- ท้องฟ้าตามเวลาของวัน (เช้าชมพูอ่อน กลางวันครีม เย็นส้ม) และฝน ----
@@ -135,14 +150,17 @@ export class Scene {
     if (mood.month <= 1) {
       for (let x = 160; x < SCENE_W; x += 3) { const sway = Math.round(Math.sin(this.t * 2 + x) * 1); c.fillStyle = x % 2 ? '#d9b54a' : '#c9a23c'; c.fillRect(x + sway, GROUND - 7, 1, 7); c.fillRect(x + sway - 1, GROUND - 8, 2, 2); }
     }
-    // ---- ตัวละคร ----
-    if (this.sheet.complete && this.sheet.naturalWidth) this.drawCharacter(L, dt);
-    else if (this.sprite.complete && this.sprite.naturalWidth) {
-      const w = this.sprite.naturalWidth * 0.75, h = this.sprite.naturalHeight * 0.75;
-      const x = 112, y = GROUND + 2 - h;
-      this.charBox = { x, y, w, h };
-      c.drawImage(this.sprite, x, y, w, h);
-    }
+    // ---- ฉากหลังลงจอ แล้ววาดตัวละครที่ความละเอียดจริง ----
+    const d = this.dc;
+    d.setTransform(1, 0, 0, 1, 0, 0); d.imageSmoothingEnabled = false;
+    d.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    d.drawImage(this.lo, 0, 0, this.canvas.width, this.canvas.height);
+    d.setTransform(this.K, 0, 0, this.K, 0, 0); d.imageSmoothingEnabled = false;
+    if (this.hasSheet('a1')) this.drawCharacter(L, dt);
+    // ---- ชั้นหน้า (ของตก ฝน อนุภาค เครื่องหมาย !) วาดความละเอียดต่ำทับตัวละคร ----
+    this.ctx = this.frCtx;
+    this.ctx.clearRect(0, 0, SCENE_W, SCENE_H);
+    this.drawAlert();
     // ---- ของให้แตะเก็บ ----
     const p = this.pickup;
     if (p) {
@@ -152,15 +170,19 @@ export class Scene {
       else this.drawPickup(p.kind, Math.round(p.x), Math.round(p.y), p.age);
     }
     // ---- ฝน ----
+    const cf = this.ctx;
     if (mood.rain) {
-      c.fillStyle = 'rgba(120,130,150,0.55)';
-      for (let i = 0; i < 70; i++) { const rx = (i * 37 + this.t * 40) % SCENE_W, ry = (i * 53 + this.t * 160) % SCENE_H; c.fillRect(Math.round(rx), Math.round(ry), 1, 4); }
+      cf.fillStyle = 'rgba(120,130,150,0.55)';
+      for (let i = 0; i < 70; i++) { const rx = (i * 37 + this.t * 40) % SCENE_W, ry = (i * 53 + this.t * 160) % SCENE_H; cf.fillRect(Math.round(rx), Math.round(ry), 1, 4); }
     }
     // ---- อนุภาค (ฉลอง/เก็บของ) ----
     this.parts = this.parts.filter(q => (q.life -= dt) > 0);
-    for (const q of this.parts) { q.vy += 120 * dt; q.x += q.vx * dt; q.y += q.vy * dt; c.fillStyle = q.color; c.fillRect(Math.round(q.x), Math.round(q.y), 2, 2); }
+    for (const q of this.parts) { q.vy += 120 * dt; q.x += q.vx * dt; q.y += q.vy * dt; cf.fillStyle = q.color; cf.fillRect(Math.round(q.x), Math.round(q.y), 2, 2); }
     if (this.jump > 0) this.jump = Math.max(0, this.jump - dt / 1.2);
-    if (this.flash > 0) { c.fillStyle = `rgba(242,196,109,${(this.flash * 0.45).toFixed(2)})`; c.fillRect(0, 0, SCENE_W, SCENE_H); this.flash = Math.max(0, this.flash - dt * 1.5); }
+    const f2 = this.ctx;
+    if (this.flash > 0) { f2.fillStyle = `rgba(242,196,109,${(this.flash * 0.45).toFixed(2)})`; f2.fillRect(0, 0, SCENE_W, SCENE_H); this.flash = Math.max(0, this.flash - dt * 1.5); }
+    d.setTransform(1, 0, 0, 1, 0, 0); d.imageSmoothingEnabled = false;
+    d.drawImage(this.fr, 0, 0, this.canvas.width, this.canvas.height);
   }
 
   private drawPickup(kind: PickupKind, x: number, y: number, age: number) {
@@ -204,14 +226,14 @@ export class Scene {
   /** ขนาดตัวละคร: โตตามวัย × ระยะใกล้/ไกล แล้วปัดเป็นขั้น 0.25 */
   private charScale(L: GameState['life']) {
     const age = ageOf(L), base = age < 12 ? 0.75 : age < 18 ? 0.85 : 1;
-    return snap(base * (1 + 0.5 * this.z));
+    return base * (1 + 0.5 * this.z);
   }
   /** ตำแหน่งเท้า: ไกล = เส้นพื้น · ใกล้ = เลื่อนลงมาหน้าจอ */
   private feetY() { return GROUND + 2 + Math.round(this.z * 22); }
 
   /** ตัวละครมีชีวิต: ยืนหายใจ กะพริบตา หันมามอง เดินไปมา และทำท่าตามสิ่งที่ทำอยู่ */
   private drawCharacter(L: GameState['life'], dt: number) {
-    const c = this.ctx, t = this.t;
+    const t = this.t;
     const busy = this.alert || this.jump > 0 || this.paused;
     if (this.alert || (this.paused && this.act?.id !== 'happy')) this.act = null;
     if (this.act && t > this.act.until) this.act = null;
@@ -232,8 +254,7 @@ export class Scene {
     const still = Math.abs(this.targetX - this.posX) < 1;
     const mood = this.alert ? 'surprised' : this.paused ? 'sleep' : this.raining && still ? 'rain' : null;
     if (mood === 'sleep') this.z = 0;
-    if (mood && this.hasAnim(mood)) { this.drawAct(mood, mood === 'sleep' ? this.charScale(L) : scale); if (this.alert) this.drawAlert(); return; }
-    const w = this.FW * scale, h = this.FH * scale;
+    if (mood && this.hasAnim(mood)) { this.drawAct(mood, mood === 'sleep' ? this.charScale(L) : scale); return; }
     const dx = this.targetX - this.posX, walking = !busy && Math.abs(dx) >= 1;
     let col: number, row: number;
     if (walking) {
@@ -250,14 +271,23 @@ export class Scene {
       }
     }
     const hop = this.jump > 0 ? Math.round(Math.abs(Math.sin((1 - this.jump) * Math.PI * 3)) * 14 * this.jump) : 0;
-    const x = Math.round(this.posX - w / 2), y = this.feetY() - h - hop;
-    this.charBox = { x: x + w * 0.2, y, w: w * 0.6, h };
-    c.fillStyle = 'rgba(80,55,30,0.25)'; c.fillRect(x + Math.round(w * 0.25), this.feetY() - 2, Math.round(w * 0.5), 2);
+    this.drawFrame('a1', col, row, scale, this.face < 0, hop);
+  }
+  /** วาด 1 เฟรมจากชุดภาพ: หัวอยู่ตรง posX เท้าแตะพื้น (ยกขึ้นได้) · กลับซ้าย-ขวาได้ */
+  private drawFrame(key: string, col: number, row: number, scale: number, flip: boolean, lift = 0) {
+    const im = this.actSheets[key], m = SHEETS[key], c = this.dc;
+    const fw = im.naturalWidth / m.cols, fh = im.naturalHeight / m.rows;
+    const w = fw * scale * (m.sx[row] ?? m.sx[0]), h = fh * scale * (m.sy[row] ?? m.sy[0]);
+    // ปัดตำแหน่งให้ตรงเม็ดพิกเซลจอ
+    const K = this.K, rx = (v: number) => Math.round(v * K) / K;
+    const x = rx(this.posX - w / 2), y = rx(this.feetY() - h - lift);
+    const bw = 34 * scale;
+    this.charBox = { x: this.posX - bw / 2, y, w: bw, h };
+    c.fillStyle = 'rgba(80,55,30,0.25)'; c.fillRect(rx(this.posX - bw * 0.4), this.feetY() - 2, rx(bw * 0.8), 2);
     c.save();
-    if (this.face < 0) { c.translate(x * 2 + w, 0); c.scale(-1, 1); }
-    c.drawImage(this.sheet, col * this.FW, row * this.FH, this.FW, this.FH, x, y, w, h);
+    if (flip) { c.translate(x * 2 + w, 0); c.scale(-1, 1); }
+    c.drawImage(im, col * fw, row * fh, fw, fh, x, y, rx(w), rx(h));
     c.restore();
-    this.drawAlert();
   }
   private drawAlert() {
     const c = this.ctx, b = this.charBox;
@@ -267,20 +297,12 @@ export class Scene {
     c.fillStyle = '#fff'; c.fillRect(ax - 1, ay - 14, 2, 6); c.fillRect(ax - 1, ay - 7, 2, 2);
   }
 
-  /** ท่าอื่นๆ: วางให้หัวตรงกับตำแหน่งตัวละคร เท้าแตะพื้น */
+  /** ท่าอื่นๆ */
   private drawAct(id: string, scale: number, flip = this.face < 0) {
-    const a = Scene.ANIMS[id], im = this.actSheets[a.sheet], fw = im.naturalWidth / 2, fh = im.naturalHeight / 3;
-    const c = this.ctx, w = fw * scale, h = fh * scale;
+    const a = Scene.ANIMS[id];
     const k = Math.floor(this.t / a.speed) % a.frames.length, [col, row] = a.frames[k];
-    const x = Math.round(this.posX - w / 2), y = this.feetY() - h - Math.round((a.lift?.[k] ?? 0) * scale);
-    const bw = Math.round(this.FW * scale * 0.6);
-    this.charBox = { x: Math.round(this.posX - bw / 2), y, w: bw, h };
     this.face = flip ? -1 : 1;
-    c.fillStyle = 'rgba(80,55,30,0.25)'; c.fillRect(Math.round(this.posX - bw / 2), this.feetY() - 2, bw, 2);
-    c.save();
-    if (flip) { c.translate(x * 2 + w, 0); c.scale(-1, 1); }
-    c.drawImage(im, col * fw, row * fh, fw, fh, x, y, w, h);
-    c.restore();
+    this.drawFrame(a.sheet, col, row, scale, flip, (a.lift?.[k] ?? 0) * scale);
   }
 
   private house(level: number) {
