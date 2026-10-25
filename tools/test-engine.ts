@@ -22,7 +22,7 @@ const t = (name: string, ok: boolean, info = '') => { console.log(`${ok ? 'ผ�
     while (g.queue.length) E.resolveEvent(g);
     if (E.ageOf(g.life) >= 12 && !g.life.career) E.chooseCareer(g, 'พ่อค้า');
   }
-  t('ปิดแอป: เหตุการณ์ย่อยค้างในคิวไม่เกิน 3', maxQueue <= B.offlineQueueMax, `สูงสุด ${maxQueue}`);
+  t(`ปิดแอป: เหตุการณ์ย่อยค้างในคิวไม่เกิน ${B.offlineQueueMax}`, maxQueue <= B.offlineQueueMax, `สูงสุด ${maxQueue}`);
   t('ปิดแอป: เกินคิวแล้วเลือกให้อัตโนมัติ', auto > 0, `${auto} ครั้ง`);
   t('ปิดแอป: เหตุการณ์หลักหยุดเวลา', stoppedOnMain > 0, `${stoppedOnMain} ครั้ง`);
 }
@@ -55,7 +55,9 @@ const t = (name: string, ok: boolean, info = '') => { console.log(`${ok ? 'ผ�
 {
   const g = E.newGame(1); g.savedAt = Date.now() - 3600_000;
   const d = E.offlineDays(g);
-  t('ปิดแอป 1 ชม. = ประมาณ 214 วันในเกม', Math.abs(d - 3600 / B.secondsPerGameDay) <= 1, `${d} วัน`);
+  t('ปิดแอป 1 ชม. = ประมาณ 21 วันในเกม (⅒ ของตอนเปิด)', Math.abs(d - 3600 / B.secondsPerGameDay * B.offlineSpeed) <= 1, `${d} วัน`);
+  g.savedAt = Date.now() - 30 * 86400_000;
+  t('ปิดแอปนานแค่ไหนก็เดินไม่เกิน 2 ปีในเกม', E.offlineDays(g) === B.offlineMaxDays, `${E.offlineDays(g)} วัน`);
 }
 console.log(fail ? `\nไม่ผ่าน ${fail} ข้อ` : '\nผ่านทุกข้อ');
 process.exit(fail ? 1 : 0);

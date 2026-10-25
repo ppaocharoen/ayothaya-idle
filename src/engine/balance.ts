@@ -90,7 +90,9 @@ export const BALANCE = {
   waveMinDays: 365, waveMaxDays: 730,
   checkBase: 0.30, checkSlope: 0.65, checkMax: 0.95,
   checkFailLoss: 0.05,       // เสียเงิน/ทรัพย์สิน 5% เมื่อเช็คล้มเหลว
-  offlineQueueMax: 3,
+  offlineQueueMax: 12,
+  /** ตอนปิดแอป เวลาเดินช้ากว่าตอนเปิด (สัดส่วนของความเร็วปกติ) และเดินได้ไม่เกินกี่วันต่อการปิด 1 ครั้ง */
+  offlineSpeed: 0.1, offlineMaxDays: 730,
 
   // ---- เอนดิ้ง ----
   fleeFrac: 0.6,             // หลบหลีกสูงสุด ≥ 60% ของเพดานชาตินั้น

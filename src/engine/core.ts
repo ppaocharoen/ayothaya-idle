@@ -637,5 +637,6 @@ export function deserialize(s: string): GameState {
 }
 /** จำนวนวันในเกมที่ควรเดินจากช่วงที่ปิดแอป */
 export function offlineDays(g: GameState, now = Date.now()): number {
-  return Math.max(0, Math.floor((now - g.savedAt) / 1000 / B.secondsPerGameDay));
+  const days = (now - g.savedAt) / 1000 / B.secondsPerGameDay * B.offlineSpeed;
+  return Math.max(0, Math.min(B.offlineMaxDays, Math.floor(days)));
 }

@@ -471,6 +471,7 @@ function showAway() {
   if (!awayInfo) return;
   const y = Math.floor(awayInfo.days / B.daysPerYear), d = awayInfo.days % B.daysPerYear;
   openModal(`<span class="kind">${icon('clock', 16)}ระหว่างที่ท่านไม่อยู่</span><h2>เวลาผ่านไป ${y ? `${th(y)} ปี ` : ''}${th(d)} วัน</h2>
+    <p class="muted">ตอนปิดเกม เวลาเดินช้ากว่าตอนเปิด ๑๐ เท่า และไม่เกิน ${th(Math.round(B.offlineMaxDays / B.daysPerYear))} ปีต่อครั้ง${awayInfo.days >= B.offlineMaxDays ? ' (ครั้งนี้ถึงเพดานแล้ว)' : ''}</p>
     <p>${awayInfo.eff < 1 ? `ตอนไม่อยู่ได้ผล ${th(Math.round(awayInfo.eff * 100))}% ของตอนเล่นเอง — บ้านดีขึ้นได้ผลมากขึ้น · ` : ''}${awayInfo.auto ? `กงกรรม ${th(awayInfo.auto)} เรื่องตัดสินใจไปตามแนวทางชีวิตแล้ว` : 'ไม่มีกงกรรมที่ต้องตัดสินใจแทน'}${g.queue.length ? ` · มี ${th(g.queue.length)} เรื่องรอท่านอยู่` : ''}</p>
     <button class="choice go" data-act="close">ไปต่อ</button>`);
   awayInfo = null;
