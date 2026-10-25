@@ -28,58 +28,46 @@
 
 ---
 
-## ผู้ใหญ่ ๑๘–๕๔ — ทำไมใช้วิธี "แก้ภาพ"
-แก้จากชุดวัยรุ่นที่มีอยู่ ดีกว่าเจนใหม่ ๓ ข้อ: หน้าตัวละครเหมือนเดิมแน่นอน · ท่าและการจัดช่องตรงกัน เกมใช้ท่าเดิมได้ทันที · ใช้โควต้าน้อย
-เกมเตรียมรองรับไว้แล้ว: ใส่ไฟล์ชุดไหนมา ตัวละครอายุ ๑๘ ขึ้นไปจะเปลี่ยนไปใช้ชุดนั้นเอง ชุดที่ยังไม่มีจะใช้ภาพวัยรุ่นขยายตัวแทนไปก่อน
-ทรงผม: ผู้ชายทุกอาชีพยังเป็นมหาดไทย · พราหมณ์เกล้ามวย
+# พรอมต์ที่ต้องเจน (เรียงตามลำดับ)
 
-## U1–U3 — ผู้ใหญ่ชุดธรรมดา → `U1.jpg` `U2.jpg` `U3.jpg`
-ทำ ๓ รอบ: แนบ T1 → เซฟ U1 · แนบ T2 → U2 · แนบ T3 → U3
-แนบ `T1.jpg` แล้วใช้:
+## V3 — ชราชุดธรรมดา: อารมณ์ → `V3.jpg`
+แนบ `U3.jpg` แล้วใช้:
 ```
-Edit this sprite sheet. Make the boy a young adult man about 25 years old in every frame: about 15% taller, broader shoulders and chest, longer limbs, a more defined jaw and a thin moustache. Keep the mahatthai haircut, the same indigo chong kraben with the brown-gold sash, shirtless, barefoot.
-Keep the same poses, the same layout and the same number of frames, and keep each frame in the same cell position.
-Keep the exact same 8× nearest-neighbor square pixel grid, no blur, no anti-aliasing. Every figure stays fully inside its own cell with empty margin on all sides — if the taller body would not fit, draw everyone slightly smaller, the same size in all frames. Background stays solid pure green #00FF00. No text, no labels, no grid lines.
+Edit this sprite sheet. Make the man an elderly man about 65 years old in every frame: white hair (same mahatthai hairstyle), a few wrinkles, a thin white moustache, slightly stooped shoulders, thinner arms. Keep the same clothes, poses, layout and cell positions. The jumping frame can be a smaller, gentler hop.
+Keep the exact same 8× nearest-neighbor square pixel grid, no blur, no anti-aliasing. Every figure stays fully inside its own cell with empty margin on all sides, the same size in all frames. Background stays solid pure green #00FF00. No text, no labels, no grid lines.
 ```
-
-## UP1–UP3 — พราหมณ์ผู้ใหญ่ชุดธรรมดา → `UP1.jpg` `UP2.jpg` `UP3.jpg`
-แนบ TP1 → UP1 · TP2 → UP2 · TP3 → UP3
-แนบ `TP1.jpg` แล้วใช้:
-```
-Edit this sprite sheet. Make the boy a young adult man about 25 years old in every frame: about 15% taller, broader shoulders and chest, longer limbs, a more defined jaw and a thin moustache. Keep the Brahmin hair bun with the white tie, the white chong kraben and white sash, shirtless, barefoot. In the sleeping frame also give him the Brahmin bun and white chong kraben.
-Keep the same poses, the same layout and the same number of frames, and keep each frame in the same cell position.
-Keep the exact same 8× nearest-neighbor square pixel grid, no blur, no anti-aliasing. Every figure stays fully inside its own cell with empty margin on all sides — if the taller body would not fit, draw everyone slightly smaller, the same size in all frames. Background stays solid pure green #00FF00. No text, no labels, no grid lines.
-```
-
-## C1–C6 — ผู้ใหญ่ตามอาชีพ → `C1.jpg` … `C6.jpg`
-แนบ B ของอาชีพนั้น (B1 → C1 …) ใช้พรอมต์หลักด้านล่าง แล้ว **เปลี่ยนประโยค "New outfit" ตามอาชีพ**
-แนบ `B1.jpg` แล้วใช้:
-```
-Edit this sprite sheet. Make the boy a young adult man about 25 years old in every frame: about 15% taller, broader shoulders and chest, longer limbs, a more defined jaw and a thin moustache. New outfit: [ใส่ประโยคชุดของอาชีพจากตารางข้างล่าง]. Keep the tools he holds in each pose.
-Keep the same poses, the same layout and the same number of frames, and keep each frame in the same cell position.
-Keep the exact same 8× nearest-neighbor square pixel grid, no blur, no anti-aliasing. Every figure stays fully inside its own cell with empty margin on all sides — if the taller body would not fit, draw everyone slightly smaller, the same size in all frames. Background stays solid pure green #00FF00. No text, no labels, no grid lines.
-```
-
-| ไฟล์ | แนบ | ประโยค New outfit (ก๊อปไปแทนในวงเล็บ) |
-|---|---|---|
-| C1 ทหาร | B1.jpg | a red short-sleeved soldier tunic, dark indigo chong kraben, a wide red waist sash, a short Thai sword (daab) in a wooden scabbard at the waist, a red cloth headband; mahatthai haircut |
-| C2 พ่อค้า | B2.jpg | a white long-sleeved Thai shirt (sua khaen krabok) with a cloth pouch of coins at the waist, dark patterned chong kraben, a brass weighing scale; mahatthai haircut |
-| C3 เกษตรกร | B3.jpg | the woven bamboo hat (ngob), a checked pha khao ma cloth around the waist and over one shoulder, dark indigo chong kraben, strong sun-tanned arms; mahatthai haircut |
-| C4 บริหาร | B4.jpg | a white high-collared court jacket with small gold buttons, a dark red silk chong kraben, a gold-embroidered sash, still holding the folded palm-leaf book; mahatthai haircut |
-| C5 ปุโรหิต | B5.jpg | an all-white Brahmin robe wrapped over one shoulder, white chong kraben, the sacred white cord across the chest, a short neat beard; Brahmin hair bun with a white tie |
-| C6 สายลับ | B6.jpg | a dark grey-brown long-sleeved shirt, dark chong kraben, a dull cloth sash with a hidden knife, a dark cloth scarf around the neck that can cover the lower face, the brown head wrap; mahatthai haircut |
-
-ยศสูง (C8 ทางสว่าง · C9 ทางมืด) ไว้ทำหลัง C1–C6 — ใช้วิธีเดียวกัน แนบ C แล้วสั่ง "richer, more ornate noble outfit with gold" หรือ "darker, more sinister outfit in black and deep red"
 
 ---
 
-## ชรา ๕๕+ (ทำหลังผู้ใหญ่เสร็จ)
-วิธีเดียวกัน แนบชุดผู้ใหญ่แล้วสั่งแก้:
+## สัตว์ ๓ ตัวถัดไป (พรอมต์เต็ม ก๊อปได้เลย)
+
+### แมวขาวมณี → `P_KhaoManee.jpg` (แนบ `P_Wichienmaat.jpg`)
 ```
-Edit this sprite sheet. Make the man an elderly man about 65 years old in every frame: white hair (same hairstyle), a few wrinkles, a thin white moustache, slightly stooped shoulders, thinner arms. Keep the same clothes, poses, layout and cell positions.
-Keep the exact same 8× nearest-neighbor square pixel grid, no blur, no anti-aliasing. Every figure stays fully inside its own cell with empty margin on all sides — if the taller body would not fit, draw everyone slightly smaller, the same size in all frames. Background stays solid pure green #00FF00. No text, no labels, no grid lines.
+Pixel-art sprite sheet of a Thai Khao Manee cat: pure snow-white short coat, one blue eye and one gold eye, slim elegant body. Use the attached cat sheet as the exact reference for layout, poses, size and pixel style — only change the breed.
+Layout: 4 columns × 3 rows grid, 12 equal-sized cells, side view facing right.
+Columns: 1 sitting · 2 walking (step A) · 3 walking (step B) · 4 happy hop with tail up (rows 1–2) / curled up asleep (row 3).
+Rows: 1 kitten (small, big head) · 2 adult · 3 old (slightly thinner, sleepier eyes).
+FRAMING: every cat is fully inside its cell with empty margin; paws on the same baseline in each row.
+Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighbor — every pixel is a perfect SQUARE block of identical size, aligned to one grid across the whole sheet. No anti-aliasing, gradients, blur or dithering noise. Flat colors, dark 1-pixel outline.
+Background: solid pure green #00FF00 everywhere. No shadows, no ground, no text, no labels, no grid lines.
 ```
-U1–U3 → V1–V3 · UP1–UP3 → VP1–VP3 · C1–C6 → D1–D6
+
+### นกกรงหัวจุก → `P_Bulbul.jpg` (แนบ `P_Dove.jpg`)
+```
+Pixel-art sprite sheet of a red-whiskered bulbul (nok krong hua juk): brown back, white belly, tall pointed black crest, small red cheek patch, red under the tail. Use the attached bird sheet as the exact reference for layout, poses, size and pixel style — only change the species.
+Layout: 4 columns × 3 rows grid, 12 equal-sized cells, side view facing right.
+Columns: 1 flying with wings spread · 2 standing/hopping · 3 walking (head forward) · 4 singing with beak open (rows 1–2) / fluffed up asleep (row 3).
+Rows: 1 chick (small, fluffy) · 2 adult · 3 old (duller feathers, sleepier eyes).
+FRAMING: every bird is fully inside its cell with empty margin; feet on the same baseline in each row.
+Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighbor — every pixel is a perfect SQUARE block of identical size, aligned to one grid across the whole sheet. No anti-aliasing, gradients, blur or dithering noise. Flat colors, dark 1-pixel outline.
+Background: solid pure green #00FF00 everywhere. No shadows, no ground, no text, no labels, no grid lines.
+```
+
+### นกเอี้ยง → `P_Myna.jpg` (แนบ `P_Dove.jpg`)
+ใช้พรอมต์นกกรงหัวจุกข้างบน เปลี่ยนบรรทัดแรกเป็น:
+```
+Pixel-art sprite sheet of a common myna (nok iang): dark chocolate-brown body, black head, bright yellow beak, yellow bare skin around the eyes, white wing patches, yellow legs.
+```
 
 ---
 
@@ -101,6 +89,8 @@ Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighb
 Background: solid pure green #00FF00 everywhere. No shadows, no ground, no text, no grid lines.
 ```
 
+---
+
 ## F5 — วิญญาณตัวละคร → `F5.jpg`
 ```
 Pixel-art sprite sheet of the SAME boy from the attached reference image as a wandering spirit in the Thai underworld: same face and proportions, now pale translucent blue-white skin, simple white cloth wrap, faint glow outline, feet fading into wisps. Mahatthai haircut.
@@ -114,37 +104,6 @@ FRAMING — VERY IMPORTANT: the entire figure is fully visible in every cell wit
 Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighbor — every pixel is a perfect SQUARE block of identical size, aligned to one grid across the whole sheet. No anti-aliasing, gradients, blur or dithering noise. Flat colors, dark 1-pixel outline.
 
 Background: solid pure green #00FF00 everywhere. No shadows, no ground, no text, no grid lines.
-```
-
----
-
-## P — สัตว์เลี้ยงเพิ่ม (แม่แบบ) · ทำแล้ว: บางแก้ว วิเชียรมาศ นกเขาชวา หลังอาน สีสวาด
-แนบภาพ `P_Wichienmaat.jpg` เป็นต้นแบบท่าและขนาด
-```
-Pixel-art sprite sheet of a Thai Korat cat (Si Sawat): solid silver-blue grey coat with a silvery sheen, heart-shaped face, large round bright green eyes, slim muscular body. Use the attached cat sheet as the exact reference for layout, poses, size and pixel style — only change the breed.
-
-Layout: 4 columns × 3 rows grid, 12 equal-sized cells, side view facing right.
-Columns: 1 sitting · 2 walking (step A) · 3 walking (step B) · 4 happy hop with tail up (rows 1–2) / curled up asleep (row 3).
-Rows: 1 kitten (small, big head) · 2 adult · 3 old (slightly thinner, greyer muzzle, sleepier eyes).
-
-FRAMING: every cat is fully inside its cell with empty margin; paws on the same baseline in each row.
-
-Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighbor — every pixel is a perfect SQUARE block of identical size, aligned to one grid across the whole sheet. No anti-aliasing, gradients, blur or dithering noise. Flat colors, dark 1-pixel outline.
-
-Background: solid pure green #00FF00 everywhere. No shadows, no ground, no text, no grid lines.
-```
-พรอมต์ข้างบนคือแมวสีสวาด (ทำแล้ว) — ตัวถัดไปใช้พรอมต์เดียวกัน เปลี่ยนบรรทัดแรก · **ขอให้เพิ่มบรรทัด `No text, no labels, no grid lines.` ด้วย** (รอบก่อน Gemini เขียนคำว่า Kitten/Step A และตีเส้นตารางมา ผมลบออกได้แต่เสี่ยงเลอะ):
-- **ขาวมณี** — Khao Manee cat: pure white coat, one blue eye and one gold eye (แนบ P_Wichienmaat)
-- **นกกรงหัวจุก** — red-whiskered bulbul: brown back, white belly, tall black crest, red cheek patch (แนบ P_Dove)
-- **นกเอี้ยง** — common myna: dark brown body, yellow beak and eye patch, white wing patch (แนบ P_Dove)
-
----
-
-## V3 — ชราชุดธรรมดา: อารมณ์ → `V3.jpg`
-แนบ `U3.jpg` แล้วใช้:
-```
-Edit this sprite sheet. Make the man an elderly man about 65 years old in every frame: white hair (same mahatthai hairstyle), a few wrinkles, a thin white moustache, slightly stooped shoulders, thinner arms. Keep the same clothes, poses, layout and cell positions. The jumping frame can be a smaller, gentler hop.
-Keep the exact same 8× nearest-neighbor square pixel grid, no blur, no anti-aliasing. Every figure stays fully inside its own cell with empty margin on all sides, the same size in all frames. Background stays solid pure green #00FF00. No text, no labels, no grid lines.
 ```
 
 ---
@@ -221,6 +180,8 @@ Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighb
 Background: solid pure green #00FF00.
 ```
 
+---
+
 ## H — ภาพเหตุการณ์ใหญ่ (ภาพนิ่งประกอบเหตุการณ์ประวัติศาสตร์) → `H-ชื่อ.jpg`
 ```
 Pixel-art illustration (landscape 16:9) for a Thai historical idle game: [ใส่เหตุการณ์]. Dramatic composition, warm muted palette, Ayutthaya-era costumes and architecture, no text.
@@ -228,35 +189,77 @@ Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighb
 ```
 เหตุการณ์ที่แนะนำ: สถาปนากรุงศรีอยุธยา พ.ศ. ๑๘๙๓ (H-found) · ยุทธหัตถี (H-elephant) · เสียกรุงครั้งที่ ๑ (H-fall1) · เสียกรุงครั้งที่ ๒ (H-fall2)
 
-
 ---
 
-## สัตว์ ๓ ตัวถัดไป (พรอมต์เต็ม ก๊อปได้เลย)
+# พรอมต์ที่ทำเสร็จแล้ว (เก็บไว้อ้างอิง ไม่ต้องเจนซ้ำ)
 
-### แมวขาวมณี → `P_KhaoManee.jpg` (แนบ `P_Wichienmaat.jpg`)
+### ผู้ใหญ่ ๑๘–๕๔ — ทำไมใช้วิธี "แก้ภาพ"
+แก้จากชุดวัยรุ่นที่มีอยู่ ดีกว่าเจนใหม่ ๓ ข้อ: หน้าตัวละครเหมือนเดิมแน่นอน · ท่าและการจัดช่องตรงกัน เกมใช้ท่าเดิมได้ทันที · ใช้โควต้าน้อย
+เกมเตรียมรองรับไว้แล้ว: ใส่ไฟล์ชุดไหนมา ตัวละครอายุ ๑๘ ขึ้นไปจะเปลี่ยนไปใช้ชุดนั้นเอง ชุดที่ยังไม่มีจะใช้ภาพวัยรุ่นขยายตัวแทนไปก่อน
+ทรงผม: ผู้ชายทุกอาชีพยังเป็นมหาดไทย · พราหมณ์เกล้ามวย
+
+### U1–U3 — ผู้ใหญ่ชุดธรรมดา → `U1.jpg` `U2.jpg` `U3.jpg`
+ทำ ๓ รอบ: แนบ T1 → เซฟ U1 · แนบ T2 → U2 · แนบ T3 → U3
+แนบ `T1.jpg` แล้วใช้:
 ```
-Pixel-art sprite sheet of a Thai Khao Manee cat: pure snow-white short coat, one blue eye and one gold eye, slim elegant body. Use the attached cat sheet as the exact reference for layout, poses, size and pixel style — only change the breed.
+Edit this sprite sheet. Make the boy a young adult man about 25 years old in every frame: about 15% taller, broader shoulders and chest, longer limbs, a more defined jaw and a thin moustache. Keep the mahatthai haircut, the same indigo chong kraben with the brown-gold sash, shirtless, barefoot.
+Keep the same poses, the same layout and the same number of frames, and keep each frame in the same cell position.
+Keep the exact same 8× nearest-neighbor square pixel grid, no blur, no anti-aliasing. Every figure stays fully inside its own cell with empty margin on all sides — if the taller body would not fit, draw everyone slightly smaller, the same size in all frames. Background stays solid pure green #00FF00. No text, no labels, no grid lines.
+```
+
+### UP1–UP3 — พราหมณ์ผู้ใหญ่ชุดธรรมดา → `UP1.jpg` `UP2.jpg` `UP3.jpg`
+แนบ TP1 → UP1 · TP2 → UP2 · TP3 → UP3
+แนบ `TP1.jpg` แล้วใช้:
+```
+Edit this sprite sheet. Make the boy a young adult man about 25 years old in every frame: about 15% taller, broader shoulders and chest, longer limbs, a more defined jaw and a thin moustache. Keep the Brahmin hair bun with the white tie, the white chong kraben and white sash, shirtless, barefoot. In the sleeping frame also give him the Brahmin bun and white chong kraben.
+Keep the same poses, the same layout and the same number of frames, and keep each frame in the same cell position.
+Keep the exact same 8× nearest-neighbor square pixel grid, no blur, no anti-aliasing. Every figure stays fully inside its own cell with empty margin on all sides — if the taller body would not fit, draw everyone slightly smaller, the same size in all frames. Background stays solid pure green #00FF00. No text, no labels, no grid lines.
+```
+
+### C1–C6 — ผู้ใหญ่ตามอาชีพ → `C1.jpg` … `C6.jpg`
+แนบ B ของอาชีพนั้น (B1 → C1 …) ใช้พรอมต์หลักด้านล่าง แล้ว **เปลี่ยนประโยค "New outfit" ตามอาชีพ**
+แนบ `B1.jpg` แล้วใช้:
+```
+Edit this sprite sheet. Make the boy a young adult man about 25 years old in every frame: about 15% taller, broader shoulders and chest, longer limbs, a more defined jaw and a thin moustache. New outfit: [ใส่ประโยคชุดของอาชีพจากตารางข้างล่าง]. Keep the tools he holds in each pose.
+Keep the same poses, the same layout and the same number of frames, and keep each frame in the same cell position.
+Keep the exact same 8× nearest-neighbor square pixel grid, no blur, no anti-aliasing. Every figure stays fully inside its own cell with empty margin on all sides — if the taller body would not fit, draw everyone slightly smaller, the same size in all frames. Background stays solid pure green #00FF00. No text, no labels, no grid lines.
+```
+
+| ไฟล์ | แนบ | ประโยค New outfit (ก๊อปไปแทนในวงเล็บ) |
+|---|---|---|
+| C1 ทหาร | B1.jpg | a red short-sleeved soldier tunic, dark indigo chong kraben, a wide red waist sash, a short Thai sword (daab) in a wooden scabbard at the waist, a red cloth headband; mahatthai haircut |
+| C2 พ่อค้า | B2.jpg | a white long-sleeved Thai shirt (sua khaen krabok) with a cloth pouch of coins at the waist, dark patterned chong kraben, a brass weighing scale; mahatthai haircut |
+| C3 เกษตรกร | B3.jpg | the woven bamboo hat (ngob), a checked pha khao ma cloth around the waist and over one shoulder, dark indigo chong kraben, strong sun-tanned arms; mahatthai haircut |
+| C4 บริหาร | B4.jpg | a white high-collared court jacket with small gold buttons, a dark red silk chong kraben, a gold-embroidered sash, still holding the folded palm-leaf book; mahatthai haircut |
+| C5 ปุโรหิต | B5.jpg | an all-white Brahmin robe wrapped over one shoulder, white chong kraben, the sacred white cord across the chest, a short neat beard; Brahmin hair bun with a white tie |
+| C6 สายลับ | B6.jpg | a dark grey-brown long-sleeved shirt, dark chong kraben, a dull cloth sash with a hidden knife, a dark cloth scarf around the neck that can cover the lower face, the brown head wrap; mahatthai haircut |
+
+ยศสูง (C8 ทางสว่าง · C9 ทางมืด) ไว้ทำหลัง C1–C6 — ใช้วิธีเดียวกัน แนบ C แล้วสั่ง "richer, more ornate noble outfit with gold" หรือ "darker, more sinister outfit in black and deep red"
+
+### ชรา ๕๕+ (ทำหลังผู้ใหญ่เสร็จ)
+วิธีเดียวกัน แนบชุดผู้ใหญ่แล้วสั่งแก้:
+```
+Edit this sprite sheet. Make the man an elderly man about 65 years old in every frame: white hair (same hairstyle), a few wrinkles, a thin white moustache, slightly stooped shoulders, thinner arms. Keep the same clothes, poses, layout and cell positions.
+Keep the exact same 8× nearest-neighbor square pixel grid, no blur, no anti-aliasing. Every figure stays fully inside its own cell with empty margin on all sides — if the taller body would not fit, draw everyone slightly smaller, the same size in all frames. Background stays solid pure green #00FF00. No text, no labels, no grid lines.
+```
+U1–U3 → V1–V3 · UP1–UP3 → VP1–VP3 · C1–C6 → D1–D6
+
+### P — สัตว์เลี้ยงเพิ่ม (แม่แบบ) · ทำแล้ว: บางแก้ว วิเชียรมาศ นกเขาชวา หลังอาน สีสวาด
+แนบภาพ `P_Wichienmaat.jpg` เป็นต้นแบบท่าและขนาด
+```
+Pixel-art sprite sheet of a Thai Korat cat (Si Sawat): solid silver-blue grey coat with a silvery sheen, heart-shaped face, large round bright green eyes, slim muscular body. Use the attached cat sheet as the exact reference for layout, poses, size and pixel style — only change the breed.
+
 Layout: 4 columns × 3 rows grid, 12 equal-sized cells, side view facing right.
 Columns: 1 sitting · 2 walking (step A) · 3 walking (step B) · 4 happy hop with tail up (rows 1–2) / curled up asleep (row 3).
-Rows: 1 kitten (small, big head) · 2 adult · 3 old (slightly thinner, sleepier eyes).
+Rows: 1 kitten (small, big head) · 2 adult · 3 old (slightly thinner, greyer muzzle, sleepier eyes).
+
 FRAMING: every cat is fully inside its cell with empty margin; paws on the same baseline in each row.
-Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighbor — every pixel is a perfect SQUARE block of identical size, aligned to one grid across the whole sheet. No anti-aliasing, gradients, blur or dithering noise. Flat colors, dark 1-pixel outline.
-Background: solid pure green #00FF00 everywhere. No shadows, no ground, no text, no labels, no grid lines.
-```
 
-### นกกรงหัวจุก → `P_Bulbul.jpg` (แนบ `P_Dove.jpg`)
-```
-Pixel-art sprite sheet of a red-whiskered bulbul (nok krong hua juk): brown back, white belly, tall pointed black crest, small red cheek patch, red under the tail. Use the attached bird sheet as the exact reference for layout, poses, size and pixel style — only change the species.
-Layout: 4 columns × 3 rows grid, 12 equal-sized cells, side view facing right.
-Columns: 1 flying with wings spread · 2 standing/hopping · 3 walking (head forward) · 4 singing with beak open (rows 1–2) / fluffed up asleep (row 3).
-Rows: 1 chick (small, fluffy) · 2 adult · 3 old (duller feathers, sleepier eyes).
-FRAMING: every bird is fully inside its cell with empty margin; feet on the same baseline in each row.
 Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighbor — every pixel is a perfect SQUARE block of identical size, aligned to one grid across the whole sheet. No anti-aliasing, gradients, blur or dithering noise. Flat colors, dark 1-pixel outline.
-Background: solid pure green #00FF00 everywhere. No shadows, no ground, no text, no labels, no grid lines.
-```
 
-### นกเอี้ยง → `P_Myna.jpg` (แนบ `P_Dove.jpg`)
-ใช้พรอมต์นกกรงหัวจุกข้างบน เปลี่ยนบรรทัดแรกเป็น:
+Background: solid pure green #00FF00 everywhere. No shadows, no ground, no text, no grid lines.
 ```
-Pixel-art sprite sheet of a common myna (nok iang): dark chocolate-brown body, black head, bright yellow beak, yellow bare skin around the eyes, white wing patches, yellow legs.
-```
+พรอมต์ข้างบนคือแมวสีสวาด (ทำแล้ว) — ตัวถัดไปใช้พรอมต์เดียวกัน เปลี่ยนบรรทัดแรก · **ขอให้เพิ่มบรรทัด `No text, no labels, no grid lines.` ด้วย** (รอบก่อน Gemini เขียนคำว่า Kitten/Step A และตีเส้นตารางมา ผมลบออกได้แต่เสี่ยงเลอะ):
+- **ขาวมณี** — Khao Manee cat: pure white coat, one blue eye and one gold eye (แนบ P_Wichienmaat)
+- **นกกรงหัวจุก** — red-whiskered bulbul: brown back, white belly, tall black crest, red cheek patch (แนบ P_Dove)
+- **นกเอี้ยง** — common myna: dark brown body, yellow beak and eye patch, white wing patch (แนบ P_Dove)
