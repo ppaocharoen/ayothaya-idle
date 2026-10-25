@@ -14,13 +14,15 @@
 - สัตว์: บางแก้ว · วิเชียรมาศ · นกเขาชวา · หลังอาน · สีสวาด
 
 **เหลือ (เรียงตามลำดับแนะนำ)**
-| ลำดับ | ชุด | วิธี | ไฟล์ |
-|---|---|---|---|
-| 1 | V3 ชราชุดธรรมดา: อารมณ์ (ตอนนี้ใช้ภาพผู้ใหญ่ U3 แทน) | แนบ U3 แล้วใช้พรอมต์ชรา | V3.jpg |
-| 2 | F1 พญายม · F5 วิญญาณ (มินิเกมหลังตาย ตอนนี้วาดด้วยโค้ด) | เจนใหม่ (พรอมต์ด้านล่าง) | F1.jpg F5.jpg |
-| 3 | สัตว์เพิ่ม: ขาวมณี · นกกรงหัวจุก · นกเอี้ยง ฯลฯ | เจนใหม่ (แม่แบบด้านล่าง) | P_ชื่อ.jpg |
-| 4 | C8/C9 ยศสูงทางสว่าง/มืด ๖ อาชีพ | แก้จาก C1–C6 | ทีหลัง |
-| 5 | E3 ฉากทำงาน ๖ ฉาก · F7 เปรต · F8 เทวดา · H ภาพเหตุการณ์ใหญ่ | เจนใหม่ | ทีหลัง |
+| ลำดับ | ชุด | วิธี | ไฟล์ | เกมรองรับ |
+|---|---|---|---|---|
+| 1 | V3 ชราชุดธรรมดา: อารมณ์ | แก้จาก U3 | V3.jpg | ✅ ใส่ไฟล์แล้วใช้ได้ทันที |
+| 2 | P สัตว์เพิ่ม ๓ ตัว: ขาวมณี · นกกรงหัวจุก · นกเอี้ยง | เจนใหม่ (แนบภาพสัตว์ชนิดเดียวกัน) | P_KhaoManee.jpg P_Bulbul.jpg P_Myna.jpg | ✅ |
+| 3 | F1 พญายม · F5 วิญญาณ | เจนใหม่ | F1.jpg F5.jpg | ต้องเขียนโค้ดเพิ่ม (ผมทำให้) |
+| 4 | F3 ศาลยมโลก · F4 นรก/ต้นงิ้ว · F6 แม่น้ำเวตรณี · F8 วิมานสวรรค์ (ฉากหลังมินิเกม) | เจนใหม่ | F3.jpg F4.jpg F6.jpg F8.jpg | ต้องเขียนโค้ดเพิ่ม |
+| 5 | C8 ยศสูงทางสว่าง · C9 ยศสูงทางมืด (๖ อาชีพ × ๒) | แก้จาก C1–C6 | C8-1…C8-6, C9-1…C9-6 | ต้องเขียนโค้ดเพิ่ม |
+| 6 | E3 ฉากทำงาน ๖ อาชีพ | เจนใหม่ (แบบ E4) | E3-1…E3-6 | ต้องเขียนโค้ดเพิ่ม |
+| 7 | F7 เปรต · H ภาพเหตุการณ์ใหญ่ | เจนใหม่ | ทีหลัง | ต้องเขียนโค้ดเพิ่ม |
 
 แก้เล็กน้อย (ไม่ด่วน): ช่องนอนหลับของ TP3 ยังเป็นทรงมหาดไทย · ช่องดีใจของ TP3/UP3/VP3 โจงกระเบนยังเป็นสีคราม (ผมแก้สีด้วยโค้ดแล้ว)
 
@@ -135,3 +137,126 @@ Background: solid pure green #00FF00 everywhere. No shadows, no ground, no text,
 - **ขาวมณี** — Khao Manee cat: pure white coat, one blue eye and one gold eye (แนบ P_Wichienmaat)
 - **นกกรงหัวจุก** — red-whiskered bulbul: brown back, white belly, tall black crest, red cheek patch (แนบ P_Dove)
 - **นกเอี้ยง** — common myna: dark brown body, yellow beak and eye patch, white wing patch (แนบ P_Dove)
+
+---
+
+## V3 — ชราชุดธรรมดา: อารมณ์ → `V3.jpg`
+แนบ `U3.jpg` แล้วใช้:
+```
+Edit this sprite sheet. Make the man an elderly man about 65 years old in every frame: white hair (same mahatthai hairstyle), a few wrinkles, a thin white moustache, slightly stooped shoulders, thinner arms. Keep the same clothes, poses, layout and cell positions. The jumping frame can be a smaller, gentler hop.
+Keep the exact same 8× nearest-neighbor square pixel grid, no blur, no anti-aliasing. Every figure stays fully inside its own cell with empty margin on all sides, the same size in all frames. Background stays solid pure green #00FF00. No text, no labels, no grid lines.
+```
+
+---
+
+## ฉากหลังมินิเกมยมโลก (F3 F4 F6 F8)
+ภาพเต็มฉากแนวนอน ไม่มีตัวละคร (เกมวาดวิญญาณกับพญายมทับเอง) — ตอนนี้ฉากพวกนี้วาดด้วยโค้ดแบบเรียบๆ
+
+### F3 — ศาลยมโลก → `F3.jpg`
+```
+Pixel-art background for a side-view game: the hall of judgment in the Thai underworld (Yom Lok). NO characters. A dark stone hall with tall red-black lacquered pillars carved with flame patterns, burning torches on the pillars, a raised stone platform with an empty dark throne on the RIGHT side, a long low table with an open palm-leaf ledger in front of the throne, smoky purple-red air, a polished dark stone floor across the bottom fifth of the image. Mood: solemn and eerie but not gory. Landscape 3:2.
+Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighbor — every pixel is a perfect SQUARE block of identical size, aligned to one grid across the whole image. No anti-aliasing, gradients, blur or dithering noise. Flat colors. No text, no labels, no grid lines.
+```
+
+### F4 — นรกและต้นงิ้ว → `F4.jpg`
+```
+Pixel-art background for a side-view game: the Thai hell realm (Narok). NO characters. On the LEFT half, a huge tall thorny "ngiw" tree (silk-cotton tree) with long sharp thorns all over the trunk and branches, reaching almost to the top of the image. Dark red sky with drifting embers, distant cliffs and small fires, cracked dark ground across the bottom fifth. Mood: frightening but not gory, no blood, no bodies. Landscape 3:2.
+Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighbor — every pixel is a perfect SQUARE block of identical size, aligned to one grid across the whole image. No anti-aliasing, gradients, blur or dithering noise. Flat colors. No text, no labels, no grid lines.
+```
+
+### F6 — แม่น้ำเวตรณีและประตูเกิด → `F6.jpg`
+```
+Pixel-art background for a side-view game: the Vetarani river of the Thai underworld. NO characters. A dark flowing river across the lower third, a thin sagging rope-and-plank bridge crossing from the left bank to the right bank, misty grey-blue sky with faint ghostly lights, on the far RIGHT bank a glowing golden gateway (the gate of rebirth) with Thai-style pointed roof. Mood: mysterious, quiet. Landscape 3:2.
+Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighbor — every pixel is a perfect SQUARE block of identical size, aligned to one grid across the whole image. No anti-aliasing, gradients, blur or dithering noise. Flat colors. No text, no labels, no grid lines.
+```
+
+### F8 — วิมานสวรรค์ → `F8.jpg`
+```
+Pixel-art background for a side-view game: a Thai heavenly palace (wiman) floating on soft white clouds. NO characters. Golden pavilions with multi-tiered Thai roofs and chofa finials, lotus ponds, gentle pastel sky in pink, gold and light blue, small sparkles, clouds across the bottom fifth. Mood: peaceful and radiant. Landscape 3:2.
+Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighbor — every pixel is a perfect SQUARE block of identical size, aligned to one grid across the whole image. No anti-aliasing, gradients, blur or dithering noise. Flat colors. No text, no labels, no grid lines.
+```
+
+---
+
+## C8 / C9 — ยศสูง (Lv.๑๔ ขึ้นไป) ทางสว่าง / ทางมืด
+แนบ C ของอาชีพนั้น (C1 = ทหาร … C6 = สายลับ) เจน ๒ รอบต่ออาชีพ เซฟเป็น `C8-1.jpg` (ทหารสว่าง) `C9-1.jpg` (ทหารมืด) ไปจนถึง `-6`
+
+ทางสว่าง:
+```
+Edit this sprite sheet. Upgrade his outfit to a high-ranking, honorable Ayutthaya noble of the same profession: richer fabrics, gold embroidery and gold trim, a gold-hilted version of his tool or weapon, a small gold chest ornament, neat and dignified look. Keep his face, hairstyle, body size, poses, layout and cell positions exactly the same.
+Keep the exact same 8× nearest-neighbor square pixel grid, no blur, no anti-aliasing. Every figure stays fully inside its own cell with empty margin on all sides, the same size in all frames. Background stays solid pure green #00FF00. No text, no labels, no grid lines.
+```
+ทางมืด:
+```
+Edit this sprite sheet. Upgrade his outfit to a high-ranking but corrupt and sinister Ayutthaya noble of the same profession: black and deep red fabrics with dark gold trim, a darker, more menacing version of his tool or weapon, a cold scowling expression. Keep his face shape, hairstyle, body size, poses, layout and cell positions exactly the same.
+Keep the exact same 8× nearest-neighbor square pixel grid, no blur, no anti-aliasing. Every figure stays fully inside its own cell with empty margin on all sides, the same size in all frames. Background stays solid pure green #00FF00. No text, no labels, no grid lines.
+```
+
+---
+
+## E3 — ฉากทำงานตามอาชีพ → `E3-1.jpg` … `E3-6.jpg`
+แบบเดียวกับทิวเมือง E4 (ครึ่งบนเป็นสีเขียวให้เกมวาดฟ้า) ใช้แทนทิวเมืองตอนเป็นผู้ใหญ่ — พรอมต์หลัก เปลี่ยนบรรทัด "Scene"
+```
+Pixel-art background layer for a side-view game, Ayutthaya era Thailand. NO people, NO animals, NO sun, NO clouds.
+Scene: [ใส่ฉากจากตารางข้างล่าง]
+Image layout (landscape 16:9): the TOP HALF of the image is solid pure green #00FF00 (leave it completely empty — the game draws its own sky). The scene sits in the lower half on one common horizon line. The bottom 12% is flat ground. The left and right edges should continue naturally so the strip can repeat side by side.
+Style: background layer — muted warm palette, low contrast, simple shapes.
+Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighbor — every pixel is a perfect SQUARE block of identical size, aligned to one grid across the whole image. No anti-aliasing, gradients, blur or dithering noise. Flat colors. No text, no labels, no grid lines.
+```
+| ไฟล์ | อาชีพ | ประโยค Scene |
+|---|---|---|
+| E3-1 | ทหาร | a wooden army camp: palisade of sharpened logs, a watchtower, weapon racks with spears and shields, red banners, tents, a training ground |
+| E3-2 | พ่อค้า | a busy river port: wooden piers, Chinese junks and Thai boats with sails, stacked crates and jars, warehouses with tiled roofs |
+| E3-3 | เกษตรกร | open rice paddies with dikes, a small farm hut on stilts, haystacks, a water buffalo pen (empty), sugar palms |
+| E3-4 | บริหาร | a royal court hall (sala luk khun): white walls, red-gold tiered roofs, a stone courtyard, rows of document chests, parasols |
+| E3-5 | ปุโรหิต | a Brahmin shrine (hor phra): a white tower shrine, a giant ceremonial swing frame (sao ching cha), incense stands, sacred trees with cloth ribbons |
+| E3-6 | สายลับ | a narrow night alley in the old city: dim lantern light, wooden shophouses with closed shutters, hanging cloth, deep shadows (use dusk colors) |
+
+---
+
+## F7 — เปรต → `F7.jpg`
+```
+Pixel-art sprite sheet of a Thai "pret" (hungry ghost) for a side-view game: extremely tall and thin pale grey figure, very long neck, tiny mouth like a needle hole, sunken eyes, ragged grey cloth, eerie but not gory. Layout: 2 columns × 1 row, 2 frames of a slow swaying idle facing LEFT. The figure is about three times taller than a teenage boy and fits fully inside each cell with margin.
+Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighbor — every pixel is a perfect SQUARE block of identical size, aligned to one grid across the whole image. No anti-aliasing, gradients, blur or dithering noise. Flat colors. No text, no labels, no grid lines.
+Background: solid pure green #00FF00.
+```
+
+## H — ภาพเหตุการณ์ใหญ่ (ภาพนิ่งประกอบเหตุการณ์ประวัติศาสตร์) → `H-ชื่อ.jpg`
+```
+Pixel-art illustration (landscape 16:9) for a Thai historical idle game: [ใส่เหตุการณ์]. Dramatic composition, warm muted palette, Ayutthaya-era costumes and architecture, no text.
+Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighbor — every pixel is a perfect SQUARE block of identical size, aligned to one grid across the whole image. No anti-aliasing, gradients, blur or dithering noise. Flat colors. No text, no labels, no grid lines.
+```
+เหตุการณ์ที่แนะนำ: สถาปนากรุงศรีอยุธยา พ.ศ. ๑๘๙๓ (H-found) · ยุทธหัตถี (H-elephant) · เสียกรุงครั้งที่ ๑ (H-fall1) · เสียกรุงครั้งที่ ๒ (H-fall2)
+
+
+---
+
+## สัตว์ ๓ ตัวถัดไป (พรอมต์เต็ม ก๊อปได้เลย)
+
+### แมวขาวมณี → `P_KhaoManee.jpg` (แนบ `P_Wichienmaat.jpg`)
+```
+Pixel-art sprite sheet of a Thai Khao Manee cat: pure snow-white short coat, one blue eye and one gold eye, slim elegant body. Use the attached cat sheet as the exact reference for layout, poses, size and pixel style — only change the breed.
+Layout: 4 columns × 3 rows grid, 12 equal-sized cells, side view facing right.
+Columns: 1 sitting · 2 walking (step A) · 3 walking (step B) · 4 happy hop with tail up (rows 1–2) / curled up asleep (row 3).
+Rows: 1 kitten (small, big head) · 2 adult · 3 old (slightly thinner, sleepier eyes).
+FRAMING: every cat is fully inside its cell with empty margin; paws on the same baseline in each row.
+Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighbor — every pixel is a perfect SQUARE block of identical size, aligned to one grid across the whole sheet. No anti-aliasing, gradients, blur or dithering noise. Flat colors, dark 1-pixel outline.
+Background: solid pure green #00FF00 everywhere. No shadows, no ground, no text, no labels, no grid lines.
+```
+
+### นกกรงหัวจุก → `P_Bulbul.jpg` (แนบ `P_Dove.jpg`)
+```
+Pixel-art sprite sheet of a red-whiskered bulbul (nok krong hua juk): brown back, white belly, tall pointed black crest, small red cheek patch, red under the tail. Use the attached bird sheet as the exact reference for layout, poses, size and pixel style — only change the species.
+Layout: 4 columns × 3 rows grid, 12 equal-sized cells, side view facing right.
+Columns: 1 flying with wings spread · 2 standing/hopping · 3 walking (head forward) · 4 singing with beak open (rows 1–2) / fluffed up asleep (row 3).
+Rows: 1 chick (small, fluffy) · 2 adult · 3 old (duller feathers, sleepier eyes).
+FRAMING: every bird is fully inside its cell with empty margin; feet on the same baseline in each row.
+Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighbor — every pixel is a perfect SQUARE block of identical size, aligned to one grid across the whole sheet. No anti-aliasing, gradients, blur or dithering noise. Flat colors, dark 1-pixel outline.
+Background: solid pure green #00FF00 everywhere. No shadows, no ground, no text, no labels, no grid lines.
+```
+
+### นกเอี้ยง → `P_Myna.jpg` (แนบ `P_Dove.jpg`)
+ใช้พรอมต์นกกรงหัวจุกข้างบน เปลี่ยนบรรทัดแรกเป็น:
+```
+Pixel-art sprite sheet of a common myna (nok iang): dark chocolate-brown body, black head, bright yellow beak, yellow bare skin around the eyes, white wing patches, yellow legs.
+```
