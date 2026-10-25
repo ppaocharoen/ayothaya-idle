@@ -3,6 +3,7 @@
 // บ้านตามระดับที่พัก ของให้แตะเก็บ และฉลองตอนเลื่อนยศ
 import type { GameState } from '../engine/core';
 import { ageOf } from '../engine/core';
+import { breedOf, petStage } from '../engine/pets';
 
 export const SCENE_W = 240, SCENE_H = 168;
 const GROUND = 140;
@@ -18,6 +19,8 @@ const SHEETS: Record<string, { cols: number; rows: number; sx: number[]; sy: num
   a5: { cols: 2, rows: 3, sx: [6.62 / 8.6], sy: [6.63 / 8.6] },
   // B1 ลูกมือทหาร 12–17: แถว 0 ยืนถือหอก · แถว 1 เดินแบกหอก · แถว 2 ซ้อมแทงหอก
   b1: { cols: 2, rows: 3, sx: [6.63 / 8.1], sy: [6.62 / 8.1] },
+  // B2 ลูกมือพ่อค้า: ยืน · เดินแบกห่อสินค้า · ชั่งของ/นับเบี้ย
+  b2: { cols: 2, rows: 3, sx: [6.62 / 8.1], sy: [6.63 / 8.1] },
 };
 
 export interface SceneMood { dayFrac: number; month: number; rain: boolean; war: boolean; }
@@ -51,6 +54,7 @@ export class Scene {
     happy: { sheet: 'a5', frames: [[0, 0], [1, 0]], speed: 0.35, lift: [0, 12] }, sad: { sheet: 'a5', frames: [[0, 1]], speed: 1 }, surprised: { sheet: 'a5', frames: [[1, 1]], speed: 1 },
     sleep: { sheet: 'a5', frames: [[0, 2]], speed: 1 }, rain: { sheet: 'a5', frames: [[1, 2]], speed: 1 },
     spear: { sheet: 'b1', frames: [[0, 2], [1, 2]], speed: 0.5 },
+    trade: { sheet: 'b2', frames: [[0, 2], [1, 2]], speed: 1.0 },
   };
   /** เกมหยุดอยู่ (ตัวละครนอน) · ฝนตก (ถือใบตองบังฝน) — ตั้งจาก main */
   paused = false;
@@ -87,7 +91,7 @@ export class Scene {
     this.loCtx = this.lo.getContext('2d')!; this.frCtx = this.fr.getContext('2d')!;
     this.ctx = this.loCtx;
     this.sprite.src = new URL('./art/boy.png', document.baseURI).href;
-    for (const k of ['a1', 'a2', 'a3', 'a4', 'a5', 'b1']) { const im = new Image(); im.src = new URL(`./art/boy_${k}.png`, document.baseURI).href; this.actSheets[k] = im; }
+    for (const k of ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'pet_bangkaew']) { const im = new Image(); im.src = new URL(`./art/${k.startsWith('pet_') ? k : `boy_${k}`}.png`, document.baseURI).href; this.actSheets[k] = im; }
   }
 
   /** แปลงพิกัดคลิกบนหน้าจอเป็นพิกัด canvas */
@@ -160,6 +164,7 @@ export class Scene {
     d.drawImage(this.lo, 0, 0, this.canvas.width, this.canvas.height);
     d.setTransform(this.K, 0, 0, this.K, 0, 0); d.imageSmoothingEnabled = false;
     if (this.hasSheet('a1')) this.drawCharacter(L, dt);
+    if (g.pet) this.drawPet(g, dt);
     // ---- ชั้นหน้า (ของตก ฝน อนุภาค เครื่องหมาย !) วาดความละเอียดต่ำทับตัวละคร ----
     this.ctx = this.frCtx;
     this.ctx.clearRect(0, 0, SCENE_W, SCENE_H);
@@ -227,14 +232,16 @@ export class Scene {
     c.fillRect(x - 12, base - h + 2, 3, 3); c.fillRect(x + 11, base - h + 2, 3, 3);
   }
   /** ชุดภาพหลักตามวัยและอาชีพ: ลูกมือทหาร 12–17 ใช้ B1 (ยืน/เดินถือหอก) · อื่นๆ ใช้ A1 */
-  private look(L: GameState['life']): 'a1' | 'b1' {
-    const age = ageOf(L);
-    return L.career === 'ทหาร' && age >= 12 && age < 18 && this.hasSheet('b1') ? 'b1' : 'a1';
+  private static TEEN: Record<string, string> = { 'ทหาร': 'b1', 'พ่อค้า': 'b2' };
+  private static TEEN_WORK: Record<string, string> = { b1: 'spear', b2: 'trade' };
+  private look(L: GameState['life']): string {
+    const age = ageOf(L), k = L.career ? Scene.TEEN[L.career] : undefined;
+    return k && age >= 12 && age < 18 && this.hasSheet(k) ? k : 'a1';
   }
   /** ท่าทำงานของอาชีพ (ถ้ามีภาพ) */
   private workAnim(L: GameState['life']): string | null {
     if (ageOf(L) < 12) return L.childJob ? Scene.JOB_ANIM[L.childJob] ?? null : null;
-    return this.look(L) === 'b1' ? 'spear' : null;
+    return Scene.TEEN_WORK[this.look(L)] ?? null;
   }
   /** ขนาดตัวละคร: โตตามวัย × ระยะใกล้/ไกล แล้วปัดเป็นขั้น 0.25 */
   private charScale(L: GameState['life']) {
@@ -285,10 +292,11 @@ export class Scene {
       }
     }
     const hop = this.jump > 0 ? Math.round(Math.abs(Math.sin((1 - this.jump) * Math.PI * 3)) * 14 * this.jump) : 0;
-    if (this.look(L) === 'b1') {
-      // B1: แถว 0 ยืน (หายใจ 2 เฟรม) · แถว 1 เดิน 2 เฟรม
+    const lk = this.look(L);
+    if (lk !== 'a1') {
+      // ชุดลูกมือ (B): แถว 0 ยืน (หายใจ 2 เฟรม) · แถว 1 เดิน 2 เฟรม
       const k = walking ? Math.floor(this.walkT / 0.3) % 2 : Math.floor(t / 0.9) % 2;
-      this.drawFrame('b1', k, walking ? 1 : 0, scale, this.face < 0, hop);
+      this.drawFrame(lk, k, walking ? 1 : 0, scale, this.face < 0, hop);
       return;
     }
     this.drawFrame('a1', col, row, scale, this.face < 0, hop);
@@ -315,6 +323,36 @@ export class Scene {
     const ax = Math.round(b.x + b.w / 2), ay = Math.max(18, Math.round(b.y));
     c.fillStyle = '#8e2a1f'; c.fillRect(ax - 3, ay - 16, 6, 12);
     c.fillStyle = '#fff'; c.fillRect(ax - 1, ay - 14, 2, 6); c.fillRect(ax - 1, ay - 7, 2, 2);
+  }
+
+  // ---- สัตว์เลี้ยง: เดินตามเจ้าของ นั่งรอ ดีใจเมื่อเล่นด้วย · ภาพ 4 คอลัมน์ (นั่ง เดิน เดิน ดีใจ/นอน) × 3 แถว (เด็ก โต แก่) ----
+  private petX = 80; private petFace = 1; private petWalkT = 0; private petHappyUntil = 0;
+  petBox = { x: 0, y: 0, w: 0, h: 0 };
+  petHappy(seconds = 2.5) { this.petHappyUntil = this.t + seconds; }
+  hitPet(x: number, y: number) { const b = this.petBox; return b.w > 0 && x >= b.x - 3 && x <= b.x + b.w + 3 && y >= b.y - 3 && y <= b.y + b.h; }
+  private drawPet(g: GameState, dt: number) {
+    const p = g.pet!, br = breedOf(p.breed);
+    if (!br.art || !this.hasSheet(br.art)) { this.petBox = { x: 0, y: 0, w: 0, h: 0 }; return; }
+    const im = this.actSheets[br.art], fw = im.naturalWidth / 4, fh = im.naturalHeight / 3;
+    const stage = petStage(p, g.clock), t = this.t;
+    // เดินตามไปอยู่ข้างหลังเจ้าของ
+    const target = this.posX - this.face * (22 + fw * 0.45 * 0.35 * (stage + 1)), dx = target - this.petX;
+    const walking = Math.abs(dx) > 2;
+    if (walking) { this.petFace = dx > 0 ? 1 : -1; this.petX += Math.sign(dx) * Math.min(Math.abs(dx), (stage === 2 ? 14 : 22) * dt); this.petWalkT += dt; }
+    let col: number, lift = 0;
+    if (walking) col = 1 + Math.floor(this.petWalkT / (stage === 2 ? 0.3 : 0.2)) % 2;
+    else if (t < this.petHappyUntil && stage < 2) { col = 3; lift = Math.abs(Math.sin(t * 9)) * 5; }
+    else if (stage === 2 && (this.paused || Math.floor(t / 7) % 2)) col = 3; // แก่แล้วชอบนอน
+    else col = 0;
+    const sc = 0.45 * (1 + 0.5 * this.z), w = fw * sc, h = fh * sc, K = this.K, rx = (v: number) => Math.round(v * K) / K;
+    const x = rx(this.petX - w / 2), y = rx(this.feetY() - h - lift);
+    this.petBox = { x: this.petX - w * 0.35, y: this.feetY() - h * 0.8, w: w * 0.7, h: h * 0.8 };
+    const c = this.dc;
+    c.fillStyle = 'rgba(80,55,30,0.22)'; c.fillRect(rx(this.petX - w * 0.3), this.feetY() - 1.5, rx(w * 0.6), 1.5);
+    c.save();
+    if (this.petFace < 0) { c.translate(x * 2 + w, 0); c.scale(-1, 1); }
+    c.drawImage(im, col * fw, stage * fh, fw, fh, x, y, rx(w), rx(h));
+    c.restore();
   }
 
   /** ท่าอื่นๆ */

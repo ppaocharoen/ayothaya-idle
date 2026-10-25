@@ -1,13 +1,15 @@
 # ตัดสไปรต์จากภาพ Gemini (พิกเซลปลอม) → พิกเซลจริงบนตาราง
 # 1) ลบพื้นเขียว + เศษเล็กๆ  2) หาเฟสของตารางในแต่ละช่องด้วย pitch ที่กำหนด (ทศนิยมได้ แกน x/y ต่างกันได้)
 # 3) เก็บสีกลางเม็ด (ไม่เอาสีเขียวที่ติดขอบ)  4) วางเฟรมขนาดเท่ากัน เท้าแตะขอบล่าง หัวอยู่กลาง
-# ใช้: python3 snap_sheet.py in.jpg cols rows pitch_x pitch_y out.png
+# ใช้: python3 snap_sheet.py in.jpg cols rows pitch_x pitch_y out.png [bbox]
+#   bbox = จัดกึ่งกลางตามกรอบทั้งตัว (ใช้กับสัตว์) · ไม่ใส่ = จัดตามกึ่งกลางหัว (คน)
 import sys, numpy as np
 from PIL import Image
 from scipy import ndimage
 
 src, cols, rows = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
 px, py, out = float(sys.argv[4]), float(sys.argv[5]), sys.argv[6]
+BBOX = len(sys.argv) > 7 and sys.argv[7] == 'bbox'
 im = np.asarray(Image.open(src).convert('RGB')).astype(np.int16)
 r, g, b = im[..., 0], im[..., 1], im[..., 2]
 bg = (g > 170) & (g - np.maximum(r, b) > 100)
@@ -60,7 +62,7 @@ for j in range(rows):
         a = fr[..., 3] > 0; yy, xx = np.where(a)
         fr = fr[yy.min():yy.max() + 1, xx.min():xx.max() + 1]
         top = max(1, fr.shape[0] // 5); hx = np.where((fr[:top, :, 3] > 0).any(0))[0]
-        frames.append((j, i, fr, (hx.min() + hx.max()) / 2))
+        frames.append((j, i, fr, fr.shape[1] / 2 if BBOX else (hx.min() + hx.max()) / 2))
 FW = int(max(max(f.shape[1] - ax, ax) for _, _, f, ax in frames) * 2) + 2
 FH = max(f.shape[0] for _, _, f, _ in frames)
 sheet = Image.new('RGBA', (FW * cols, FH * rows), (0, 0, 0, 0))

@@ -1,6 +1,7 @@
 // ตัวเกมอโยธยา Idle — logic ล้วน ไม่แตะหน้าจอ ใช้ได้ทั้งในเบราว์เซอร์และในบอททดสอบ
 // เวลาเดินทีละ "วัน" · ปิดแอปแล้วกลับมา เรียก advance(จำนวนวันที่หายไป) ได้เลย
 import { content, lifeRange, NUM_LIVES } from '../content';
+import { breedOf, petAge, petPower, petPrice, feedPrice, type Pet, type PetGrave } from './pets';
 import type { Choice, Effects, StatKey } from '../content/types';
 import { BALANCE as B, type PathKey } from './balance';
 import { nextRandom, randInt } from './rng';
@@ -13,6 +14,7 @@ export type PendingEvent =
   | { kind: 'karma'; id: string; generic: boolean }
   | { kind: 'hist'; id: string }
   | { kind: 'lifeEnd'; summary: LifeSummary }
+  | { kind: 'petGone'; grave: PetGrave }
   | { kind: 'finale'; options: EndingId[] };
 
 export type EndingId = 'fight' | 'flee' | 'reincarnate' | 'defend';
@@ -63,6 +65,8 @@ export interface GameState {
   careerLives: Record<string, number>;  // จำนวนชาติที่เคยทำอาชีพนี้
   peakFleeFrac: number;                 // หลบหลีกสูงสุดเทียบเพดาน ตลอดรอบเล่นนี้
   life: LifeState;
+  /** สัตว์เลี้ยง (ติดตามข้ามชาติจนสิ้นอายุ) · สัตว์ที่จากไป · นาฬิกาเกมรวม (วัน) */
+  pet: Pet | null; petGraves: PetGrave[]; clock: number;
   queue: PendingEvent[];
   log: string[];
   ending: EndingId | 'defended' | null;
@@ -97,7 +101,7 @@ export function setName(g: GameState, name: string) { const n = name.trim().slic
 export function newGame(seed = Date.now()): GameState {
   const g = {
     version: 1, rng: seed >>> 0, loop: 1, merit: 0, careerMaxLevel: {}, careerLives: {}, peakFleeFrac: 0,
-    queue: [], log: [], ending: null, savedAt: Date.now(), stats: { promotions: 0, eventsSeen: 0 },
+    queue: [], log: [], ending: null, pet: null, petGraves: [], clock: 0, savedAt: Date.now(), stats: { promotions: 0, eventsSeen: 0 },
     collection: { titles: [], endings: [], choices: {}, family: [] },
   } as unknown as GameState;
   g.life = makeLife(g, 1, null);
@@ -201,8 +205,56 @@ function stepDay(g: GameState, eff = 1) {
   addMerit(g, (B.meritDaily * p.merit + B.meritPassive) * (1 + B.meritBaramiBonus * frac(L, 'บารมี')) * eff);
   for (const s of STAT_KEYS) if (L.stats[s] / L.cap > L.peakFrac[s]) L.peakFrac[s] = L.stats[s] / L.cap;
   if (L.peakFrac['หลบหลีก'] > g.peakFleeFrac) g.peakFleeFrac = L.peakFrac['หลบหลีก'];
-  L.day++;
+  L.day++; g.clock++;
+  petDay(g, eff);
 }
+
+// ---------- สัตว์เลี้ยง ----------
+function petDay(g: GameState, eff: number) {
+  const p = g.pet; if (!p) return;
+  const L = g.life, b = breedOf(p.breed);
+  p.full = Math.max(0, p.full - B.petHunger);
+  if (p.full <= 0) p.bond = Math.max(0, p.bond - B.petBondStarve);
+  else if (p.full > 0.5) p.bond = Math.min(1, p.bond + B.petBondDaily);
+  const pw = petPower(p);
+  L.joy = clamp(L.joy + b.joy * pw / D, 0, 1);
+  for (const s of b.stats) grow(L, s, B.petStatRate * pw * eff);
+  if (petAge(p, g.clock) >= p.lifespan) {
+    const grave: PetGrave = { breed: p.breed, name: p.name, age: Math.floor(petAge(p, g.clock)), year: yearOf(L) };
+    g.petGraves.push(grave); g.pet = null;
+    g.queue.push({ kind: 'petGone', grave });
+    log(g, `${grave.name} ${b.name} จากไปอย่างสงบเมื่ออายุ ${grave.age} ปี`);
+  }
+}
+export function buyPet(g: GameState, breed: string): boolean {
+  if (g.pet) return false;
+  const price = petPrice(dailyIncome(g)); if (!pay(g, price, 0)) return false;
+  const b = breedOf(breed);
+  g.pet = { breed, name: b.name.replace(/^(หมา|แมว|นก)/, ''), born: g.clock, lifespan: b.life[0] + nextRandom(g) * (b.life[1] - b.life[0]), full: 0.8, bond: 0.15, trained: 0, lastFed: -99, lastTrained: -99, playsToday: 0, playDay: -1 };
+  log(g, `รับ${b.name}มาเลี้ยง`);
+  return true;
+}
+export function feedPet(g: GameState): boolean {
+  const p = g.pet; if (!p || p.full > 0.95) return false;
+  if (!pay(g, feedPrice(dailyIncome(g)), 0)) return false;
+  p.full = 1; if (g.clock - p.lastFed >= 1) p.bond = Math.min(1, p.bond + B.petBondFeed); p.lastFed = g.clock;
+  return true;
+}
+/** เล่นกับสัตว์ (ได้ผลสูงสุดวันละ 3 ครั้งในเกม) · คืนค่าว่าได้ผลไหม */
+export function playPet(g: GameState): boolean {
+  const p = g.pet; if (!p) return false;
+  if (p.playDay !== g.clock) { p.playDay = g.clock; p.playsToday = 0; }
+  if (p.playsToday >= 3) return false;
+  p.playsToday++; p.bond = Math.min(1, p.bond + B.petBondPlay); g.life.joy = clamp(g.life.joy + 0.01, 0, 1);
+  return true;
+}
+/** ฝึกสัตว์ (มินิเกม) · hits จาก total · พักฝึกได้ทุก 7 วันในเกม */
+export const trainReady = (g: GameState) => !!g.pet && g.clock - g.pet.lastTrained >= B.petTrainCooldown;
+export function trainPet(g: GameState, hits: number, total: number) {
+  const p = g.pet; if (!p || !trainReady(g)) return;
+  p.lastTrained = g.clock; p.trained = Math.min(1, p.trained + B.petTrainGain * hits / total); p.bond = Math.min(1, p.bond + 0.01);
+}
+export function setPetName(g: GameState, name: string) { const n = name.trim().slice(0, 20); if (g.pet && n) g.pet.name = n; }
 
 // ---------- เหตุการณ์ที่ถึงกำหนดวันนี้ ----------
 function collectDue(g: GameState): PendingEvent[] {
@@ -336,6 +388,7 @@ export function resolveEvent(g: GameState, choice?: number | 'risky' | EndingId)
     log(g, h.title);
     return {};
   }
+  if (e.kind === 'petGone') return {};
   if (e.kind === 'lifeEnd') { startNextLife(g, typeof choice === 'number' ? choice : undefined); return {}; }
   if (e.kind === 'finale') return chooseEnding(g, (choice as EndingId) ?? 'fight');
   return {};
@@ -546,7 +599,7 @@ export function serialize(g: GameState): string { g.savedAt = Date.now(); return
 export function deserialize(s: string): GameState {
   const g = JSON.parse(s) as GameState;
   // เซฟรุ่นเก่ายังไม่มีช่องบาป/การกระทำ
-  g.life.sin ??= 0; g.life.meritStart ??= g.merit; g.life.deeds ??= []; g.life.health ??= 1; g.life.deathAge ??= null; g.life.joy ??= B.joyStart; g.life.name ??= NAMES[0]; g.life.named ??= true;
+  g.life.sin ??= 0; g.life.meritStart ??= g.merit; g.life.deeds ??= []; g.life.health ??= 1; g.life.deathAge ??= null; g.life.joy ??= B.joyStart; g.life.name ??= NAMES[0]; g.life.named ??= true; g.pet ??= null; g.petGraves ??= []; g.clock ??= 0;
   return g;
 }
 /** จำนวนวันในเกมที่ควรเดินจากช่วงที่ปิดแอป */

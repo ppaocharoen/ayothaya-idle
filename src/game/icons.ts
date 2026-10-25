@@ -54,6 +54,7 @@ const ICONS: Record<string, string[]> = {
   medal: ['..kkk..kkk..', '..krrk.kuuk.', '...krrkuuk..', '....krruk...', '....kkkkk...', '...kgggggk..', '..kggyyggGk.', '..kgyggggGk.', '..kggggggGk.', '..kgggggGGk.', '...kGGGGGk..', '....kkkkk...'],
   // ความสำราญ: ดอกไม้ยิ้ม
   smile: ['....kkkk....', '..kkoyyokk..', '.koyyyyyyok.', '.kyykyykyyk.', 'koyykyykyyok', 'kyyyyyyyyyyk', 'kyykyyyykyyk', 'koyykkkkyyok', '.kyyyyyyyyk.', '.koyyyyyyok.', '..kkoyyokk..', '....kkkk....'],
+  paw: ['............', '..kk....kk..', '.kbbk..kbbk.', '.kbbk..kbbk.', '..kk.kk.kk..', '....kbbk....', 'kk.kbbbbk.kk', 'kbkbbbbbbkbk', 'kbkbbbbbbkbk', '.k.kbbbbk.k.', '....kkkk....', '............'],
   lock: ['............', '....kkkk....', '...kaaaak...', '..ka....ak..', '..ka....ak..', '.kkkkkkkkkk.', '.kggggggggk.', '.kggGkkGggk.', '.kgggkkgggk.', '.kgggkkgggk.', '.kGGGGGGGGk.', '.kkkkkkkkkk.'],
   clock: ['...kkkkkk...', '..kwwwwwwk..', '.kwwwkwwwwk.', 'kwwwwkwwwwwk', 'kwwwwkwwwwwk', 'kwwwwkkkkwwk', 'kwwwwwwwwwwk', 'kwwwwwwwwwwk', '.kwwwwwwwwk.', '..kwwwwwwk..', '...kkkkkk...', '............'],
 };

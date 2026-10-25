@@ -11,6 +11,7 @@ import { percentile, simulatePeers } from './compare';
 import { speechFor } from './speech';
 import { baht, dateOf, esc, pct, pctAuto, pctFine, th, thInt } from './format';
 import { runAfterlife } from './afterlife';
+import { BREEDS, breedOf, feedPrice, petAge, petPrice, petStage } from '../engine/pets';
 import { CAREER_ICON, CHILD_ICON, PATH_ICON, STAT_ICON, icon } from './icons';
 
 const SAVE_KEY = 'ayothaya.save.v1';
@@ -295,6 +296,7 @@ function wares(): { title: string; sub: string; list: Ware[] }[] {
   ] });
   out.push({ title: 'ทำบุญ', sub: 'ทำซ้ำได้', list: sh.meritItems.map((m, i) => ({ id: `donate:${i}`, ic: 'lotus', name: clean(m.name), story: m.story ?? m.effect, effs: [['lotus', `บุญ +${thInt(m.legacyMerit / (1 + g.merit / B.meritSoftcap))}`]] as [string, string][], price: E.donationPrice(L, i), act: 'donate', v: String(i), lv: L.donations[i] ? `×${th(L.donations[i])}` : '' })) });
   out.push({ title: 'ของใช้', sub: 'ซื้อซ้ำได้', list: sh.commonItems.map((m, i) => ({ id: `common:${i}`, ic: STAT_ICON[m.stat] ?? 'pouch', name: clean(m.name), story: m.story ?? m.desc, effs: [[STAT_ICON[m.stat], `${statName(m.stat)} +${pctAuto(0.004)}`], ...(m.legacyAffection ? [['medal', 'ความชอบ +๐.๓'] as [string, string]] : [])], price: E.commonPrice(L, i), act: 'common', v: String(i), lv: L.common[i] ? `×${th(L.common[i])}` : '' })) });
+  out.push({ title: 'สัตว์เลี้ยง', sub: g.pet ? `มี${breedOf(g.pet.breed).name}แล้ว` : 'เลี้ยงได้ทีละตัว', list: BREEDS.map(b => ({ id: `pet:${b.key}`, ic: 'paw', name: b.name, story: b.desc + (b.art ? '' : ' (ภาพยังไม่พร้อม — เร็วๆ นี้)'), effs: [...b.stats.map(st => [STAT_ICON[st], `${statName(st)} โตเองทีละน้อย`] as [string, string]), ['smile', 'เพิ่มความสำราญ']], price: g.pet || !b.art ? null : petPrice(E.dailyIncome(g)), act: 'buypet', v: b.key, lv: b.art ? '' : 'เร็วๆ นี้' })) });
   out.push({ title: 'งานบุญใหญ่', sub: '', list: B.megaProjects.map(m => ({ id: `mega:${m.id}`, ic: 'temple', name: m.name, story: 'สร้างถาวรวัตถุถวายวัด ชื่อจารึกไว้ให้คนรุ่นหลังรู้', effs: [['lotus', `บุญ +${thInt(m.merit)}`], ['medal', `ความชอบ +${th(m.affection)}`]] as [string, string][], price: m.price * Math.pow(1.5, L.mega[m.id] ?? 0), act: 'mega', v: m.id, lv: L.mega[m.id] ? `×${th(L.mega[m.id])}` : '' })) });
   return out;
 }
@@ -302,7 +304,7 @@ function shopTab(): string {
   const L = g.life;
   return `<div class="purse">${icon('coin', 20)}${baht(L.money, 3)}</div>` + wares().map(s => sec(s.title, s.sub) + `<div class="shopgrid">${s.list.map(w => {
     const locked = w.req != null, can = !locked && w.price != null && L.money >= w.price;
-    const price = w.price == null ? 'ครบแล้ว' : locked ? `${icon('lock', 13)}${w.req! < 0 ? 'ยังเด็ก' : `ยศขั้น ${th(w.req!)}`}` : `${icon('coin', 13)}${baht(w.price, 1)}`;
+    const price = w.price == null ? (w.act === 'buypet' ? (g.pet ? 'เลี้ยงอยู่ ๑ ตัว' : 'เร็วๆ นี้') : 'ครบแล้ว') : locked ? `${icon('lock', 13)}${w.req! < 0 ? 'ยังเด็ก' : `ยศขั้น ${th(w.req!)}`}` : `${icon('coin', 13)}${baht(w.price, 1)}`;
     return `<button class="ware ${w.price == null ? 'done' : locked ? 'locked' : can ? 'can' : 'poor'}" data-act="ware" data-v="${w.id}">${w.lv ? `<span class="lv">${w.lv}</span>` : ''}${icon(w.ic, 36)}<b>${esc(w.name)}</b><span class="price">${price}</span></button>`;
   }).join('')}</div>`).join('');
 }
@@ -316,7 +318,7 @@ function wareSheet(id: string): string {
     <p class="story">${esc(w.story)}</p>
     <div class="effs">${w.effs.map(([ic, t]) => `<span>${icon(ic, 18)}${esc(t)}</span>`).join('')}</div>
     ${lockMsg ? `<div class="odds">${icon('lock', 30)}<div>${lockMsg}</div></div>` : ''}
-    ${w.price == null ? '<p class="muted">ซื้อครบทุกระดับแล้ว</p>' : `<button class="gbtn" data-act="${w.act}" data-v="${w.v}" ${can ? '' : 'disabled'}>${icon('coin', 20)}${baht(w.price)}${can || locked ? '' : ' <small>(เงินไม่พอ)</small>'}</button>
+    ${w.price == null ? `<p class="muted">${w.act === 'buypet' ? (g.pet ? 'เลี้ยงได้ทีละตัว — ดูแลตัวที่มีอยู่ในแท็บค่าพลัง' : 'ภาพสายพันธุ์นี้ยังไม่พร้อม เร็วๆ นี้') : 'ซื้อครบทุกระดับแล้ว'}</p>` : `<button class="gbtn" data-act="${w.act}" data-v="${w.v}" ${can ? '' : 'disabled'}>${icon('coin', 20)}${baht(w.price)}${can || locked ? '' : ' <small>(เงินไม่พอ)</small>'}</button>
     <p class="muted" style="text-align:center;margin-top:8px">มีอยู่ ${baht(L.money, 3)}</p>`}`;
 }
 
@@ -334,9 +336,9 @@ function charTab(): string {
   const health = `<button class="stat health" data-tip="health">${icon('heart', 28)}<div><div class="sl"><b>สุขภาพ</b><span>${th(Math.round(hp * 100))}%</span></div><div class="bar"><i style="width:${(hp * 100).toFixed(1)}%"></i></div></div></button>`;
   const jy = `<button class="stat joyrow" data-tip="joy">${icon('smile', 28)}<div><div class="sl"><b>ความสำราญ</b><span>${th(Math.round(L.joy * 100))}%</span></div><div class="bar"><i style="width:${(L.joy * 100).toFixed(1)}%"></i></div></div></button>`;
   const who = `<div class="frame who"><div class="rank">${icon('person', 40)}<div><small>ชาติที่ ${th(L.idx)}${g.loop > 1 ? ` · รอบที่ ${th(g.loop)}` : ''}</small><b>${esc(L.name)}</b></div></div><button class="gbtn dark" data-act="rename">เปลี่ยนชื่อ</button></div>`;
-  return `${who}${sec('ร่างกายและจิตใจ')}${health}${jy}${sec('ค่าพลัง', `เพดาน ${th(L.cap)}`, 'stats')}${helpBox('stats', 'แตะแต่ละแถวเพื่อดูว่าค่านั้นใช้ทำอะไร · ค่าแสดงเป็น % ของเพดานชาตินี้ (ชาติต่อไปเพดานสูงขึ้น)')}${bars}
+  return `${who}${sec('ร่างกายและจิตใจ')}${health}${jy}${petPanel()}${sec('ค่าพลัง', `เพดาน ${th(L.cap)}`, 'stats')}${helpBox('stats', 'แตะแต่ละแถวเพื่อดูว่าค่านั้นใช้ทำอะไร · ค่าแสดงเป็น % ของเพดานชาตินี้ (ชาติต่อไปเพดานสูงขึ้น)')}${bars}
     ${sec('สมุดสะสม', 'แตะเพื่อเปิดดู')}<div class="coll"><div data-act="coll" data-v="titles"><b>${th(coll.titles.length)}</b><small>ยศที่เคยได้</small></div><div data-act="coll" data-v="choices"><b>${th(Object.keys(coll.choices).length)}</b><small>เหตุการณ์ที่เลือก</small></div><div data-act="coll" data-v="family"><b>${th(coll.family.length)}</b><small>ชาติที่บันทึก</small></div></div>
-    <div class="foot"><a href="./content.html">คลังเนื้อหา</a> · ชิ้นทดลอง ชาติ ๑ อายุ ๙–๒๐</div>`;
+    <div class="foot"><a href="./content.html">คลังเนื้อหา</a></div>`;
 }
 
 function logTab(): string {
@@ -372,6 +374,12 @@ function showEvent() {
         <button class="choice go" data-act="resolve-check">${icon('sword', 20)}รับมือ</button>`;
     } else body += `<button class="choice go" data-act="resolve" data-label="">รับทราบ</button>`;
     openModal(body);
+    return;
+  }
+  if (e.kind === 'petGone') {
+    const b = breedOf(e.grave.breed);
+    openModal(`<span class="kind">${icon('lotus', 16)}ลาก่อน</span><h2>${esc(e.grave.name)} จากไปแล้ว</h2><p>${esc(b.name)}ที่อยู่ด้วยกันมา ${th(e.grave.age)} ปี หลับไปอย่างสงบ ไปรออยู่ที่สวนสวรรค์สัตว์เลี้ยง</p><button class="choice go" data-act="resolve" data-label="">ขอให้ไปสู่สุคติ</button>`);
+    scene.showAnim('sad', 5);
     return;
   }
   if (e.kind === 'lifeEnd') {
@@ -460,7 +468,7 @@ function eventById(id: string): { title: string; choices: { label: string }[]; r
 }
 function collSheet(tabName: string): string {
   const coll = g.collection;
-  const tabs = [['titles', 'ยศ'], ['choices', 'เหตุการณ์'], ['family', 'ชาติ'], ['endings', 'ฉากจบ']]
+  const tabs = [['titles', 'ยศ'], ['choices', 'เหตุการณ์'], ['family', 'ชาติ'], ['pets', 'สัตว์'], ['endings', 'ฉากจบ']]
     .map(([k, l]) => `<button class="ctab ${tabName === k ? 'on' : ''}" data-act="coll" data-v="${k}">${l}</button>`).join('');
   let body = '';
   if (tabName === 'titles') {
@@ -479,6 +487,8 @@ function collSheet(tabName: string): string {
     }).join('')}</ul>` : '<p class="muted">ยังไม่เคยเลือกอะไรในเหตุการณ์</p>';
   } else if (tabName === 'family') {
     body = coll.family.length ? `<ul class="ladder">${coll.family.map(f => `<li><small>รอบที่ ${th(f.loop)} · ชาติที่ ${th(f.life)}${f.name ? ` · ${esc(f.name)}` : ''}${f.age ? ` · อายุ ${th(f.age)}` : ''}</small>${f.career ? esc(splitTitle(E.careerTitle(f.career, f.level, null))[0]) : 'ไม่มีอาชีพ'} · บุญ ${thInt(f.merit)}</li>`).join('')}</ul>` : '<p class="muted">ยังไม่มีชาติที่จบไปแล้ว — ชาติแรกยังดำเนินอยู่</p>';
+  } else if (tabName === 'pets') {
+    body = `<h3 class="sh">สวนสวรรค์สัตว์เลี้ยง</h3><p class="muted">สัตว์ที่เคยอยู่เคียงข้าง แม้จากไปแล้วก็ยังจำกันได้</p>${graveList()}`;
   } else {
     body = `<ul class="ladder">${content.endings.map(e => coll.endings.includes(e.id) ? `<li class="on"><small>ปลดล็อกแล้ว</small>${esc(e.name)}</li>` : `<li><small>ยังไม่พบ</small>???</li>`).join('')}</ul>`;
   }
@@ -562,6 +572,24 @@ document.addEventListener('click', ev => {
       break;
     }
     case 'close': S.playTap(); closeModal(); break;
+    case 'buypet': if (E.buyPet(g, v)) { S.playBuy(); closeModal(); petNameSheet(); return; } S.playFail(); break;
+    case 'petfeed': if (E.feedPet(g)) { S.playBuy(); scene.petHappy(); floatText('paw', 'อิ่มแล้ว!', 'merit', 40); } else S.playFail(); break;
+    case 'petname': petNameSheet(); return;
+    case 'petname-ok': E.setPetName(g, ($('pn') as HTMLInputElement).value); S.playSelect(); closeModal(); break;
+    case 'pettrain': petTrainSheet(); return;
+    case 'pettap': {
+      if (!petTrain) return;
+      const mk = document.querySelector<HTMLElement>('.modal .ymark'), m = +(mk?.dataset.m ?? 0);
+      petTrain.tries++;
+      if (Math.abs(m - petTrain.zone) <= 0.12) { petTrain.hits++; S.playSelect(); petTrain.zone = 0.2 + Math.random() * 0.6; } else S.playFail();
+      if (petTrain.tries >= 5) {
+        const h = petTrain.hits; cancelAnimationFrame(petTrain.raf); petTrain = null;
+        E.trainPet(g, h, 5); scene.petHappy(3); (h >= 3 ? S.playGood : S.playFail)();
+        openModal(`<span class="kind">${icon('star', 16)}ผลการฝึก</span><h2>ทำตามได้ ${th(h)} จาก ๕ ครั้ง</h2><p>${h >= 4 ? 'เก่งมาก! ฉลาดขึ้นเยอะ' : h >= 2 ? 'พอใช้ได้ ค่อยๆ ฝึกไป' : 'ยังซนอยู่ ไว้ฝึกใหม่สัปดาห์หน้า'}</p><button class="choice go" data-act="close">ไปต่อ</button>`);
+        save(); renderTab();
+      }
+      return;
+    }
     case 'name-rand': { const inp = $('nm') as HTMLInputElement; let n = inp.value; while (n === inp.value) n = E.NAMES[Math.floor(Math.random() * E.NAMES.length)]; inp.value = n; S.playTap(); return; }
     case 'name-ok': E.setName(g, ($('nm') as HTMLInputElement).value || g.life.name); S.playSelect(); closeModal(); break;
     case 'rename': g.life.named = false; closeModal(); nameSheet(); return;
@@ -585,6 +613,11 @@ $('scene').addEventListener('click', ev => {
     else if (kind === 'aff') floatText('medal', `+${th(a)}`, 'aff', p.x / 2.4);
     else floatText(STAT_ICON[a] ?? 'star', `+${pctAuto(+b2)}`, 'stat', p.x / 2.4);
     save(); renderHud(); return;
+  }
+  if (g.pet && scene.hitPet(p.x, p.y)) {
+    const ok = E.playPet(g); scene.petHappy(); S.playTap();
+    floatText('heart', ok ? 'ผูกพัน +' : 'ชอบที่ได้เล่น', 'aff', p.x / 2.4);
+    save(); renderTab(); return;
   }
   if (scene.hitChar(p.x, p.y)) {
     S.playTap();
@@ -631,6 +664,54 @@ $('speedpop').addEventListener('click', ev => {
   ev.stopPropagation(); speedIdx = +b.dataset.speed!; S.playSelect(); $('speedpop').classList.remove('show'); renderHud();
 });
 document.addEventListener('click', () => $('speedpop').classList.remove('show'));
+
+/** แผงสัตว์เลี้ยงในแท็บค่าพลัง */
+const PET_STAGE = ['วัยเด็ก', 'วัยโต', 'วัยชรา'];
+function petPanel(): string {
+  const p = g.pet;
+  if (!p) return `${sec('สัตว์เลี้ยง')}<div class="frame"><p class="muted">ยังไม่มีสัตว์เลี้ยง — รับมาเลี้ยงได้ที่ตลาด หมวดสัตว์เลี้ยง</p>${g.petGraves.length ? `<button class="gbtn dark" data-act="coll" data-v="pets">${icon('lotus', 18)}สวนสวรรค์สัตว์เลี้ยง</button>` : ''}</div>`;
+  const b = breedOf(p.breed), age = petAge(p, g.clock), st = petStage(p, g.clock);
+  const bar = (ic: string, label: string, v: number) => `<div class="req ${v > 0.5 ? 'ok' : ''}">${icon(ic, 20)}<div class="meter"><i style="width:${(v * 100).toFixed(0)}%"></i></div><span>${label}</span><span></span></div>`;
+  const ready = E.trainReady(g), wait = Math.max(0, B.petTrainCooldown - (g.clock - p.lastTrained));
+  return `${sec('สัตว์เลี้ยง', '', 'pet')}${helpBox('pet', `ให้อาหารทุกไม่กี่วันไม่ให้หิว · แตะสัตว์ในฉากเพื่อเล่นด้วย (ได้ผลวันละ ๓ ครั้ง) · ฝึกได้ทุก ๗ วัน<br>ยิ่งผูกพันและฝึกมาก บัฟยิ่งแรง · ถ้าหิวนาน ความผูกพันจะลดลง<br>สัตว์ตามเจ้าของไปเกิดชาติหน้าด้วย จนกว่าจะสิ้นอายุขัย`)}
+    <div class="frame"><div class="rank">${icon('paw', 40)}<div><small>${esc(b.name)} · ${PET_STAGE[st]} · อายุ ${th(Math.floor(age))} ปี</small><b>${esc(p.name)}</b></div></div>
+      ${bar('pouch', 'อิ่ม', p.full)}${bar('heart', 'ผูกพัน', p.bond)}${bar('star', 'ฝึก', p.trained)}
+      <div class="forks"><button class="gbtn" data-act="petfeed" ${p.full > 0.95 ? 'disabled' : ''}>${icon('coin', 18)}ให้อาหาร <small>${baht(feedPrice(E.dailyIncome(g)), 1)}</small></button>
+      <button class="gbtn dark" data-act="pettrain" ${ready ? '' : 'disabled'}>${icon('star', 18)}${ready ? 'ฝึก' : `ฝึกได้อีก ${th(wait)} วัน`}</button></div>
+      <div class="forks"><button class="gbtn dark" data-act="petname">ตั้งชื่อ</button><button class="gbtn dark" data-act="coll" data-v="pets">สวนสวรรค์</button></div>
+    </div>`;
+}
+function petNameSheet() {
+  const p = g.pet!; const b = breedOf(p.breed);
+  openModal(`<span class="kind">${icon('paw', 16)}${esc(b.name)}</span><h2>ตั้งชื่อสัตว์เลี้ยง</h2>
+    <div class="namebox"><input id="pn" maxlength="20" value="${esc(p.name)}" aria-label="ชื่อสัตว์"></div>
+    <button class="gbtn" data-act="petname-ok">${icon('check', 20)}ตกลง</button>`);
+  setTimeout(() => ($('pn') as HTMLInputElement)?.select(), 50);
+}
+/** มินิเกมฝึกสัตว์: แตะตอนเครื่องหมายอยู่ในช่องทอง 5 ครั้ง */
+let petTrain: { hits: number; tries: number; zone: number; t0: number; raf: number } | null = null;
+function petTrainSheet() {
+  const p = g.pet!;
+  petTrain = { hits: 0, tries: 0, zone: 0.2 + Math.random() * 0.6, t0: performance.now(), raf: 0 };
+  openModal(`<span class="kind">${icon('star', 16)}ฝึก${esc(p.name)}</span><h2>เรียกให้ทำตาม!</h2>
+    <p class="muted">แตะตอนเครื่องหมายอยู่ในช่องทอง · ${th(5)} ครั้ง</p>
+    <div class="ybar"><i class="yzone"></i><i class="ymark"></i></div><div class="ycount"></div>
+    <button class="gbtn red ytap" data-act="pettap">${icon('paw', 20)}เรียก!</button>`);
+  const tick = () => {
+    if (!petTrain) return;
+    const m = (Math.sin((performance.now() - petTrain.t0) / 1000 * 2.4) + 1) / 2;
+    const mk = document.querySelector<HTMLElement>('.modal .ymark'), z = document.querySelector<HTMLElement>('.modal .yzone'), cnt = document.querySelector<HTMLElement>('.modal .ycount');
+    if (!mk) { petTrain = null; return; }
+    mk.style.left = `${(m * 100).toFixed(1)}%`; mk.dataset.m = String(m);
+    if (z) { z.style.left = `${((petTrain.zone - 0.12) * 100).toFixed(1)}%`; z.style.width = '24%'; }
+    if (cnt) cnt.innerHTML = `${icon('check', 16)} ${th(petTrain.hits)} &nbsp; ${icon('cross', 16)} ${th(petTrain.tries - petTrain.hits)}`;
+    petTrain.raf = requestAnimationFrame(tick);
+  };
+  tick();
+}
+function graveList(): string {
+  return g.petGraves.length ? `<ul class="ladder">${g.petGraves.map(x => `<li><small>${esc(breedOf(x.breed).name)} · จากไปเมื่อ พ.ศ. ${th(x.year)} อายุ ${th(x.age)} ปี</small><b>${icon('lotus', 14)} ${esc(x.name)}</b></li>`).join('')}</ul>` : '<p class="muted">ยังไม่มีสัตว์เลี้ยงที่จากไป</p>';
+}
 
 /** ตั้งชื่อตัวละคร (เริ่มเกม/เกิดใหม่/เปลี่ยนชื่อ) */
 function nameSheet() {

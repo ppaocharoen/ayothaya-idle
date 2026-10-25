@@ -107,6 +107,9 @@ export const BALANCE = {
   joyHealthGood: 0.9, joyHealthBad: 1.15,                   // สุขภาพเสื่อมช้า/เร็วขึ้น
   // ผลของตัวเลือก: เงิน ±1 = รายได้ 10 วัน · สุขภาพ ±1 = 2% · สำราญ ±1 = 6%
   effMoneyDays: 10, effHealth: 0.012, effHealthHeal: 0.4, effJoy: 0.05,  // รักษาได้น้อยกว่าเสียไป
+  // สัตว์เลี้ยง
+  petHunger: 0.04, petBondStarve: 0.004, petBondDaily: 0.0008, petBondFeed: 0.03, petBondPlay: 0.02,
+  petStatRate: 1.5e-5, petPriceDays: 8, petFeedDays: 0.5, petTrainCooldown: 7, petTrainGain: 0.12,
   careerItemMinLevel: [0, 4, 8, 12, 16],
   accommodationMinLevel: [0, 1, 3, 5, 9, 13],
   retainerMinLevel: [1, 3, 6, 9, 12, 15],
