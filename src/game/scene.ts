@@ -3,7 +3,7 @@
 // บ้านตามระดับที่พัก ของให้แตะเก็บ และฉลองตอนเลื่อนยศ
 import type { GameState } from '../engine/core';
 import { ageOf } from '../engine/core';
-import { breedOf, petStage } from '../engine/pets';
+import { BREEDS, breedOf, petStage } from '../engine/pets';
 
 export const SCENE_W = 240, SCENE_H = 168;
 const GROUND = 140;
@@ -21,6 +21,8 @@ const SHEETS: Record<string, { cols: number; rows: number; sx: number[]; sy: num
   b1: { cols: 2, rows: 3, sx: [6.63 / 8.1], sy: [6.62 / 8.1] },
   // B2 ลูกมือพ่อค้า: ยืน · เดินแบกห่อสินค้า · ชั่งของ/นับเบี้ย
   b2: { cols: 2, rows: 3, sx: [6.62 / 8.1], sy: [6.63 / 8.1] },
+  // B3 ลูกมือชาวนา: ยืนถือเคียว · เดินแบกฟ่อนข้าว · เกี่ยวข้าว
+  b3: { cols: 2, rows: 3, sx: [6.65 / 8.1], sy: [6.63 / 8.1] },
 };
 
 export interface SceneMood { dayFrac: number; month: number; rain: boolean; war: boolean; }
@@ -55,6 +57,7 @@ export class Scene {
     sleep: { sheet: 'a5', frames: [[0, 2]], speed: 1 }, rain: { sheet: 'a5', frames: [[1, 2]], speed: 1 },
     spear: { sheet: 'b1', frames: [[0, 2], [1, 2]], speed: 0.5 },
     trade: { sheet: 'b2', frames: [[0, 2], [1, 2]], speed: 1.0 },
+    harvest: { sheet: 'b3', frames: [[0, 2], [1, 2]], speed: 0.5 },
   };
   /** เกมหยุดอยู่ (ตัวละครนอน) · ฝนตก (ถือใบตองบังฝน) — ตั้งจาก main */
   paused = false;
@@ -91,7 +94,7 @@ export class Scene {
     this.loCtx = this.lo.getContext('2d')!; this.frCtx = this.fr.getContext('2d')!;
     this.ctx = this.loCtx;
     this.sprite.src = new URL('./art/boy.png', document.baseURI).href;
-    for (const k of ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'pet_bangkaew']) { const im = new Image(); im.src = new URL(`./art/${k.startsWith('pet_') ? k : `boy_${k}`}.png`, document.baseURI).href; this.actSheets[k] = im; }
+    for (const k of ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', ...BREEDS.flatMap(b => b.art ? [b.art] : [])]) { const im = new Image(); im.src = new URL(`./art/${k.startsWith('pet_') ? k : `boy_${k}`}.png`, document.baseURI).href; this.actSheets[k] = im; }
   }
 
   /** แปลงพิกัดคลิกบนหน้าจอเป็นพิกัด canvas */
@@ -232,8 +235,8 @@ export class Scene {
     c.fillRect(x - 12, base - h + 2, 3, 3); c.fillRect(x + 11, base - h + 2, 3, 3);
   }
   /** ชุดภาพหลักตามวัยและอาชีพ: ลูกมือทหาร 12–17 ใช้ B1 (ยืน/เดินถือหอก) · อื่นๆ ใช้ A1 */
-  private static TEEN: Record<string, string> = { 'ทหาร': 'b1', 'พ่อค้า': 'b2' };
-  private static TEEN_WORK: Record<string, string> = { b1: 'spear', b2: 'trade' };
+  private static TEEN: Record<string, string> = { 'ทหาร': 'b1', 'พ่อค้า': 'b2', 'เกษตรกร': 'b3' };
+  private static TEEN_WORK: Record<string, string> = { b1: 'spear', b2: 'trade', b3: 'harvest' };
   private look(L: GameState['life']): string {
     const age = ageOf(L), k = L.career ? Scene.TEEN[L.career] : undefined;
     return k && age >= 12 && age < 18 && this.hasSheet(k) ? k : 'a1';
@@ -336,7 +339,7 @@ export class Scene {
     const im = this.actSheets[br.art], fw = im.naturalWidth / 4, fh = im.naturalHeight / 3;
     const stage = petStage(p, g.clock), t = this.t;
     // เดินตามไปอยู่ข้างหลังเจ้าของ
-    const target = this.posX - this.face * (22 + fw * 0.45 * 0.35 * (stage + 1)), dx = target - this.petX;
+    const target = this.posX - this.face * (22 + fw * br.scale * 0.35 * (stage + 1)), dx = target - this.petX;
     const walking = Math.abs(dx) > 2;
     if (walking) { this.petFace = dx > 0 ? 1 : -1; this.petX += Math.sign(dx) * Math.min(Math.abs(dx), (stage === 2 ? 14 : 22) * dt); this.petWalkT += dt; }
     let col: number, lift = 0;
@@ -344,7 +347,7 @@ export class Scene {
     else if (t < this.petHappyUntil && stage < 2) { col = 3; lift = Math.abs(Math.sin(t * 9)) * 5; }
     else if (stage === 2 && (this.paused || Math.floor(t / 7) % 2)) col = 3; // แก่แล้วชอบนอน
     else col = 0;
-    const sc = 0.45 * (1 + 0.5 * this.z), w = fw * sc, h = fh * sc, K = this.K, rx = (v: number) => Math.round(v * K) / K;
+    const sc = br.scale * (1 + 0.5 * this.z), w = fw * sc, h = fh * sc, K = this.K, rx = (v: number) => Math.round(v * K) / K;
     const x = rx(this.petX - w / 2), y = rx(this.feetY() - h - lift);
     this.petBox = { x: this.petX - w * 0.35, y: this.feetY() - h * 0.8, w: w * 0.7, h: h * 0.8 };
     const c = this.dc;

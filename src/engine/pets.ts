@@ -13,12 +13,14 @@ export interface PetBreed {
   /** ช่วงวัย (ปีในเกม): เด็กถึง · โตถึง (เกินนั้น = แก่) */
   stages: [number, number];
   art: string | null;
+  /** ขนาดภาพในฉาก (พิกเซลเกมต่อพิกเซลภาพ) */
+  scale: number;
 }
 
 export const BREEDS: PetBreed[] = [
-  { key: 'bangkaew', species: 'dog', name: 'หมาบางแก้ว', desc: 'หมาพื้นเมืองขนฟูจากลุ่มน้ำน่าน หวงเจ้าของ เฝ้าบ้านเก่ง ใครแปลกหน้าเข้าใกล้เป็นต้องเห่า', stats: ['หลบหลีก', 'พละกำลัง'], joy: 0.10, life: [30, 38], stages: [2.5, 20], art: 'pet_bangkaew' },
-  { key: 'wichienmaat', species: 'cat', name: 'แมววิเชียรมาศ', desc: 'แมวมงคลในตำราแมวสมัยอยุธยา ขนสีงาแต้มน้ำตาลเข้ม ตาสีฟ้า เชื่อกันว่าเลี้ยงแล้วจะได้ยศถาบรรดาศักดิ์', stats: ['บารมี'], joy: 0.10, life: [30, 40], stages: [2.5, 22], art: null },
-  { key: 'nokkhao', species: 'bird', name: 'นกเขาชวา', desc: 'นกเสียงขันไพเราะ คนโบราณถือว่าเสียงขันเป็นมงคล ฟังแล้วใจสงบ', stats: ['ไหวพริบ'], joy: 0.16, life: [20, 28], stages: [1.5, 14], art: null },
+  { key: 'bangkaew', species: 'dog', name: 'หมาบางแก้ว', desc: 'หมาพื้นเมืองขนฟูจากลุ่มน้ำน่าน หวงเจ้าของ เฝ้าบ้านเก่ง ใครแปลกหน้าเข้าใกล้เป็นต้องเห่า', stats: ['หลบหลีก', 'พละกำลัง'], joy: 0.10, life: [30, 38], stages: [2.5, 20], art: 'pet_bangkaew', scale: 0.45 },
+  { key: 'wichienmaat', species: 'cat', name: 'แมววิเชียรมาศ', desc: 'แมวมงคลในตำราแมวสมัยอยุธยา ขนสีงาแต้มน้ำตาลเข้ม ตาสีฟ้า เชื่อกันว่าเลี้ยงแล้วจะได้ยศถาบรรดาศักดิ์', stats: ['บารมี'], joy: 0.10, life: [30, 40], stages: [2.5, 22], art: 'pet_wichienmaat', scale: 0.3 },
+  { key: 'nokkhao', species: 'bird', name: 'นกเขาชวา', desc: 'นกเสียงขันไพเราะ คนโบราณถือว่าเสียงขันเป็นมงคล ฟังแล้วใจสงบ', stats: ['ไหวพริบ'], joy: 0.16, life: [20, 28], stages: [1.5, 14], art: null, scale: 0.22 },
 ];
 export const breedOf = (k: string) => BREEDS.find(b => b.key === k)!;
 
