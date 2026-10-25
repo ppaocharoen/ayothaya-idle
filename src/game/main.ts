@@ -31,6 +31,19 @@ const clean = (s: string) => s.replace(/\s*\([^)]*\)\s*/g, ' ').trim(); // ต�
 
 // ---------- โหลด/เซฟ ----------
 function store(): Storage | null { try { return window.localStorage; } catch { return null; } }
+/** รหัสเซฟสำหรับย้ายข้ามเบราว์เซอร์/แอปหน้าจอโฮม (base64 ของ JSON) */
+function saveCode(): string {
+  const bytes = new TextEncoder().encode(E.serialize(g)); let bin = '';
+  bytes.forEach(b => { bin += String.fromCharCode(b); });
+  return 'AY1:' + btoa(bin);
+}
+function loadCode(code: string): E.GameState | null {
+  try {
+    const bin = atob(code.replace(/^AY1:/, '').replace(/\s+/g, ''));
+    const json = new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+    const ng = E.deserialize(json); return ng && ng.life ? ng : null;
+  } catch { return null; }
+}
 function save() { try { store()?.setItem(SAVE_KEY, E.serialize(g)); } catch { /* ไม่มีที่เก็บก็เล่นต่อได้ */ } }
 function load(): E.GameState | null {
   try { const s = store()?.getItem(SAVE_KEY); return s ? E.deserialize(s) : null; } catch { return null; }
@@ -667,7 +680,14 @@ function renderMenu() {
         <li>เลื่อนลงแล้วเลือก <b>เพิ่มไปยังหน้าจอโฮม</b></li>
         <li>แตะ <b>เพิ่ม</b> — ไอคอนปรางค์ทองจะอยู่บนหน้าจอ เปิดแล้วเต็มจอเหมือนแอป</li></ol>` : installEvt
         ? `<p>ติดตั้งเกมไว้บนหน้าจอ เปิดได้ทันทีโดยไม่ต้องเข้าเว็บ</p><button class="gbtn" data-m="do-install">${icon('check', 20)}ติดตั้ง</button>`
-        : '<p>เปิดเมนูของเบราว์เซอร์ (⋮) แล้วเลือก <b>เพิ่มลงในหน้าจอหลัก</b> หรือ <b>ติดตั้งแอป</b></p>'}`;
+        : '<p>เปิดเมนูของเบราว์เซอร์ (⋮) แล้วเลือก <b>เพิ่มลงในหน้าจอหลัก</b> หรือ <b>ติดตั้งแอป</b></p>'}
+      <div class="mnote">${icon('scroll', 18)}<span><b>หมายเหตุ:</b> เกมที่เปิดจากไอคอนหน้าจอโฮมจะ<b>เก็บเซฟแยก</b>จากที่เล่นใน Safari จึงเริ่มเล่นเป็นเซฟใหม่ ไม่ใช่เซฟเดิม — ถ้าอยากเล่นเซฟเดิมต่อ ให้ใช้ “ย้ายเซฟ” ข้างล่าง</span></div>
+      <div class="mlabel">ย้ายเซฟ</div>
+      <ol class="msteps"><li>ในที่ที่มีเซฟเดิม กด <b>คัดลอกรหัสเซฟ</b></li><li>เปิดเกมอีกที่ (เช่นจากหน้าจอโฮม) มาหน้านี้ วางรหัสลงช่อง แล้วกด <b>โหลดเซฟนี้</b></li></ol>
+      <button class="gbtn" data-m="save-copy">${icon('scroll', 20)}คัดลอกรหัสเซฟ</button>
+      <textarea id="save-in" class="msave" rows="3" placeholder="วางรหัสเซฟที่นี่"></textarea>
+      <button class="gbtn dark" data-m="save-load">${icon('check', 20)}โหลดเซฟนี้</button>
+      <p id="save-msg" class="muted"></p>`;
     return;
   }
   const sp = SPEEDS.map((v, i) => `<button class="mchip ${i === speedIdx ? 'on' : ''}" data-m="speed" data-v="${i}"><b>×${th(v)}</b><small>${SPEED_LABEL[v] ?? ''}</small></button>`).join('');
@@ -697,6 +717,23 @@ $('menu').addEventListener('click', ev => {
     if (m === 'sfx') sound.sfx = !sound.sfx; else setMusic(!sound.music);
     try { store()?.setItem('ayothaya.sound', JSON.stringify({ sfx: sound.sfx, music: sound.music })); } catch { /* ignore */ }
     S.playTap(); renderMenu(); return;
+  }
+  if (m === 'save-copy') {
+    save();
+    const code = saveCode();
+    const done = (ok: boolean) => { const el = $('save-msg'); el.textContent = ok ? 'คัดลอกแล้ว — ไปวางในเกมอีกที่ได้เลย' : 'คัดลอกอัตโนมัติไม่ได้ — กดค้างที่ช่องแล้วเลือกคัดลอกเอง'; };
+    const ta = $('save-in') as HTMLTextAreaElement;
+    navigator.clipboard?.writeText(code).then(() => done(true), () => { ta.value = code; ta.select(); done(false); }) ?? (ta.value = code, ta.select(), done(false));
+    S.playTap(); return;
+  }
+  if (m === 'save-load') {
+    const txt = ($('save-in') as HTMLTextAreaElement).value.trim();
+    const ng = txt ? loadCode(txt) : null;
+    if (!ng) { $('save-msg').textContent = 'รหัสเซฟไม่ถูกต้อง ลองคัดลอกมาใหม่อีกครั้ง'; return; }
+    g = ng; save(); sliceDone = false; healthWarned = false; lifebarFor = ''; running = true;
+    closeMenu(); renderHud(); renderTab(); S.playSelect();
+    toast('โหลดเซฟแล้ว เล่นต่อได้เลย', 'check');
+    return;
   }
   if (m === 'do-install' && installEvt) { installEvt.prompt(); installEvt = null; renderMenu(); return; }
   if (m === 'quit') {
