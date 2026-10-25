@@ -11,6 +11,7 @@ import { percentile, simulatePeers } from './compare';
 import { speechFor } from './speech';
 import { baht, dateOf, esc, pct, pctAuto, pctFine, th, thInt } from './format';
 import { runAfterlife } from './afterlife';
+import { CHANGELOG, VERSION } from './changelog';
 import { BREEDS, breedOf, feedPrice, petAge, petPrice, petStage } from '../engine/pets';
 import { CAREER_ICON, CHILD_ICON, PATH_ICON, STAT_ICON, icon } from './icons';
 
@@ -177,9 +178,10 @@ function renderHud() {
   hudKey = key;
   $('plaque').innerHTML = `${icon(ic, 18)}<span>${esc(doing)}</span>`;
   if (L.career) { $('plaque').dataset.act = 'careerinfo'; $('plaque').dataset.v = L.career; } else delete $('plaque').dataset.act;
-  $('btn-play').innerHTML = icon(running ? 'pause' : 'play', 24);
-  $('btn-speed').textContent = `×${th(SPEEDS[speedIdx])}`;
-  $('btn-sound').innerHTML = icon(sound.music ? 'note' : sound.sfx ? 'speaker' : 'mute', 24);
+  // ป้ายสถานะมุมขวา: หยุดอยู่ / ความเร็ว (แตะเพื่อเล่นต่อ/หยุด)
+  $('btn-status').innerHTML = running ? `${icon('play', 16)}<span>×${th(SPEEDS[speedIdx])}</span>` : `${icon('pause', 16)}<span>หยุด</span>`;
+  $('btn-status').classList.toggle('paused', !running);
+  if ($('menu').classList.contains('show')) renderMenu();
   const lifeBtn = document.querySelector('#tabs [data-tab=life]')!;
   lifeBtn.querySelector('.dot')?.remove();
   if (lifeAlert()) lifeBtn.insertAdjacentHTML('beforeend', '<i class="dot"></i>');
@@ -602,7 +604,7 @@ document.addEventListener('click', ev => {
 });
 // แตะพื้นหลังมืดนอกแผ่น = ปิด (เฉพาะแผ่นรายละเอียด ไม่ใช่เหตุการณ์)
 $('modal').addEventListener('click', ev => { if (ev.target === $('modal') && $('modal-body').querySelector('.close')) closeModal(); });
-$('btn-play').addEventListener('click', () => { running = !running; S.playTap(); renderHud(); renderTab(); });
+$('btn-status').addEventListener('click', () => { running = !running; S.playTap(); renderHud(); renderTab(); });
 // แตะในฉาก: เก็บของ หรือคุยกับตัวละคร
 $('scene').addEventListener('click', ev => {
   const p = scene.toCanvas(ev);
@@ -643,27 +645,66 @@ document.addEventListener('keydown', ev => {
 });
 // เสียง: ตั้งค่าที่จำไว้ (เพลงจะเริ่มจริงหลังผู้เล่นแตะจอครั้งแรก)
 try { const sp = JSON.parse(store()?.getItem('ayothaya.sound') ?? '{}'); sound.sfx = sp.sfx ?? true; if (sp.music) setMusic(true); } catch { /* ใช้ค่าเริ่มต้น */ }
-$('btn-sound').addEventListener('click', () => {
-  // วน: เสียงเอฟเฟกต์อย่างเดียว → + เพลง → ปิดหมด
-  S.unlockAudio();
-  if (sound.sfx && !sound.music) { setMusic(true); toast('เปิดเพลงและเสียง', 'note'); }
-  else if (sound.music) { setMusic(false); sound.sfx = false; toast('ปิดเสียงทั้งหมด', 'mute'); }
-  else { sound.sfx = true; toast('เปิดเฉพาะเสียงเอฟเฟกต์', 'speaker'); }
-  try { store()?.setItem('ayothaya.sound', JSON.stringify({ sfx: sound.sfx, music: sound.music })); } catch { /* ignore */ }
-  renderHud(); S.playTap();
-});
-// ความเร็ว: แตะแล้วเลือกจากเมนู (เพิ่มหรือลดก็ได้)
+// ---------- เมนูสามขีด ----------
 const SPEED_LABEL: Record<number, string> = { 1: 'ปกติ', 10: 'เร็ว', 100: 'เร็วมาก', 3000: 'ทดสอบ' };
-$('btn-speed').addEventListener('click', ev => {
-  ev.stopPropagation(); S.playTap();
-  const pop = $('speedpop');
-  if (pop.classList.toggle('show')) pop.innerHTML = SPEEDS.map((v, i) => `<button class="${i === speedIdx ? 'on' : ''}" data-speed="${i}"><b>×${th(v)}</b><small>${SPEED_LABEL[v] ?? ''}</small></button>`).join('');
+let installEvt: (Event & { prompt: () => void }) | null = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e as typeof installEvt; });
+const standalone = () => window.matchMedia('(display-mode: standalone)').matches || (navigator as unknown as { standalone?: boolean }).standalone === true;
+const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+let menuPage: 'main' | 'log' | 'install' = 'main';
+function renderMenu() {
+  const body = $('menu-body');
+  if (menuPage === 'log') {
+    body.innerHTML = `<div class="mhead"><button class="mback" data-m="main">${icon('cross', 16)}</button><b>มีอะไรใหม่</b></div>
+      ${CHANGELOG.map(c => `<div class="mlog"><div><b>เวอร์ชัน ${c.v}</b><small>${c.date}</small></div><ul>${c.items.map(i => `<li>${esc(i)}</li>`).join('')}</ul></div>`).join('')}`;
+    return;
+  }
+  if (menuPage === 'install') {
+    body.innerHTML = `<div class="mhead"><button class="mback" data-m="main">${icon('cross', 16)}</button><b>เพิ่มไปหน้าจอโฮม</b></div>
+      ${standalone() ? '<p>เปิดจากหน้าจอโฮมอยู่แล้ว เล่นเต็มจอได้เลย</p>' : isIOS() ? `<ol class="msteps">
+        <li>เปิดหน้านี้ใน <b>Safari</b></li>
+        <li>แตะปุ่ม <b>แชร์</b> (สี่เหลี่ยมมีลูกศรชี้ขึ้น) ด้านล่างจอ</li>
+        <li>เลื่อนลงแล้วเลือก <b>เพิ่มไปยังหน้าจอโฮม</b></li>
+        <li>แตะ <b>เพิ่ม</b> — ไอคอนปรางค์ทองจะอยู่บนหน้าจอ เปิดแล้วเต็มจอเหมือนแอป</li></ol>` : installEvt
+        ? `<p>ติดตั้งเกมไว้บนหน้าจอ เปิดได้ทันทีโดยไม่ต้องเข้าเว็บ</p><button class="gbtn" data-m="do-install">${icon('check', 20)}ติดตั้ง</button>`
+        : '<p>เปิดเมนูของเบราว์เซอร์ (⋮) แล้วเลือก <b>เพิ่มลงในหน้าจอหลัก</b> หรือ <b>ติดตั้งแอป</b></p>'}`;
+    return;
+  }
+  const sp = SPEEDS.map((v, i) => `<button class="mchip ${i === speedIdx ? 'on' : ''}" data-m="speed" data-v="${i}"><b>×${th(v)}</b><small>${SPEED_LABEL[v] ?? ''}</small></button>`).join('');
+  body.innerHTML = `<div class="mhead"><b>อโยธยา Idle</b><button class="mback" data-m="close">${icon('cross', 16)}</button></div>
+    <button class="mrow" data-m="play">${icon(running ? 'pause' : 'play', 24)}<span>${running ? 'หยุดเวลา' : 'เล่นต่อ'}</span></button>
+    <div class="mlabel">ความเร็ว</div><div class="mchips">${sp}</div>
+    <div class="mlabel">เสียง</div><div class="mchips">
+      <button class="mchip ${sound.sfx ? 'on' : ''}" data-m="sfx">${icon(sound.sfx ? 'speaker' : 'mute', 20)}<small>เสียงประกอบ</small></button>
+      <button class="mchip ${sound.music ? 'on' : ''}" data-m="music">${icon('note', 20)}<small>เพลง</small></button></div>
+    <button class="mrow" data-m="install">${icon('house', 24)}<span>เพิ่มไปหน้าจอโฮม</span></button>
+    <button class="mrow" data-m="log">${icon('scroll', 24)}<span>มีอะไรใหม่</span><small>v${VERSION}</small></button>
+    <button class="mrow danger" data-m="quit">${icon('cross', 24)}<span>บันทึกและปิดเกม</span></button>`;
+}
+function openMenu() { menuPage = 'main'; renderMenu(); $('menu').classList.add('show'); S.playTap(); }
+function closeMenu() { $('menu').classList.remove('show'); }
+$('btn-menu').addEventListener('click', openMenu);
+$('menu').addEventListener('click', ev => {
+  if (ev.target === $('menu')) { closeMenu(); return; }
+  const b = (ev.target as HTMLElement).closest<HTMLElement>('[data-m]'); if (!b) return;
+  const m = b.dataset.m!;
+  if (m === 'close') { closeMenu(); return; }
+  if (m === 'main' || m === 'log' || m === 'install') { menuPage = m; S.playTap(); renderMenu(); return; }
+  if (m === 'play') { running = !running; S.playTap(); renderHud(); renderTab(); renderMenu(); return; }
+  if (m === 'speed') { speedIdx = +b.dataset.v!; if (!running) running = true; S.playSelect(); renderHud(); renderMenu(); return; }
+  if (m === 'sfx' || m === 'music') {
+    S.unlockAudio();
+    if (m === 'sfx') sound.sfx = !sound.sfx; else setMusic(!sound.music);
+    try { store()?.setItem('ayothaya.sound', JSON.stringify({ sfx: sound.sfx, music: sound.music })); } catch { /* ignore */ }
+    S.playTap(); renderMenu(); return;
+  }
+  if (m === 'do-install' && installEvt) { installEvt.prompt(); installEvt = null; renderMenu(); return; }
+  if (m === 'quit') {
+    save(); running = false; closeMenu(); renderHud();
+    window.close(); // ปิดได้เฉพาะบางกรณี (เช่นหน้าต่างที่สคริปต์เปิด) — ถ้าปิดไม่ได้ แสดงหน้าพักเกมแทน
+    openModal(`<span class="kind">${icon('check', 16)}บันทึกแล้ว</span><h2>พักเกมไว้ก่อน</h2><p>บันทึกเรียบร้อย ปัดแอปหรือปิดแท็บนี้ได้เลย · กลับมาเมื่อไร เวลาที่ผ่านไประหว่างนั้นก็นับต่อให้</p><button class="choice go" data-act="close">เล่นต่อ</button>`);
+  }
 });
-$('speedpop').addEventListener('click', ev => {
-  const b = (ev.target as HTMLElement).closest<HTMLElement>('[data-speed]'); if (!b) return;
-  ev.stopPropagation(); speedIdx = +b.dataset.speed!; S.playSelect(); $('speedpop').classList.remove('show'); renderHud();
-});
-document.addEventListener('click', () => $('speedpop').classList.remove('show'));
 
 /** แผงสัตว์เลี้ยงในแท็บค่าพลัง */
 const PET_STAGE = ['วัยเด็ก', 'วัยโต', 'วัยชรา'];

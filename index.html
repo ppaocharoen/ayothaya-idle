@@ -5,20 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#1a110c" />
   <title>อโยธยา Idle</title>
+  <link rel="icon" type="image/png" href="./favicon.png" />
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="อโยธยา" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&family=Charm:wght@700&family=Itim&display=swap" rel="stylesheet" />
 </head>
 <body>
   <div class="app">
     <header class="hud">
-      <button id="btn-play" class="rbtn" aria-label="หยุด/เล่น"></button>
+      <button id="btn-menu" class="rbtn" aria-label="เมนู"><span class="burger"><i></i><i></i><i></i></span></button>
       <div class="when">
         <div class="era"><span id="hud-life"></span><b id="hud-year"></b></div>
         <div id="hud-date" class="date"></div>
       </div>
-      <button id="btn-speed" class="rbtn speed" aria-label="ความเร็ว"></button>
-      <div id="speedpop" class="speedpop"></div>
-      <button id="btn-sound" class="rbtn" aria-label="เสียง"></button>
+      <button id="btn-status" class="status-chip" aria-label="สถานะเวลา"></button>
     </header>
     <div class="res">
       <button class="pill" data-tip="money"><span id="ic-money"></span><b id="res-money"></b></button>
@@ -47,6 +52,7 @@
       <button data-tab="log"><span data-ic="scroll"></span><small>บันทึก</small></button>
     </nav>
   </div>
+  <div id="menu" class="menu"><div id="menu-body" class="menu-panel"></div></div>
   <div id="modal" class="modal"><div id="modal-body" class="sheet"></div></div>
   <div id="toast" class="toast"></div>
   <script type="module" src="/src/game/main.ts"></script>
