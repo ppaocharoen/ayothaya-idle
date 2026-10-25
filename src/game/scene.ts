@@ -125,7 +125,7 @@ export class Scene {
     this.ctx = this.loCtx;
     this.sprite.src = new URL('./art/boy.png', document.baseURI).href;
     for (const k of ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 't1', 't2', 't3', 'p1', 'p2', 'p3', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'u1', 'u2', 'u3', 'up1', 'up2', 'up3', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6', 'v1', 'v2', 'vp1', 'vp2', 'vp3', ...BREEDS.flatMap(b => b.art ? [b.art] : [])]) { const im = new Image(); im.src = new URL(`./art/${k.startsWith('pet_') ? k : `boy_${k}`}.png`, document.baseURI).href; im.onerror = () => { delete this.actSheets[k]; }; this.actSheets[k] = im; }
-    for (const k of ['city', 'houses']) { const im = new Image(); im.src = new URL(`./art/bg_${k}.png`, document.baseURI).href; this.bg[k] = im; }
+    for (const k of ['city', 'houses', 'in0', 'in1', 'in2', 'in3', 'in4', 'in5', 'inP']) { const im = new Image(); im.src = new URL(`./art/bg_${k}.png`, document.baseURI).href; this.bg[k] = im; }
   }
 
   /** แปลงพิกัดคลิกบนหน้าจอเป็นพิกัด canvas */
@@ -157,6 +157,13 @@ export class Scene {
     this.raining = mood.rain;
     c.clearRect(0, 0, SCENE_W, SCENE_H);
     this.dc.setTransform(1, 0, 0, 1, 0, 0); this.dc.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    const d = this.dc;
+    // ---- ในบ้าน/นอกบ้าน: ท่าในบ้านพาเข้าฉากในบ้าน (ถ้ามีภาพ) มืดลงแว้บหนึ่งตอนเปลี่ยน ----
+    const inImg = this.interior(L);
+    this.updateInside(!!inImg && (this.paused || Scene.INDOOR.has(this.act?.id ?? '') || this.t < this.petHappyUntil), dt);
+    const indoor = this.inside && !!inImg;
+    if (indoor) this.drawInterior(inImg!);
+    else {
     // ---- ท้องฟ้าตามเวลาของวัน (เช้าชมพูอ่อน กลางวันครีม เย็นส้ม) และฝน ----
     const day = ['#f6e7c8', '#f3dfbb', '#efd5ad', '#e9c99c', '#e2bc8c'];
     const dawn = ['#f3d6cf', '#f1d2c0', '#efcdb0', '#ebc7a2', '#e5bd92'];
@@ -177,7 +184,6 @@ export class Scene {
     c.fillRect(cx, 22, 28, 5); c.fillRect(cx + 6, 18, 14, 4);
     c.fillRect((cx + 140) % (SCENE_W + 60) - 40, 44, 22, 4);
     if (mood.rain) { c.fillRect((cx + 70) % (SCENE_W + 60) - 40, 30, 40, 6); c.fillRect((cx + 200) % (SCENE_W + 60) - 40, 14, 34, 6); }
-    const d = this.dc;
     const artBg = this.hasImg(this.bg.city);
     if (artBg) {
       // ---- ทิวเมือง (ภาพ E4) วาดความละเอียดจริง เลื่อนช้ากว่าตัวละครเล็กน้อย ----
@@ -201,8 +207,9 @@ export class Scene {
     if (mood.month <= 1) {
       for (let x = 160; x < SCENE_W; x += 3) { const sway = Math.round(Math.sin(this.t * 2 + x) * 1); c.fillStyle = x % 2 ? '#d9b54a' : '#c9a23c'; c.fillRect(x + sway, GROUND - 7, 1, 7); c.fillRect(x + sway - 1, GROUND - 8, 2, 2); }
     }
+    }
     // ---- ฉากหลังลงจอ แล้ววาดตัวละครที่ความละเอียดจริง ----
-    this.blitLo();
+    if (!indoor) this.blitLo();
     d.setTransform(this.K, 0, 0, this.K, 0, 0); d.imageSmoothingEnabled = false;
     if (this.hasSheet('a1')) this.drawCharacter(L, dt);
     if (g.pet) this.drawPet(g, dt);
@@ -212,7 +219,7 @@ export class Scene {
     this.drawAlert();
     // ---- ของให้แตะเก็บ ----
     const p = this.pickup;
-    if (p) {
+    if (p && !indoor) {
       p.age += dt;
       if (p.y < GROUND - 4) { p.vy += 60 * dt; p.y = Math.min(GROUND - 4, p.y + p.vy * dt); p.x += Math.sin(this.t * 3) * 0.3; }
       if (p.age > 25) this.pickup = null;
@@ -220,7 +227,7 @@ export class Scene {
     }
     // ---- ฝน ----
     const cf = this.ctx;
-    if (mood.rain) {
+    if (mood.rain && !indoor) {
       cf.fillStyle = 'rgba(120,130,150,0.55)';
       for (let i = 0; i < 70; i++) { const rx = (i * 37 + this.t * 40) % SCENE_W, ry = (i * 53 + this.t * 160) % SCENE_H; cf.fillRect(Math.round(rx), Math.round(ry), 1, 4); }
     }
@@ -229,11 +236,39 @@ export class Scene {
     for (const q of this.parts) { q.vy += 120 * dt; q.x += q.vx * dt; q.y += q.vy * dt; cf.fillStyle = q.color; cf.fillRect(Math.round(q.x), Math.round(q.y), 2, 2); }
     if (this.jump > 0) this.jump = Math.max(0, this.jump - dt / 1.2);
     const f2 = this.ctx;
+    if (this.fadeT >= 0) { f2.fillStyle = `rgba(12,7,4,${(1 - Math.abs(this.fadeT * 2 - 1)).toFixed(2)})`; f2.fillRect(0, 0, SCENE_W, SCENE_H); }
     if (this.flash > 0) { f2.fillStyle = `rgba(242,196,109,${(this.flash * 0.45).toFixed(2)})`; f2.fillRect(0, 0, SCENE_W, SCENE_H); this.flash = Math.max(0, this.flash - dt * 1.5); }
     d.setTransform(1, 0, 0, 1, 0, 0); d.imageSmoothingEnabled = false;
     d.drawImage(this.fr, 0, 0, this.canvas.width, this.canvas.height);
   }
 
+  /** ท่าที่ทำในบ้าน */
+  private static INDOOR = new Set(['sleep', 'read', 'meditate', 'candle', 'sad', 'pray', 'write']);
+  private inside = false; private insideSince = -99; private fadeT = -1; private fadeTo = false;
+  /** ภาพในบ้านตามที่พำนัก (เด็กยังไม่มีอาชีพ = เรือนพ่อแม่) */
+  private interior(L: GameState['life']) {
+    const im = this.bg[L.career ? `in${Math.max(0, Math.min(5, L.accommodation))}` : 'inP'];
+    return this.hasImg(im) ? im : null;
+  }
+  private updateInside(want: boolean, dt: number) {
+    if (this.fadeT >= 0) {
+      const was = this.fadeT;
+      this.fadeT += dt / 0.55;
+      if (was < 0.5 && this.fadeT >= 0.5) { this.inside = this.fadeTo; this.insideSince = this.t; }
+      if (this.fadeT >= 1) this.fadeT = -1;
+      return;
+    }
+    if (want === this.inside) return;
+    if (!want && this.t - this.insideSince < 4) return; // อยู่ในบ้านอย่างน้อยสักพัก กันสลับไปมา
+    this.fadeT = 0; this.fadeTo = want;
+  }
+  /** ฉากในบ้าน: ขยายเต็มกว้าง ชิดขอบล่าง (พื้นห้องอยู่ระดับเดียวกับพื้นดินข้างนอก) */
+  private drawInterior(im: HTMLImageElement) {
+    const d = this.dc, K = this.K, s = Math.max(SCENE_W / im.naturalWidth, SCENE_H / im.naturalHeight);
+    const w = im.naturalWidth * s, h = im.naturalHeight * s;
+    d.setTransform(1, 0, 0, 1, 0, 0); d.imageSmoothingEnabled = false;
+    d.drawImage(im, Math.round((SCENE_W - w) / 2 * K), Math.round((SCENE_H - h) * K), Math.round(w * K), Math.round(h * K));
+  }
   private hasImg(im?: HTMLImageElement) { return !!(im && im.complete && im.naturalWidth); }
   /** วาดชั้นความละเอียดต่ำที่สะสมไว้ลงจอ แล้วล้างไว้วาดชั้นต่อไป */
   private blitLo() {

@@ -17,6 +17,7 @@
 | ลำดับ | ชุด | วิธี | ไฟล์ | เกมรองรับ |
 |---|---|---|---|---|
 | 1 | V3 ชราชุดธรรมดา: อารมณ์ | แก้จาก U3 | V3.jpg | ✅ ใส่ไฟล์แล้วใช้ได้ทันที |
+| 1.5 | E5 ฉากในบ้าน ๗ ฉาก (ตามที่พำนัก + เรือนพ่อแม่) | เจนใหม่ | E5-0…E5-5, E5-P | ✅ ใส่ไฟล์แล้วใช้ได้ทันที |
 | 2 | P สัตว์เพิ่ม ๓ ตัว: ขาวมณี · นกกรงหัวจุก · นกเอี้ยง | เจนใหม่ (แนบภาพสัตว์ชนิดเดียวกัน) | P_KhaoManee.jpg P_Bulbul.jpg P_Myna.jpg | ✅ |
 | 3 | F1 พญายม · F5 วิญญาณ | เจนใหม่ | F1.jpg F5.jpg | ต้องเขียนโค้ดเพิ่ม (ผมทำให้) |
 | 4 | F3 ศาลยมโลก · F4 นรก/ต้นงิ้ว · F6 แม่น้ำเวตรณี · F8 วิมานสวรรค์ (ฉากหลังมินิเกม) | เจนใหม่ | F3.jpg F4.jpg F6.jpg F8.jpg | ต้องเขียนโค้ดเพิ่ม |
@@ -36,6 +37,27 @@
 Edit this sprite sheet. Make the man an elderly man about 65 years old in every frame: white hair (same mahatthai hairstyle), a few wrinkles, a thin white moustache, slightly stooped shoulders, thinner arms. Keep the same clothes, poses, layout and cell positions. The jumping frame can be a smaller, gentler hop.
 Keep the exact same 8× nearest-neighbor square pixel grid, no blur, no anti-aliasing. Every figure stays fully inside its own cell with empty margin on all sides, the same size in all frames. Background stays solid pure green #00FF00. No text, no labels, no grid lines.
 ```
+
+---
+
+## E5 — ฉากในบ้าน ๗ ฉาก → `E5-0.jpg` … `E5-5.jpg`, `E5-P.jpg`
+ใช้ตอนตัวละครทำท่าในบ้าน (นอน อ่านหนังสือ นั่งสมาธิ จุดเทียน เสียใจ เล่นกับสัตว์ พราหมณ์ไหว้ ขุนนางจดสมุด) — **เกมรองรับแล้ว ใส่ไฟล์เมื่อไรใช้ได้ทันที**
+ไม่ต้องแนบรูป · พรอมต์หลักเดียว เปลี่ยนบรรทัด "Room" ตามตาราง
+```
+Pixel-art background for a side-view game: the inside of a home in the Ayutthaya era, Thailand. NO people, NO animals.
+Room: [ใส่ห้องจากตารางข้างล่าง]
+Layout (landscape 3:2): side view, like a theater stage. The floor is a flat strip across the bottom 16% of the image. Keep the CENTER of the room open and empty (a character will stand there); place furniture and objects along the back wall and at the left and right sides. Warm, cozy lighting.
+Pixel grid: low-resolution pixel art enlarged by exactly 8× with nearest-neighbor — every pixel is a perfect SQUARE block of identical size, aligned to one grid across the whole image. No anti-aliasing, gradients, blur or dithering noise. Flat colors. No text, no labels, no grid lines, no frame or border.
+```
+| ไฟล์ | ที่พำนัก | ประโยค Room |
+|---|---|---|
+| E5-P | เรือนพ่อแม่ (ตอนเด็ก) | a small, warm family teak house room: plank walls, a low shelf with clay pots and a small Buddha altar, a rolled sleeping mat, a child's wooden toy, a woven basket, a window with soft daylight |
+| E5-0 | เสื่อที่ศาลาวัด | under the roof of an open temple pavilion (sala): wooden posts, a reed sleeping mat and a small cloth bundle on the wooden floor, temple yard and a stupa visible between the posts |
+| E5-1 | เพิงไม้ไผ่ | a tiny bamboo lean-to: split-bamboo floor, thatched roof above, a clay cooking pot on a small charcoal stove, a water jar, open sides showing trees |
+| E5-2 | กระท่อมริมคลอง | inside a bamboo hut on stilts: woven bamboo walls, a small window looking out on a canal with a boat, an oil lamp, a sleeping mat and pillow, fishing net hanging on the wall |
+| E5-3 | เรือนไทย | inside a traditional Thai teak house: carved wooden panel walls, a Buddha altar shelf with flowers, triangle cushions (mon khwan), a wooden cabinet, a betel nut set on a tray |
+| E5-4 | ตึกก่ออิฐ | inside an Ayutthaya brick-and-stucco house: thick whitewashed walls, small arched windows, a low wooden table, a carved treasure chest, ceramic jars from China, a woven rug |
+| E5-5 | จวนขุนนาง | a grand hall in a noble's residence: gold-on-black lacquer screens (lai rot nam), silk curtains, a raised platform with cushions, tall brass lamps, fine porcelain, a painted ceiling |
 
 ---
 
