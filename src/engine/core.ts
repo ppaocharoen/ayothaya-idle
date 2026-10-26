@@ -196,12 +196,12 @@ function taskDay(g: GameState) {
   }
   t.fullSince = t.n >= B.taskCap ? (t.fullSince ?? L.day) : null;
 }
-/** ผลของราชกิจ: score 0–1 (ฝีมือ) × share (บริวารทำแทนได้ไม่เต็ม) */
-function taskReward(g: GameState, score: number, share = 1) {
+/** ผลของราชกิจ: score 0–1 (ฝีมือ) × share (บริวารทำแทนได้ไม่เต็ม) · affMul ปรับตามทางสว่าง/มืด */
+function taskReward(g: GameState, score: number, share = 1, affMul = 1) {
   const L = g.life, k = score * share;
   L.money += k * B.taskMoneyDays * Math.max(dailyIncome(g), B.childWage * 0.5);
   if (L.career && ageOf(L) >= B.careerMinAge) {
-    L.affection += k * B.taskAff * Math.max(0.5, affectionReq(L.level + 1) - affectionReq(L.level));
+    L.affection += k * B.taskAff * affMul * affStep(L);
     const s = career(L.career).gateStat, x = L.stats[s];
     L.stats[s] = clamp(x + k * B.taskStat * B.eventK * (L.cap - x), 0, L.cap);
   } else {
@@ -209,12 +209,25 @@ function taskReward(g: GameState, score: number, share = 1) {
     for (const s of job?.stats ?? []) { const x = L.stats[s]; L.stats[s] = clamp(x + k * B.taskStat * B.eventK * (L.cap - x) / (job!.stats.length), 0, L.cap); }
   }
 }
-/** ผู้เล่นทำราชกิจ 1 ชิ้นเสร็จ */
-export function completeTask(g: GameState, score: number): boolean {
-  const t = g.life.tasks;
-  if (!t || t.n <= 0) return false;
-  t.n--; t.fullSince = null; taskReward(g, clamp(score, 0, 1)); g.stats.tasksDone = (g.stats.tasksDone ?? 0) + 1;
-  return true;
+const affStep = (L: LifeState) => Math.max(0.5, affectionReq(L.level + 1) - affectionReq(L.level));
+export interface TaskResult { caught: boolean; bribes: number; }
+/** ผู้เล่นทำราชกิจ 1 ชิ้นเสร็จ · bribes = จำนวนสินบนที่รับ (เฉพาะทางมืด) */
+export function completeTask(g: GameState, score: number, bribes = 0): TaskResult | null {
+  const L = g.life, t = L.tasks;
+  if (!t || t.n <= 0) return null;
+  t.n--; t.fullSince = null; g.stats.tasksDone = (g.stats.tasksDone ?? 0) + 1;
+  score = clamp(score, 0, 1);
+  const dark = L.track === 'dark', light = L.track === 'light';
+  taskReward(g, score, 1, light && score >= 0.9 ? B.taskLightAff : dark ? B.taskDarkAff : 1);
+  if (light && score >= 0.9) addMerit(g, B.taskLightMerit);
+  let caught = false;
+  if (dark && bribes > 0) {
+    L.money += bribes * B.taskBribeMoneyDays * dailyIncome(g);
+    L.sin += bribes * B.taskBribeSin;
+    const risky = Math.max(0, bribes - B.taskBribeSafe);
+    if (risky > 0 && nextRandom(g) < risky * B.taskBribeCatch) { caught = true; L.affection = Math.max(0, L.affection - B.taskCaughtAff * affStep(L)); }
+  } else bribes = 0;
+  return { caught, bribes };
 }
 function stepDay(g: GameState, eff = 1) {
   const L = g.life, p = B.paths[L.path], age = ageOf(L);

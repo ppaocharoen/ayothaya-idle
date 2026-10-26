@@ -379,3 +379,6 @@ p { margin: 4px 0; }
 .mg-btns { display: flex; gap: 10px; margin-top: 10px; }
 .mg-btns .gbtn { flex: 1; }
 .mg-hint { text-align: center; font-size: 12px; margin: 6px 0 0; }
+.mg-bribe { position: absolute; left: 8px; top: 6px; display: flex; flex-direction: column; align-items: center; color: #8a5a10; animation: mgbob 1s infinite alternate; }
+.mg-bribe small { font-size: 10px; font-weight: 700; }
+@keyframes mgbob { to { transform: translateY(-3px); } }

@@ -26,7 +26,7 @@ function play(s: Strategy, maxLoops = 2): RunRec {
     const r = E.advance(g, 15, { online: false });
     cur.income += Math.max(0, g.life.money - before);
     // ผู้เล่นเข้ามาเคลียร์ราชกิจเป็นระยะ (ฝีมือกลางๆ) — ใส่ --notasks เพื่อจำลองคนไม่เล่นมินิเกม
-    if (!process.argv.includes('--notasks') && (g.life.tasks?.n ?? 0) >= 3) E.completeTask(g, 0.6);
+    if (!process.argv.includes('--notasks') && (g.life.tasks?.n ?? 0) >= 3) E.completeTask(g, 0.6, g.life.track === 'dark' ? 2 : 0);
     // จัดการเหตุการณ์
     while (g.queue.length) {
       const e = g.queue[0];

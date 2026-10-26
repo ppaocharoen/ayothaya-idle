@@ -4,7 +4,9 @@ import { esc, th } from './format';
 import { icon } from './icons';
 import * as S from './sound';
 
-export interface TaskGame { title: string; run: (box: HTMLElement, tier: number, done: (score: number) => void) => () => void; }
+export type Track = 'light' | 'dark' | null;
+/** done(score, สินบนที่รับ) · ทางมืดมีของเถื่อน/สินบนให้รับระหว่างเล่น */
+export interface TaskGame { title: string; darkHint: string; run: (box: HTMLElement, tier: number, track: Track, done: (score: number, bribes: number) => void) => () => void; }
 
 const MONTHS = ['อ้าย', 'ยี่', 'สาม', 'สี่', 'ห้า', 'หก', 'เจ็ด', 'แปด', 'เก้า', 'สิบ', 'สิบเอ็ด', 'สิบสอง'];
 const DEPTS = [
@@ -17,7 +19,8 @@ const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 /** บริหาร: คัดหนังสือขอเบิก อนุมัติ/ตีกลับ ตามกฎ */
 const bureau: TaskGame = {
   title: 'คัดหนังสือราชการ',
-  run(box, tier, done) {
+  darkHint: 'บางฉบับมีถุงเงินแนบมา กด "รับไว้" จะได้เงินและอนุมัติให้ทันที แม้หนังสือผิดกฎ — แต่ได้บาป และรับบ่อยเสี่ยงถูกจับ',
+  run(box, tier, track, done) {
     const cur = Math.floor(Math.random() * 12), limit = 20 + 10 * Math.floor(Math.random() * 4);
     const rules = [
       'ต้องมีตราประทับ และลงชื่อผู้ส่ง',
@@ -25,37 +28,47 @@ const bureau: TaskGame = {
       `ลงวันได้เฉพาะเดือน${MONTHS[cur]} หรือเดือน${MONTHS[(cur + 11) % 12]} (เดือนก่อน)`,
       `ขอเบิกได้ไม่เกิน ${th(limit)} ชั่ง`,
     ].slice(0, tier + 1);
-    type Doc = { dept: typeof DEPTS[number]; seal: typeof DEPTS[number] | null; signed: boolean; month: number; amount: number };
+    type Doc = { dept: typeof DEPTS[number]; seal: typeof DEPTS[number] | null; signed: boolean; month: number; amount: number; bribe: boolean };
     const valid = (d: Doc) => !!d.seal && d.signed && (tier < 1 || d.seal === d.dept) && (tier < 2 || d.month === cur || d.month === (cur + 11) % 12) && (tier < 3 || d.amount <= limit);
     const make = (): Doc => {
       // ประมาณครึ่งหนึ่งถูกต้อง ที่ผิดจะผิดแค่ข้อเดียว (ต้องดูให้ดี)
       const dept = pick(DEPTS);
-      const d: Doc = { dept, seal: dept, signed: true, month: Math.random() < 0.5 ? cur : (cur + 11) % 12, amount: 5 + Math.floor(Math.random() * (limit - 4)) };
+      const d: Doc = { dept, seal: dept, signed: true, month: Math.random() < 0.5 ? cur : (cur + 11) % 12, amount: 5 + Math.floor(Math.random() * (limit - 4)), bribe: false };
       if (Math.random() < 0.5) {
         const bad = Math.floor(Math.random() * (tier + 1)) ;
         if (bad === 0) { if (Math.random() < 0.5) d.seal = null; else d.signed = false; }
         else if (bad === 1) d.seal = pick(DEPTS.filter(x => x !== dept));
         else if (bad === 2) d.month = (cur + 2 + Math.floor(Math.random() * 9)) % 12;
         else d.amount = limit + 5 + Math.floor(Math.random() * 30);
+        // ทางมืด: หนังสือผิดกฎบางฉบับแนบถุงเงินมาขอให้ผ่าน
+        if (track === 'dark' && Math.random() < 0.45) d.bribe = true;
       }
       return d;
     };
     const TIME = 30, TARGET = 9;
-    let left = TIME, right = 0, wrong = 0, doc = make(), t0 = 0, raf = 0, over = false;
+    let left = TIME, right = 0, wrong = 0, bribes = 0, doc = make(), t0 = 0, raf = 0, over = false;
     const docHtml = (d: Doc) => `<div class="mg-doc">
       <div class="mg-dt">หนังสือขอเบิกพระราชทรัพย์</div>
       <p>จาก <b>${esc(d.dept.name)}</b></p>
       <p>ขอเบิก <b>${th(d.amount)}</b> ชั่ง เพื่อใช้ในราชการ</p>
       <p>ลงวัน <b>เดือน${MONTHS[d.month]}</b></p>
       <p class="mg-sign">ลงชื่อ ${d.signed ? '<b class="mg-ink">ออกญา…</b>' : '<span class="muted">……………………</span>'}</p>
+      ${d.bribe ? `<div class="mg-bribe">${icon('pouch', 26)}<small>ถุงเงินแนบ</small></div>` : ''}
       ${d.seal ? `<div class="mg-seal" style="--c:${d.seal.color}"><span>ตรา<br>${esc(d.seal.seal)}</span></div>` : ''}
     </div>`;
     const render = () => {
-      box.innerHTML = `<div class="mg-top"><span>${icon('check', 16)}${th(right)}</span><span class="mg-bar"><i style="width:${(left / TIME * 100).toFixed(1)}%"></i></span><span>${icon('cross', 16)}${th(wrong)}</span></div>
+      box.innerHTML = `<div class="mg-top"><span>${icon('check', 16)}${th(right)}</span><span class="mg-bar"><i style="width:${(left / TIME * 100).toFixed(1)}%"></i></span><span>${icon('cross', 16)}${th(wrong)}</span>${track === 'dark' ? `<span>${icon('pouch', 16)}${th(bribes)}</span>` : ''}</div>
         <div class="mg-rules">${rules.map(r => `<div>• ${esc(r)}</div>`).join('')}</div>
         <div class="mg-stage">${docHtml(doc)}</div>
         <div class="mg-btns"><button class="gbtn dark" data-mg="no">${icon('cross', 20)}ตีกลับ</button><button class="gbtn" data-mg="yes">${icon('check', 20)}อนุมัติ</button></div>
+        ${doc.bribe ? `<div class="mg-btns"><button class="gbtn red" data-mg="bribe">${icon('pouch', 20)}รับไว้ แล้วอนุมัติ</button></div>` : ''}
         <p class="muted mg-hint">ปัดหนังสือไปซ้าย = ตีกลับ · ขวา = อนุมัติ</p>`;
+    };
+    const takeBribe = () => {
+      if (over || !doc.bribe) return;
+      bribes++; S.playTap();
+      box.querySelector<HTMLElement>('.mg-doc')?.classList.add('go-r');
+      setTimeout(() => { doc = make(); render(); }, 160);
     };
     const answer = (yes: boolean) => {
       if (over) return;
@@ -67,7 +80,7 @@ const bureau: TaskGame = {
     };
     const finish = () => {
       over = true; cancelAnimationFrame(raf);
-      done(Math.max(0, Math.min(1, (right - wrong) / TARGET)));
+      done(Math.max(0, Math.min(1, (right - wrong) / TARGET)), bribes);
     };
     const tick = (now: number) => {
       if (!t0) t0 = now;
@@ -76,7 +89,7 @@ const bureau: TaskGame = {
       if (left <= 0) { finish(); return; }
       raf = requestAnimationFrame(tick);
     };
-    const onClick = (ev: Event) => { const b = (ev.target as HTMLElement).closest<HTMLElement>('[data-mg]'); if (b) answer(b.dataset.mg === 'yes'); };
+    const onClick = (ev: Event) => { const b = (ev.target as HTMLElement).closest<HTMLElement>('[data-mg]'); if (!b) return; if (b.dataset.mg === 'bribe') takeBribe(); else answer(b.dataset.mg === 'yes'); };
     // ปัดซ้าย/ขวา
     let sx: number | null = null;
     const down = (ev: PointerEvent) => { if ((ev.target as HTMLElement).closest('.mg-doc')) sx = ev.clientX; };
@@ -94,29 +107,29 @@ const TIER_NAME = ['ชั้นผู้น้อย', 'ชั้นกลา�
 const grade = (s: number) => s >= 0.9 ? 'ยอดเยี่ยม' : s >= 0.6 ? 'ดี' : s >= 0.3 ? 'พอใช้' : 'ต้องปรับปรุง';
 
 /** เปิดหน้ามินิเกมเต็มจอ: แนะนำ → เล่น → สรุป · onDone(score) หรือ null ถ้ากดออกก่อนเล่น */
-export function runTask(kind: string, tier: number, onDone: (score: number | null) => void) {
+export function runTask(kind: string, tier: number, track: Track, onDone: (score: number | null, bribes: number) => void) {
   const game = TASK_GAMES[kind];
-  if (!game) { onDone(null); return; }
+  if (!game) { onDone(null, 0); return; }
   const root = document.createElement('div');
   root.className = 'mg';
   root.innerHTML = `<div class="mg-panel"><div class="mg-head"><b>${icon('scroll', 18)}ราชกิจ · ${esc(game.title)}</b><small>${TIER_NAME[tier] ?? ''}</small></div><div class="mg-box"></div></div>`;
   document.body.appendChild(root);
   const box = root.querySelector<HTMLElement>('.mg-box')!;
   let stop: (() => void) | null = null;
-  const close = (score: number | null) => { stop?.(); root.remove(); onDone(score); };
+  const close = (score: number | null, bribes = 0) => { stop?.(); root.remove(); onDone(score, bribes); };
   box.innerHTML = `<p>ภายใน ๓๐ วินาที ตัดสินหนังสือให้ถูกมากที่สุด — ตอบผิดเสียเวลา ๒ วินาที</p>
-    <div class="mg-rules">${tier >= 0 ? '<div>ยศสูงขึ้น กฎจะเพิ่มขึ้นทีละข้อ</div>' : ''}</div>
+    <div class="mg-rules"><div>ยศสูงขึ้น กฎจะเพิ่มขึ้นทีละข้อ</div>${track === 'light' ? '<div>ทางสว่าง: ทำได้ยอดเยี่ยมได้ความชอบเพิ่มและได้บุญ</div>' : track === 'dark' ? `<div>ทางมืด: ${esc(game.darkHint)}</div>` : ''}</div>
     <div class="mg-btns"><button class="gbtn dark" data-x="later">ไว้ทีหลัง</button><button class="gbtn" data-x="go">${icon('play', 20)}เริ่ม</button></div>`;
   box.addEventListener('click', function intro(ev) {
     const b = (ev.target as HTMLElement).closest<HTMLElement>('[data-x]'); if (!b) return;
     box.removeEventListener('click', intro);
     if (b.dataset.x === 'later') { close(null); return; }
     S.playSelect();
-    stop = game.run(box, tier, score => {
+    stop = game.run(box, tier, track, (score, bribes) => {
       stop?.(); stop = null;
-      box.innerHTML = `<h2>${grade(score)}</h2><p>ทำได้ ${th(Math.round(score * 100))}% ของงานเต็ม</p><button class="gbtn" data-x="ok">${icon('check', 20)}รับผลงาน</button>`;
+      box.innerHTML = `<h2>${grade(score)}</h2><p>ทำได้ ${th(Math.round(score * 100))}% ของงานเต็ม${bribes ? ` · รับสินบน ${th(bribes)} ครั้ง` : ''}</p><button class="gbtn" data-x="ok">${icon('check', 20)}รับผลงาน</button>`;
       (score >= 0.6 ? S.playGood : S.playTap)();
-      box.querySelector('[data-x=ok]')!.addEventListener('click', () => close(score));
+      box.querySelector('[data-x=ok]')!.addEventListener('click', () => close(score, bribes));
     });
   });
 }

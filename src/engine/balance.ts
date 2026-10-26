@@ -97,6 +97,10 @@ export const BALANCE = {
   taskRetainerDaily: 0.007, taskRetainerShareBase: 0.3, taskRetainerSharePer: 0.05,
   /** ผลเต็มเมื่อทำได้ดีเยี่ยม: เงิน = วันของรายได้ · ความชอบ = สัดส่วนของที่ต้องใช้เลื่อนขั้น · สเตตัสหลัก */
   taskMoneyDays: 3, taskAff: 0.08, taskStat: 0.3,
+  /** ทางสว่าง: ทำได้ยอดเยี่ยม (≥0.9) ความชอบ ×x และได้บุญ · ทางมืด: ความชอบ ×y แต่รับสินบนได้ */
+  taskLightAff: 1.25, taskLightMerit: 30, taskDarkAff: 0.8,
+  /** สินบน 1 ครั้ง: เงิน (วันของรายได้) · บาป · รับเกินกี่ครั้งเริ่มเสี่ยงถูกจับ · โอกาสต่อครั้งที่เกิน · ถูกจับเสียความชอบ (สัดส่วนของขั้น) */
+  taskBribeMoneyDays: 2, taskBribeSin: 0.5, taskBribeSafe: 2, taskBribeCatch: 0.15, taskCaughtAff: 0.3,
   // ---- กงการ (อีเวนต์งาน) ----
   /** ห่างกันกี่วัน: ผู้ใหญ่ ~6–8 ครั้ง/ปี · ลูกมือ (ต่ำกว่า 18) ห่างกว่า */
   workMinDays: 45, workMaxDays: 62, workTeenMinDays: 100, workTeenMaxDays: 160,

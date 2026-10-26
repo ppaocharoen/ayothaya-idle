@@ -142,14 +142,14 @@ function currentMood(): SceneMood {
 }
 
 // ---------- ตัวเลขลอยขึ้นจากตัวละคร ----------
-interface Snap { life: number; money: number; merit: number; aff: number; hp: number; joy: number; stats: Record<string, number>; }
+interface Snap { life: number; money: number; merit: number; aff: number; hp: number; joy: number; sin?: number; stats: Record<string, number>; }
 interface Delta { key: string; label: string; v: number; text: string; kind: string; }
 function snap(): Snap {
   const L = g.life, stats: Record<string, number> = {};
   for (const k of E.STAT_KEYS) stats[k] = L.stats[k] / L.cap;
-  return { life: L.idx, money: L.money, merit: g.merit, aff: L.affection, hp: L.health, joy: L.joy, stats };
+  return { life: L.idx, money: L.money, merit: g.merit, aff: L.affection, hp: L.health, joy: L.joy, sin: L.sin, stats };
 }
-const iconOf = (key: string) => key === 'money' ? 'coin' : key === 'merit' ? 'lotus' : key === 'aff' ? 'medal' : key === 'health' ? 'heart' : key === 'joy' ? 'smile' : STAT_ICON[key] ?? 'star';
+const iconOf = (key: string) => key === 'money' ? 'coin' : key === 'merit' ? 'lotus' : key === 'aff' ? 'medal' : key === 'health' ? 'heart' : key === 'joy' ? 'smile' : key === 'sin' ? 'hood' : STAT_ICON[key] ?? 'star';
 /** ผลต่างก่อน/หลัง (ใช้ทั้งตัวเลขลอยและป๊อปอัพผลลัพธ์) */
 function diff(a: Snap): Delta[] {
   const b = snap(), out: Delta[] = [];
@@ -159,6 +159,7 @@ function diff(a: Snap): Delta[] {
   const db = b.merit - a.merit; if (db > 1e-6) out.push({ key: 'merit', label: 'บุญ', v: db, text: `+${th(db < 1 ? db.toFixed(2) : db.toFixed(1))}`, kind: 'merit' });
   const da = b.aff - a.aff; if (Math.abs(da) > 1e-6) out.push({ key: 'aff', label: 'ความชอบ', v: da, text: `${da > 0 ? '+' : '−'}${th(Math.abs(da).toFixed(2))}`, kind: 'aff' });
   const dh = b.hp - a.hp; if (Math.abs(dh) > 0.004) out.push({ key: 'health', label: 'สุขภาพ', v: dh, text: `${dh > 0 ? '+' : '−'}${pctAuto(Math.abs(dh))}`, kind: 'aff' });
+  const dsn = (b.sin ?? 0) - (a.sin ?? 0); if (dsn > 1e-6) out.push({ key: 'sin', label: 'บาป', v: -dsn, text: `+${th(dsn.toFixed(1))}`, kind: 'aff' });
   const dj = b.joy - a.joy; if (Math.abs(dj) > 0.004) out.push({ key: 'joy', label: 'ความสำราญ', v: dj, text: `${dj > 0 ? '+' : '−'}${pctAuto(Math.abs(dj))}`, kind: 'merit' });
   return out;
 }
@@ -601,12 +602,13 @@ document.addEventListener('click', ev => {
       const kind = E.taskKind(g.life);
       if (!kind || !g.life.tasks?.n) break;
       const was = running; running = false; renderHud(); S.playTap();
-      runTask(kind, E.workTier(g.life.level), score => {
+      runTask(kind, E.workTier(g.life.level), (g.life.track ?? null) as 'light' | 'dark' | null, (score, bribes) => {
         running = was;
         if (score != null) {
           const before = snap();
-          E.completeTask(g, score); save();
+          const r = E.completeTask(g, score, bribes); save();
           showResult(`ราชกิจ · ${TASK_GAMES[kind].title}`, diff(before), null);
+          if (r?.caught) toast('ถูกจับได้ว่ารับสินบน — นายเสียความเชื่อใจ ความชอบลดลง', 'cross');
           scene.showAnim(scene.workAnimId(g.life) ?? 'happy', 5);
         }
         renderHud(); renderTab();
