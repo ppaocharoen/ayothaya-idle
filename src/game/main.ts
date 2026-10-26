@@ -138,7 +138,7 @@ function currentMood(): SceneMood {
   const L = g.life, doy = L.day % B.daysPerYear, month = Math.min(11, Math.floor(doy / (365 / 12))), y = E.yearOf(L);
   const rainDay = (((L.day * 2654435761) >>> 0) % 5) < 2;
   const war = content.historical.some(h => h.life === L.idx && h.checkStat === 'ต่อสู้' && y >= h.yearFrom && y <= Math.max(h.yearTo, h.yearFrom));
-  return { dayFrac: running && !g.queue.length ? acc / B.secondsPerGameDay : 0.4, month, rain: month >= 5 && month <= 10 && rainDay, war };
+  return { dayFrac: running && !g.queue.length ? acc / B.secondsPerGameDay : 0.4, month, rain: devRain || (month >= 5 && month <= 10 && rainDay), war };
 }
 
 // ---------- ตัวเลขลอยขึ้นจากตัวละคร ----------
@@ -738,9 +738,11 @@ let installEvt: (Event & { prompt: () => void }) | null = null;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e as typeof installEvt; });
 const standalone = () => window.matchMedia('(display-mode: standalone)').matches || (navigator as unknown as { standalone?: boolean }).standalone === true;
 const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-let menuPage: 'main' | 'log' | 'install' = 'main';
+let menuPage: 'main' | 'log' | 'install' | 'dev' = 'main';
+const IS_DEV = location.search.includes('dev');
 function renderMenu() {
   const body = $('menu-body');
+  if (menuPage === 'dev') { body.innerHTML = devPage(); return; }
   if (menuPage === 'log') {
     body.innerHTML = `<div class="mhead"><button class="mback" data-m="main">${icon('cross', 16)}</button><b>มีอะไรใหม่</b></div>
       ${CHANGELOG.map(c => `<div class="mlog"><div><b>เวอร์ชัน ${c.v}</b><small>${c.date}</small></div><ul>${c.items.map(i => `<li>${esc(i)}</li>`).join('')}</ul></div>`).join('')}`;
@@ -778,7 +780,100 @@ function renderMenu() {
       <button class="mchip ${sound.music ? 'on' : ''}" data-m="music">${icon('note', 20)}<small>เพลง</small></button></div>
     <button class="mrow" data-m="install">${icon('house', 24)}<span>เพิ่มไปหน้าจอโฮม</span></button>
     <button class="mrow" data-m="log">${icon('scroll', 24)}<span>มีอะไรใหม่</span><small>v${VERSION}</small></button>
+    ${IS_DEV ? `<button class="mrow" data-m="dev">${icon('star', 24)}<span>แผงนักพัฒนา</span><small>dev</small></button>` : ''}
     <button class="mrow danger" data-m="quit">${icon('cross', 24)}<span>บันทึกและปิดเกม</span></button>`;
+}
+// ---------- แผงนักพัฒนา (เฉพาะ ?dev) ----------
+function devPage(): string {
+  const L = g.life, age = E.ageOf(L);
+  const chip = (a: string, v: string | number, label: string, on = false) => `<button class="mchip dv ${on ? 'on' : ''}" data-m="dev" data-a="${a}" data-v="${v}"><small>${esc(label)}</small></button>`;
+  const row = (title: string, chips: string) => `<div class="mlabel">${esc(title)}</div><div class="mchips">${chips}</div>`;
+  const careers = content.careers.careers.map(c => chip('career', c.key, c.key, L.career === c.key)).join('');
+  const kids = content.childJobs.map(j => chip('child', j.key, j.key, L.childJob === j.key)).join('');
+  const levels = [0, 1, 2, 5, 8, 11, 14, 17, 19].map(n => chip('level', n, `Lv.${n}`, L.level === n)).join('');
+  const anims = Object.keys(Scene.ANIMS).map(a => chip('anim', a, a)).join('');
+  const hist = ['L1-H02', 'L2-H04', 'L4-H09'].map(id => chip('hist', id, id)).join('');
+  const games = Object.keys(TASK_GAMES).map(k => chip('game', k, TASK_GAMES[k].title)).join('');
+  const pets = BREEDS.map(b => chip('pet', b.key, b.name, g.pet?.breed === b.key)).join('') + chip('pet', '', 'ไม่มี');
+  return `<div class="mhead"><button class="mback" data-m="main">${icon('cross', 16)}</button><b>แผงนักพัฒนา</b></div>
+    <p class="muted">อายุ ${th(age)} · ${esc(L.career ?? L.childJob ?? '-')} Lv.${th(L.level)} ${esc(L.track ?? '')} · บ้าน ${th(L.accommodation)} · บริวาร ${th(L.retainer)} · บาป ${th(L.sin.toFixed(1))}</p>
+    ${row('ข้ามเวลา (เดินเวลาจริง เหตุการณ์ค้างไว้ให้เลือก)', chip('adv', 30, '+๑ เดือน') + chip('adv', 365, '+๑ ปี') + chip('adv', 3650, '+๑๐ ปี'))}
+    ${row('กระโดดไปอายุ (ข้ามทันที ไม่เกิดเหตุการณ์ระหว่างทาง)', [9, 12, 18, 30, 45, 55, 65].map(a => chip('age', a, String(a), age === a)).join(''))}
+    ${row('อาชีพ', careers)}${row('งานเด็ก', kids)}
+    ${row('ยศ', levels)}${row('ทาง', chip('track', 'light', 'สว่าง', L.track === 'light') + chip('track', 'dark', 'มืด', L.track === 'dark'))}
+    ${row('ที่พำนัก', [0, 1, 2, 3, 4, 5].map(n => chip('acc', n, String(n), L.accommodation === n)).join(''))}
+    ${row('บริวาร', [0, 1, 2, 3, 4, 5, 6].map(n => chip('ret', n, String(n), L.retainer === n)).join(''))}
+    ${row('ค่าต่างๆ', chip('res', 'money', 'เงินเยอะ') + chip('res', 'merit', 'บุญ +๕๐๐๐') + chip('res', 'aff', 'ความชอบพอเลื่อนยศ') + chip('res', 'stats', 'สเตตัส ๙๐%') + chip('res', 'hp1', 'สุขภาพเต็ม') + chip('res', 'hp0', 'สุขภาพต่ำ') + chip('res', 'joy1', 'สำราญเต็ม') + chip('res', 'joy0', 'สำราญต่ำ') + chip('res', 'sin0', 'บาป ๐') + chip('res', 'sin99', 'บาป ๙๙'))}
+    ${row('เรียกเหตุการณ์', chip('ev', 'work', 'กงการ') + chip('ev', 'karma', 'กงกรรม') + chip('ev', 'fun', 'สันทนาการ') + chip('ev', 'health', 'สุขภาพ') + hist)}
+    ${row('ยมโลก (ดูอย่างเดียว ไม่ตาย)', chip('yama', 'heaven', 'สวรรค์') + chip('yama', 'human', 'แดนรอเกิด') + chip('yama', 'preta', 'เปรต') + chip('yama', 'hell', 'นรก'))}
+    ${row('ราชกิจ', chip('tasks', 'fill', 'เติมงานค้างเต็ม') + chip('tasks', 'angry', 'กองเต็ม+นายไม่พอใจ') + chip('tasks', 'zero', 'ล้างงาน'))}
+    ${row('ลองมินิเกม (ไม่ได้รางวัล ไม่หักงาน) · ใช้ยศ/ทางปัจจุบัน', games)}
+    ${row('ฉาก', chip('place', 'in', 'เข้าบ้าน') + chip('place', 'work', 'ที่ทำงาน') + chip('place', 'out', 'นอกบ้าน') + chip('place', 'rain', 'ฝนตก/หยุด'))}
+    ${row('ท่าทาง', anims)}
+    ${row('สัตว์เลี้ยง', pets)}${row('วัยสัตว์', chip('petage', 0.5, 'เด็ก') + chip('petage', 8, 'โต') + chip('petage', 25, 'แก่'))}
+    ${row('อื่นๆ', chip('reset', '', 'รีเซ็ตเซฟ'))}`;
+}
+let devRain = false;
+function devAct(a: string, v: string) {
+  const L = g.life;
+  const affStep = () => Math.max(0.5, E.affectionReq(L.level + 1) - E.affectionReq(L.level));
+  switch (a) {
+    case 'adv': E.advance(g, +v, { online: false }); break;
+    case 'age': L.day = Math.max(0, (+v - B.startAge) * B.daysPerYear); if (+v < B.careerMinAge) { L.career = null; L.level = 0; L.track = null; } break;
+    case 'career': if (E.ageOf(L) < B.careerMinAge) L.day = (B.careerMinAge - B.startAge) * B.daysPerYear; L.career = v; L.level = 0; L.track = null; L.tasks = undefined; break;
+    case 'child': L.day = Math.min(L.day, (B.careerMinAge - B.startAge) * B.daysPerYear - 1); L.childJob = v; L.career = null; L.level = 0; L.track = null; L.tasks = undefined; break;
+    case 'level': if (!L.career) break; L.level = +v; if (L.level >= B.lightDarkLevel && !L.track) L.track = 'light'; if (L.level < B.lightDarkLevel) L.track = null; break;
+    case 'track': if (L.career && L.level >= B.lightDarkLevel) L.track = v as 'light' | 'dark'; break;
+    case 'acc': L.accommodation = +v; break;
+    case 'ret': L.retainer = +v; break;
+    case 'res':
+      if (v === 'money') L.money += E.promoteCost(L.level) * 20 + 100;
+      if (v === 'merit') g.merit += 5000;
+      if (v === 'aff') L.affection = Math.max(L.affection, E.affectionReq(L.level + 1) + affStep());
+      if (v === 'stats') for (const k of E.STAT_KEYS) L.stats[k] = Math.max(L.stats[k], L.cap * 0.9);
+      if (v === 'hp1') L.health = 1; if (v === 'hp0') L.health = 0.15;
+      if (v === 'joy1') L.joy = 1; if (v === 'joy0') L.joy = 0.1;
+      if (v === 'sin0') L.sin = 0; if (v === 'sin99') L.sin = 99;
+      break;
+    case 'ev': {
+      if (v === 'work') {
+        const pool = content.work.filter(w => w.career === L.career && w.tier === E.workTier(L.level));
+        if (pool.length) g.queue.push({ kind: 'karma', id: pool[Math.floor(Math.random() * pool.length)].id, generic: true }); else toast('ต้องมีอาชีพก่อน', 'cross');
+      } else {
+        const pool = content.karmaGeneric.filter(k => v === 'karma' ? !k.tag : k.tag === v);
+        g.queue.push({ kind: 'karma', id: pool[Math.floor(Math.random() * pool.length)].id, generic: true });
+      }
+      closeMenu(); break;
+    }
+    case 'hist': g.queue.push({ kind: 'hist', id: v }); closeMenu(); break;
+    case 'yama': {
+      const keep = { sin: L.sin, ms: L.meritStart };
+      if (v === 'heaven') { L.sin = 0; L.meritStart = g.merit - 1000; }
+      if (v === 'human') { L.sin = 10; }
+      if (v === 'preta') { L.sin = 40; }
+      if (v === 'hell') { L.sin = 99; }
+      closeMenu(); yama(true); L.sin = keep.sin; L.meritStart = keep.ms; return;
+    }
+    case 'tasks':
+      if (!E.taskKind(L)) { toast('งานนี้ยังไม่มีมินิเกม', 'cross'); break; }
+      L.tasks ??= { n: 0, next: L.day + 12, fullSince: null };
+      if (v === 'fill') { L.tasks.n = B.taskCap; L.tasks.fullSince = L.day; }
+      if (v === 'angry') { L.tasks.n = B.taskCap; L.tasks.fullSince = L.day - B.taskAngryAfter - 1; }
+      if (v === 'zero') { L.tasks.n = 0; L.tasks.fullSince = null; }
+      break;
+    case 'game': closeMenu(); runTask(v, E.workTier(L.level), (L.track ?? null) as 'light' | 'dark' | null, sc => { if (sc != null) toast(`คะแนน ${th(Math.round(sc * 100))}% (โหมดลอง ไม่ได้รางวัล)`, 'check'); }); return;
+    case 'place': closeMenu();
+      if (v === 'in') scene.showAnim('read', 8);
+      else if (v === 'work') { const w = scene.workAnimId(L); if (!w || !scene.showAnim(w, 8)) toast('ฉากที่ทำงานใช้ตอนเป็นผู้ใหญ่มีอาชีพ', 'cross'); }
+      else if (v === 'rain') { devRain = !devRain; toast(devRain ? 'บังคับฝนตก' : 'เลิกบังคับฝน', 'check'); }
+      else scene.showAnim('happy', 1);
+      return;
+    case 'anim': closeMenu(); if (!scene.showAnim(v, 8)) toast(`ท่า ${v} ยังไม่มีภาพ`, 'cross'); return;
+    case 'pet': g.pet = v ? { breed: v, name: g.pet?.name ?? 'ทดสอบ', born: g.clock - 8 * B.daysPerYear, lifespan: 40, full: 1, bond: 0.6, trained: 0.3, lastFed: g.clock, lastTrained: 0, playsToday: 0, playDay: 0 } : null; break;
+    case 'petage': if (g.pet) g.pet.born = g.clock - +v * B.daysPerYear; break;
+    case 'reset': store()?.removeItem(SAVE_KEY); location.reload(); return;
+  }
+  lifebarFor = ''; save(); renderHud(); renderTab(); renderMenu();
 }
 function openMenu() { menuPage = 'main'; renderMenu(); $('menu').classList.add('show'); S.playTap(); }
 function closeMenu() { $('menu').classList.remove('show'); }
@@ -788,7 +883,8 @@ $('menu').addEventListener('click', ev => {
   const b = (ev.target as HTMLElement).closest<HTMLElement>('[data-m]'); if (!b) return;
   const m = b.dataset.m!;
   if (m === 'close') { closeMenu(); return; }
-  if (m === 'main' || m === 'log' || m === 'install') { menuPage = m; S.playTap(); renderMenu(); return; }
+  if (m === 'main' || m === 'log' || m === 'install' || (m === 'dev' && !b.dataset.a)) { menuPage = m as typeof menuPage; S.playTap(); renderMenu(); return; }
+  if (m === 'dev' && IS_DEV) { S.playTap(); devAct(b.dataset.a!, b.dataset.v ?? ''); return; }
   if (m === 'play') { running = !running; S.playTap(); renderHud(); renderTab(); renderMenu(); return; }
   if (m === 'speed') { speedIdx = +b.dataset.v!; if (!running) running = true; S.playSelect(); renderHud(); renderMenu(); return; }
   if (m === 'sfx' || m === 'music') {
