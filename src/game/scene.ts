@@ -47,7 +47,7 @@ const SHEET_BASE: Record<string, string> = {
   c1: 'b1', c2: 'b2', c3: 'b3', c4: 'b4', c5: 'b5', c6: 'b6', d1: 'b1', d2: 'b2', d3: 'b3', d4: 'b4', d5: 'b5', d6: 'b6',
   u1: 't1', u2: 't2', u3: 't3', v1: 't1', v2: 't2', v3: 't3', up1: 'p1', up2: 'p2', up3: 'p3', vp1: 'p1', vp2: 'p2', vp3: 'p3',
 };
-const sheetMeta = (k: string) => SHEETS[k] ?? SHEETS[SHEET_BASE[k]];
+const sheetMeta = (k: string) => SHEETS[k] ?? SHEETS[SHEET_BASE[k] ?? (/^[cd][89]([1-6])$/.test(k) ? `b${k[2]}` : '')];
 
 type Place = 'out' | 'in' | 'work';
 export interface SceneMood { dayFrac: number; month: number; rain: boolean; war: boolean; }
@@ -125,7 +125,7 @@ export class Scene {
     this.loCtx = this.lo.getContext('2d')!; this.frCtx = this.fr.getContext('2d')!;
     this.ctx = this.loCtx;
     this.sprite.src = new URL('./art/boy.png', document.baseURI).href;
-    for (const k of ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 't1', 't2', 't3', 'p1', 'p2', 'p3', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'u1', 'u2', 'u3', 'up1', 'up2', 'up3', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6', 'v1', 'v2', 'vp1', 'vp2', 'vp3', ...BREEDS.flatMap(b => b.art ? [b.art] : [])]) { const im = new Image(); im.src = new URL(`./art/${k.startsWith('pet_') ? k : `boy_${k}`}.png`, document.baseURI).href; im.onerror = () => { delete this.actSheets[k]; }; this.actSheets[k] = im; }
+    for (const k of ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 't1', 't2', 't3', 'p1', 'p2', 'p3', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'u1', 'u2', 'u3', 'up1', 'up2', 'up3', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6', 'v1', 'v2', 'v3', 'vp1', 'vp2', 'vp3', ...[8, 9].flatMap(t => [1, 2, 3, 4, 5, 6].flatMap(n => [`c${t}${n}`, `d${t}${n}`])), ...BREEDS.flatMap(b => b.art ? [b.art] : [])]) { const im = new Image(); im.src = new URL(`./art/${k.startsWith('pet_') ? k : `boy_${k}`}.png`, document.baseURI).href; im.onerror = () => { delete this.actSheets[k]; }; this.actSheets[k] = im; }
     for (const k of ['city', 'houses', 'work1', 'work2', 'work3', 'work4', 'work5', 'work6', 'in0', 'in1', 'in2', 'in3', 'in4', 'in5', 'inP']) { const im = new Image(); im.src = new URL(`./art/bg_${k}.png`, document.baseURI).href; this.bg[k] = im; }
   }
 
@@ -276,11 +276,14 @@ export class Scene {
     this.fadeT = 0; this.fadeTo = want;
   }
   /** ฉากในบ้าน: ขยายเต็มกว้าง ชิดขอบล่าง (พื้นห้องอยู่ระดับเดียวกับพื้นดินข้างนอก) */
+  /** ปรับภาพในบ้านบางห้องให้พื้นตรงกับเท้าตัวละคร: [เลื่อนลง (พิกเซลเกม), ขยาย] */
+  private static INTERIOR_FIT: Record<string, [number, number]> = { in1: [12, 1.08] };
   private drawInterior(im: HTMLImageElement) {
-    const d = this.dc, K = this.K, s = Math.max(SCENE_W / im.naturalWidth, SCENE_H / im.naturalHeight);
+    const key = Object.keys(this.bg).find(k => this.bg[k] === im) ?? '', [dy, k] = Scene.INTERIOR_FIT[key] ?? [0, 1];
+    const d = this.dc, K = this.K, s = Math.max(SCENE_W / im.naturalWidth, SCENE_H / im.naturalHeight) * k;
     const w = im.naturalWidth * s, h = im.naturalHeight * s;
     d.setTransform(1, 0, 0, 1, 0, 0); d.imageSmoothingEnabled = false;
-    d.drawImage(im, Math.round((SCENE_W - w) / 2 * K), Math.round((SCENE_H - h) * K), Math.round(w * K), Math.round(h * K));
+    d.drawImage(im, Math.round((SCENE_W - w) / 2 * K), Math.round((SCENE_H + dy - h) * K), Math.round(w * K), Math.round(h * K));
   }
   private hasImg(im?: HTMLImageElement) { return !!(im && im.complete && im.naturalWidth); }
   /** วาดชั้นความละเอียดต่ำที่สะสมไว้ลงจอ แล้วล้างไว้วาดชั้นต่อไป */
@@ -369,12 +372,20 @@ export class Scene {
   /** ชุดผู้ใหญ่ (18+) ที่แก้มาจากชุดวัยรุ่น: B→C · T→U · P→UP (ใช้เมื่อมีภาพแล้ว) */
   private static ADULT: Record<string, string> = { b1: 'c1', b2: 'c2', b3: 'c3', b4: 'c4', b5: 'c5', b6: 'c6', t1: 'u1', t2: 'u2', t3: 'u3', p1: 'up1', p2: 'up2', p3: 'up3' };
   /** ชุดชรา (55+) ที่แก้มาจากชุดผู้ใหญ่: C→D · U→V · UP→VP */
+  private static HIGH_RANK = 14;
+  private curLevel = 0; private curTrack: string | null = null;
   private static ELDER: Record<string, string> = { c1: 'd1', c2: 'd2', c3: 'd3', c4: 'd4', c5: 'd5', c6: 'd6', u1: 'v1', u2: 'v2', u3: 'v3', up1: 'vp1', up2: 'vp2', up3: 'vp3' };
   private grown(k: string) {
     const ok = (x?: string) => !!x && this.hasSheet(x) && !!sheetMeta(x);
     let r = k;
     if (this.curAge >= 18 && ok(Scene.ADULT[r])) r = Scene.ADULT[r];
     if (this.curAge >= 55 && ok(Scene.ELDER[r])) r = Scene.ELDER[r];
+    // ยศสูง (Lv.14+): ชุดหรูทางสว่าง C8/D8 · ชุดมืด C9/D9
+    const m = /^([cd])([1-6])$/.exec(r);
+    if (m && this.curLevel >= Scene.HIGH_RANK && this.curTrack) {
+      const hr = `${m[1]}${this.curTrack === 'dark' ? 9 : 8}${m[2]}`;
+      if (ok(hr)) r = hr;
+    }
     return r;
   }
   /** ชุดผู้ใหญ่ที่ใช้อยู่จริงหรือไม่ (ใช้ปรับขนาดตัว) */
@@ -396,7 +407,7 @@ export class Scene {
 
   /** ตัวละครมีชีวิต: ยืนหายใจ กะพริบตา หันมามอง เดินไปมา และทำท่าตามสิ่งที่ทำอยู่ */
   private drawCharacter(L: GameState['life'], dt: number) {
-    const t = this.t; this.curAge = ageOf(L); this.curCareer = L.career;
+    const t = this.t; this.curAge = ageOf(L); this.curCareer = L.career; this.curLevel = L.level; this.curTrack = L.track;
     const busy = this.alert || this.jump > 0 || this.paused;
     if (this.alert || (this.paused && this.act?.id !== 'happy')) this.act = null;
     if (this.act && t > this.act.until) this.act = null;

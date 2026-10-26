@@ -16,7 +16,7 @@ import { BREEDS, breedOf, feedPrice, petAge, petPrice, petStage } from '../engin
 import { CAREER_ICON, CHILD_ICON, PATH_ICON, STAT_ICON, icon } from './icons';
 
 /** เหตุการณ์ประวัติศาสตร์ที่มีภาพประกอบ (public/art/H-<id>.jpg) */
-const HIST_ART = new Set(['L1-H02', 'L2-H04']);
+const HIST_ART = new Set(['L1-H02', 'L2-H04', 'L4-H09']);
 const SAVE_KEY = 'ayothaya.save.v1';
 const SPEEDS = location.search.includes('dev') ? [1, 10, 100, 3000] : [1, 10, 100];
 
