@@ -349,3 +349,33 @@ p { margin: 4px 0; }
 
 .kind.work { background: #2f4a6b; color: #f3e6c4; }
 .hart { display: block; width: calc(100% + 32px); margin: 8px -16px 10px; aspect-ratio: 16 / 9; object-fit: cover; box-shadow: inset 0 0 0 2px var(--gold2); border-top: 2px solid var(--gold2); border-bottom: 2px solid var(--gold2); }
+
+/* ราชกิจค้าง */
+.frame.task .taskdots { display: flex; gap: 6px; margin-bottom: 8px; }
+.frame.task .taskdots i { flex: 1; height: 10px; border-radius: 3px; background: #3a2618; box-shadow: inset 0 0 0 1px #000; }
+.frame.task .taskdots i.on { background: var(--gold); }
+.frame.task.angry { box-shadow: inset 0 0 0 2px #b8432c; }
+.frame.task .warn { color: #e8907a; font-size: 13px; display: flex; gap: 6px; align-items: center; }
+/* มินิเกม */
+.mg { position: fixed; inset: 0; z-index: 40; background: rgba(8,5,3,.82); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.mg-panel { width: 100%; max-width: 440px; background: var(--paper); color: var(--ink); border-radius: 14px; box-shadow: inset 0 0 0 3px var(--paper2), inset 0 0 0 5px var(--gold2), 0 10px 30px #000; padding: 14px 16px 18px; }
+.mg-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.mg-head b { display: flex; gap: 6px; align-items: center; color: var(--red, #7e2418); }
+.mg-top { display: flex; gap: 8px; align-items: center; font-weight: 700; }
+.mg-top span { display: flex; gap: 4px; align-items: center; }
+.mg-bar { flex: 1; height: 10px; border-radius: 5px; background: #d9c7a3; overflow: hidden; }
+.mg-bar i { display: block; height: 100%; background: linear-gradient(90deg, #b8862b, #f2c46d); }
+.mg-rules { margin: 8px 0; padding: 8px 10px; border-radius: 8px; background: rgba(160,110,50,.14); font-size: 13px; line-height: 1.5; }
+.mg-stage { position: relative; min-height: 210px; display: flex; justify-content: center; align-items: center; touch-action: pan-y; }
+.mg-doc { position: relative; width: 86%; padding: 14px 16px 18px; background: #fbf1d8; border-radius: 6px; box-shadow: 0 3px 0 #c9b27e, 0 6px 14px rgba(0,0,0,.25); font-size: 15px; line-height: 1.6; transition: transform .16s, opacity .16s; user-select: none; }
+.mg-doc p { margin: 2px 0; }
+.mg-dt { font-weight: 700; text-align: center; margin-bottom: 4px; border-bottom: 1px dashed #b89a62; }
+.mg-ink { color: #2a2a6a; font-style: italic; }
+.mg-seal { position: absolute; right: 10px; bottom: 10px; width: 54px; height: 54px; border-radius: 50%; border: 3px solid var(--c); color: var(--c); display: flex; align-items: center; justify-content: center; text-align: center; font-size: 11px; line-height: 1.2; font-weight: 700; transform: rotate(-12deg); opacity: .85; background: rgba(255,255,255,.3); }
+.mg-doc.go-r { transform: translateX(120%) rotate(12deg); opacity: 0; }
+.mg-doc.go-l { transform: translateX(-120%) rotate(-12deg); opacity: 0; }
+.mg-doc.shake { animation: mgshake .25s; }
+@keyframes mgshake { 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+.mg-btns { display: flex; gap: 10px; margin-top: 10px; }
+.mg-btns .gbtn { flex: 1; }
+.mg-hint { text-align: center; font-size: 12px; margin: 6px 0 0; }

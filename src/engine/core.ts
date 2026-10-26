@@ -53,6 +53,8 @@ export interface LifeState {
   deathAge: number | null;              // อายุตอนตาย (null = ยังมีชีวิต)
   meritStart: number;                   // บุญตอนเกิด (ใช้คิดบุญที่ทำในชาตินี้)
   deeds: { id: string; c: number }[];   // ตัวเลือกที่เลือกในชาตินี้ (พญายมหยิบมาไต่สวน)
+  /** ราชกิจค้าง: จำนวนงาน · วันที่งานถัดไปมา · เต็มตั้งแต่วันไหน */
+  tasks?: { n: number; next: number; fullSince: number | null };
   sched: { karma: Scheduled[]; hist: HistSchedule[]; nextGeneric: number; bag: number[]; bagPtr: number; recent?: string[]; nextWork?: number; recentWork?: string[] };
 }
 
@@ -71,7 +73,7 @@ export interface GameState {
   log: string[];
   ending: EndingId | 'defended' | null;
   savedAt: number;                      // เวลาจริงตอนเซฟ (ms) สำหรับคำนวณช่วงที่ปิดแอป
-  stats: { promotions: number; eventsSeen: number };
+  stats: { promotions: number; eventsSeen: number; tasksDone?: number; tasksAuto?: number };
   /** สมุดสะสม — เก็บข้ามรอบเล่น (ทวิภพไม่ล้าง) */
   collection: Collection;
 }
@@ -177,6 +179,43 @@ export function joyEff(L: LifeState): number {
   return 1;
 }
 
+/** งานที่ใช้ระบบราชกิจตอนนี้ (อาชีพ หรืองานเด็ก) ถ้ามีมินิเกมแล้ว */
+export function taskKind(L: LifeState): string | null {
+  const k = ageOf(L) < B.careerMinAge ? L.childJob : L.career;
+  return k && B.taskReady.includes(k) ? k : null;
+}
+export const taskAngry = (L: LifeState) => !!L.tasks && L.tasks.fullSince != null && L.day - L.tasks.fullSince > B.taskAngryAfter;
+function taskDay(g: GameState) {
+  const L = g.life;
+  if (!taskKind(L)) return;
+  const t = (L.tasks ??= { n: 0, next: L.day + randInt(g, B.taskMinDays, B.taskMaxDays), fullSince: null });
+  if (L.day >= t.next) { if (t.n < B.taskCap) t.n++; t.next = L.day + randInt(g, B.taskMinDays, B.taskMaxDays); }
+  // บริวารช่วยเคลียร์ (ได้ผลแค่บางส่วน)
+  if (t.n > 0 && L.retainer > 0 && nextRandom(g) < B.taskRetainerDaily * L.retainer) {
+    t.n--; taskReward(g, 0.7, B.taskRetainerShareBase + B.taskRetainerSharePer * L.retainer); g.stats.tasksAuto = (g.stats.tasksAuto ?? 0) + 1;
+  }
+  t.fullSince = t.n >= B.taskCap ? (t.fullSince ?? L.day) : null;
+}
+/** ผลของราชกิจ: score 0–1 (ฝีมือ) × share (บริวารทำแทนได้ไม่เต็ม) */
+function taskReward(g: GameState, score: number, share = 1) {
+  const L = g.life, k = score * share;
+  L.money += k * B.taskMoneyDays * Math.max(dailyIncome(g), B.childWage * 0.5);
+  if (L.career && ageOf(L) >= B.careerMinAge) {
+    L.affection += k * B.taskAff * Math.max(0.5, affectionReq(L.level + 1) - affectionReq(L.level));
+    const s = career(L.career).gateStat, x = L.stats[s];
+    L.stats[s] = clamp(x + k * B.taskStat * B.eventK * (L.cap - x), 0, L.cap);
+  } else {
+    const job = content.childJobs.find(j => j.key === L.childJob);
+    for (const s of job?.stats ?? []) { const x = L.stats[s]; L.stats[s] = clamp(x + k * B.taskStat * B.eventK * (L.cap - x) / (job!.stats.length), 0, L.cap); }
+  }
+}
+/** ผู้เล่นทำราชกิจ 1 ชิ้นเสร็จ */
+export function completeTask(g: GameState, score: number): boolean {
+  const t = g.life.tasks;
+  if (!t || t.n <= 0) return false;
+  t.n--; t.fullSince = null; taskReward(g, clamp(score, 0, 1)); g.stats.tasksDone = (g.stats.tasksDone ?? 0) + 1;
+  return true;
+}
 function stepDay(g: GameState, eff = 1) {
   const L = g.life, p = B.paths[L.path], age = ageOf(L);
   eff *= joyEff(L);
@@ -191,9 +230,10 @@ function stepDay(g: GameState, eff = 1) {
     const c = career(L.career), we = workEff(g) * eff;
     grow(L, c.gateStat, B.workPrimaryRate * (B.careerWorkMul[c.key] ?? 1) * p.work * we);
     grow(L, c.secondaryStat, B.workSecondaryRate * p.work * we);
-    L.affection += B.affectionWork * p.work * (1 + B.affectionPerLevel * L.level);
+    L.affection += B.affectionWork * p.work * (1 + B.affectionPerLevel * L.level) * (taskAngry(L) ? B.taskAngryMult : 1);
   }
   L.money += dailyIncome(g) * eff;
+  taskDay(g);
   if (L.track === 'dark') L.sin += B.sinDarkDaily;
   L.health -= healthDecay(g) * (L.joy > B.joyHigh ? B.joyHealthGood : L.joy < B.joyLow ? B.joyHealthBad : 1);
   // ความสำราญ: ลดทุกวัน (ทำงานหนักลดเร็ว) · บ้านดีช่วยพยุง

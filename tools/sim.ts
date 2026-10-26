@@ -25,6 +25,8 @@ function play(s: Strategy, maxLoops = 2): RunRec {
     const before = g.life.money;
     const r = E.advance(g, 15, { online: false });
     cur.income += Math.max(0, g.life.money - before);
+    // ผู้เล่นเข้ามาเคลียร์ราชกิจเป็นระยะ (ฝีมือกลางๆ) — ใส่ --notasks เพื่อจำลองคนไม่เล่นมินิเกม
+    if (!process.argv.includes('--notasks') && (g.life.tasks?.n ?? 0) >= 3) E.completeTask(g, 0.6);
     // จัดการเหตุการณ์
     while (g.queue.length) {
       const e = g.queue[0];
@@ -123,6 +125,7 @@ checks.push({ name: `ทุกอาชีพ (ขยันทำงาน) ถ�
 const meritFirst = runs.map(r => ({ r, life: first(r, l => l.meritHitAge != null || l.merit >= B.reincarnateMerit) }));
 const earliestMerit = Math.min(...meritFirst.map(x => x.life));
 checks.push({ name: 'บุญถึงเกณฑ์ทวิภพ ไม่เร็วกว่าชาติ 3', ok: earliestMerit >= 3, detail: `เร็วสุดชาติ ${earliestMerit}` });
+if (process.env.DBG) for (const x of meritFirst.filter(x => x.life < 4 && x.r.s.career === 'บริหาร')) console.log('early merit', x.r.s.career, x.r.s.path, x.r.s.seed, x.r.lives.filter(l => l.loop === 1).map(l => l.merit).join(','));
 const meritPath = meritFirst.filter(x => x.r.s.path === 'merit').map(x => x.life);
 checks.push({ name: 'สายทำบุญ ถึงเกณฑ์ทวิภพภายในชาติ 4', ok: Math.max(...meritPath) <= 4, detail: `ชาติ ${Math.min(...meritPath)}–${Math.max(...meritPath)}` });
 const anyMeritLoop1 = runs.filter(r => r.s.path !== 'merit').map(r => first(r, l => l.merit >= B.reincarnateMerit));

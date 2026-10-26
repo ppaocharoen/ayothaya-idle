@@ -66,7 +66,7 @@ export const BALANCE = {
   meritBaramiBonus: 1.0,     // ×(1 + x·บารมี/cap)
   meritSoftcap: 2500,
   donationPriceGrowth: 1.12, // ราคาของทำบุญขึ้นทุกครั้งที่ซื้อ (รีเซ็ตทุกชาติ)
-  reincarnateMerit: 8000,
+  reincarnateMerit: 8500,
 
   // ---- ความชอบ ----
   affectionWork: 0.0018,     // ต่อวัน ต่อสัดส่วนทำงาน
@@ -87,6 +87,16 @@ export const BALANCE = {
   needJoyBelow: 0.45, needHealthBelow: 0.5, needChance: 0.4, needHealthChance: 0,
   /** ไม่สุ่มกงกรรมทั่วไปถ้ามีกงกรรมประจำชาติจะเกิดภายในกี่วัน */
   genericGapToFixed: 20,
+  // ---- ราชกิจค้าง (มินิเกมงาน) ----
+  /** อาชีพ/งานเด็กที่มีมินิเกมแล้ว (เปิดระบบงานค้างเฉพาะที่เล่นได้) */
+  taskReady: ['บริหาร'] as string[],
+  taskMinDays: 10, taskMaxDays: 15, taskCap: 6,
+  /** กองเต็มนานเกินกี่วัน นายเริ่มไม่พอใจ → ความชอบจากการทำงานลดลง */
+  taskAngryAfter: 20, taskAngryMult: 0.85,
+  /** บริวารช่วยเคลียร์งาน: โอกาสต่อวันต่อระดับบริวาร · ได้ผลกี่ส่วน */
+  taskRetainerDaily: 0.007, taskRetainerShareBase: 0.3, taskRetainerSharePer: 0.05,
+  /** ผลเต็มเมื่อทำได้ดีเยี่ยม: เงิน = วันของรายได้ · ความชอบ = สัดส่วนของที่ต้องใช้เลื่อนขั้น · สเตตัสหลัก */
+  taskMoneyDays: 3, taskAff: 0.08, taskStat: 0.3,
   // ---- กงการ (อีเวนต์งาน) ----
   /** ห่างกันกี่วัน: ผู้ใหญ่ ~6–8 ครั้ง/ปี · ลูกมือ (ต่ำกว่า 18) ห่างกว่า */
   workMinDays: 45, workMaxDays: 62, workTeenMinDays: 100, workTeenMaxDays: 160,

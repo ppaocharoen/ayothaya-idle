@@ -12,6 +12,7 @@ import { speechFor } from './speech';
 import { baht, dateOf, esc, pct, pctAuto, pctFine, th, thInt } from './format';
 import { runAfterlife } from './afterlife';
 import { CHANGELOG, VERSION } from './changelog';
+import { TASK_GAMES, runTask } from './minigames';
 import { BREEDS, breedOf, feedPrice, petAge, petPrice, petStage } from '../engine/pets';
 import { CAREER_ICON, CHILD_ICON, PATH_ICON, STAT_ICON, icon } from './icons';
 
@@ -284,7 +285,7 @@ function lifeTab(): string {
     work = sec('เลือกอาชีพ', 'แตะเพื่อดูรายละเอียด') +
       `<div class="tiles c3">${content.careers.careers.map(k => `<button class="tile" data-act="careerinfo" data-v="${k.key}">${icon(CAREER_ICON[k.key] ?? 'star', 34)}<b>${esc(k.key)}</b><small>${icon(STAT_ICON[k.gateStat], 14)}${icon(STAT_ICON[k.secondaryStat], 14)}</small></button>`).join('')}</div>`;
   } else work = promoteCard();
-  return `${work}
+  return `${taskCard()}${work}
     ${sec('แนวทางชีวิต', '', 'path')}${helpBox('path', `แต่ละวันแบ่งเวลาให้ <b>งาน</b> <b>ฝึก</b> <b>บุญ</b> ตามสัดส่วนของแถบสี<br><b>งาน</b> ได้เงิน ความชอบ และสเตตัสของอาชีพ · <b>ฝึก</b> ได้สเตตัสที่เลือกด้านล่าง · <b>บุญ</b> ได้บุญญาธิการซึ่งติดตัวข้ามชาติ`)}
     <div class="tiles c4">${paths}</div>
     <div class="legend"><span><i style="background:var(--gold)"></i>งาน</span><span><i style="background:var(--blue)"></i>ฝึก</span><span><i style="background:#e48aa8"></i>บุญ</span></div>
@@ -303,6 +304,17 @@ function trainInfo(): string {
   }).join('');
 }
 
+/** ราชกิจค้าง: งานงอกเรื่อยๆ เข้าไปเล่นมินิเกมเพื่อเคลียร์ */
+function taskCard(): string {
+  const L = g.life, kind = E.taskKind(L), t = L.tasks;
+  if (!kind || !t) return '';
+  const angry = E.taskAngry(L), full = t.n >= B.taskCap;
+  const dots = Array.from({ length: B.taskCap }, (_, i) => `<i class="${i < t.n ? 'on' : ''}"></i>`).join('');
+  return `${sec('ราชกิจค้าง', `${th(t.n)}/${th(B.taskCap)}`, 'task')}${helpBox('task', `งานใหม่เข้ามาเรื่อยๆ ราว ๑๐–๑๕ วันต่อชิ้น เก็บค้างได้ ${th(B.taskCap)} ชิ้น<br>เข้าไปเคลียร์ด้วยมินิเกม ได้เงิน ความชอบ และ${esc(statName(E.ageOf(L) < B.careerMinAge ? '' : careerOf(L.career!).gateStat))} ตามฝีมือ<br>บริวารช่วยเคลียร์ให้บ้าง แต่ได้ผลไม่เต็ม (บริวารมากยิ่งช่วยมาก)<br>ถ้าปล่อยให้กองเต็มนาน นายจะไม่พอใจ ความชอบจากการทำงานลดลง`)}
+    <div class="frame task ${angry ? 'angry' : ''}"><div class="taskdots">${dots}</div>
+      ${angry ? `<p class="warn">${icon('cross', 16)}งานกองเต็มมานาน นายเริ่มไม่พอใจ — ความชอบจากการทำงานลดลง</p>` : full ? `<p class="muted">กองเต็มแล้ว ไม่มีงานใหม่เข้ามาจนกว่าจะเคลียร์</p>` : ''}
+      <button class="gbtn" data-act="task" ${t.n ? '' : 'disabled'}>${icon('scroll', 20)}${t.n ? `ทำราชกิจ · ${esc(TASK_GAMES[kind].title)}` : 'ยังไม่มีงานค้าง'}</button></div>`;
+}
 function promoteCard(): string {
   const L = g.life, c = careerOf(L.career!), cic = CAREER_ICON[L.career!] ?? 'star';
   if (L.level >= B.maxLevel) return `${sec('ยศ')}<div class="frame"><div class="rank">${icon('crown', 44)}<div><small>ถึงยศสูงสุดแล้ว</small><b>${esc(E.careerTitle(L.career!, L.level, L.track))}</b></div></div></div>`;
@@ -585,6 +597,22 @@ document.addEventListener('click', ev => {
     case 'careerinfo': S.playOpen(); openModal(careerSheet(v, !g.life.career)); return;
     case 'reign': S.playOpen(); openModal(reignSheet()); return;
     case 'coll': S.playOpen(); openModal(collSheet(v)); return;
+    case 'task': {
+      const kind = E.taskKind(g.life);
+      if (!kind || !g.life.tasks?.n) break;
+      const was = running; running = false; renderHud(); S.playTap();
+      runTask(kind, E.workTier(g.life.level), score => {
+        running = was;
+        if (score != null) {
+          const before = snap();
+          E.completeTask(g, score); save();
+          showResult(`ราชกิจ · ${TASK_GAMES[kind].title}`, diff(before), null);
+          scene.showAnim(scene.workAnimId(g.life) ?? 'happy', 5);
+        }
+        renderHud(); renderTab();
+      });
+      break;
+    }
     case 'career': E.chooseCareer(g, v); S.playGong(); closeModal(); toast(`เข้ารับราชการเป็น${splitTitle(E.careerTitle(v, 0, null))[0]}`, CAREER_ICON[v]); break;
     case 'track': E.chooseTrack(g, v as 'light' | 'dark'); S.playGong(); break;
     case 'promote': {
