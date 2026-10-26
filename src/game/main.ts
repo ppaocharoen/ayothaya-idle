@@ -309,12 +309,15 @@ function trainInfo(): string {
 function taskCard(): string {
   const L = g.life, kind = E.taskKind(L), t = L.tasks;
   if (!kind || !t) return '';
-  const angry = E.taskAngry(L), full = t.n >= B.taskCap;
+  const angry = E.taskAngry(L), full = t.n >= B.taskCap, child = E.ageOf(L) < B.careerMinAge;
   const dots = Array.from({ length: B.taskCap }, (_, i) => `<i class="${i < t.n ? 'on' : ''}"></i>`).join('');
-  return `${sec('ราชกิจค้าง', `${th(t.n)}/${th(B.taskCap)}`, 'task')}${helpBox('task', `งานใหม่เข้ามาเรื่อยๆ ราว ๑๐–๑๕ วันต่อชิ้น เก็บค้างได้ ${th(B.taskCap)} ชิ้น<br>เข้าไปเคลียร์ด้วยมินิเกม ได้เงิน ความชอบ และ${esc(statName(E.ageOf(L) < B.careerMinAge ? '' : careerOf(L.career!).gateStat))} ตามฝีมือ<br>บริวารช่วยเคลียร์ให้บ้าง แต่ได้ผลไม่เต็ม (บริวารมากยิ่งช่วยมาก)<br>ถ้าปล่อยให้กองเต็มนาน นายจะไม่พอใจ ความชอบจากการทำงานลดลง`)}
+  const help = child
+    ? `งานใหม่เข้ามาเรื่อยๆ ราว ๑๐–๑๕ วันต่อชิ้น เก็บค้างได้ ${th(B.taskCap)} ชิ้น<br>เข้าไปทำด้วยมินิเกม ได้ค่าขนมและฝึก${esc(content.childJobs.find(j => j.key === L.childJob)?.stats.map(statName).join(' ') ?? '')} ตามฝีมือ`
+    : `งานใหม่เข้ามาเรื่อยๆ ราว ๑๐–๑๕ วันต่อชิ้น เก็บค้างได้ ${th(B.taskCap)} ชิ้น<br>เข้าไปเคลียร์ด้วยมินิเกม ได้เงิน ความชอบ และ${esc(statName(careerOf(L.career!).gateStat))} ตามฝีมือ<br>บริวารช่วยเคลียร์ให้บ้าง แต่ได้ผลไม่เต็ม (บริวารมากยิ่งช่วยมาก)<br>ถ้าปล่อยให้กองเต็มนาน นายจะไม่พอใจ ความชอบจากการทำงานลดลง`;
+  return `${sec(child ? 'งานเด็กค้าง' : 'ราชกิจค้าง', `${th(t.n)}/${th(B.taskCap)}`, 'task')}${helpBox('task', help)}
     <div class="frame task ${angry ? 'angry' : ''}"><div class="taskdots">${dots}</div>
       ${angry ? `<p class="warn">${icon('cross', 16)}งานกองเต็มมานาน นายเริ่มไม่พอใจ — ความชอบจากการทำงานลดลง</p>` : full ? `<p class="muted">กองเต็มแล้ว ไม่มีงานใหม่เข้ามาจนกว่าจะเคลียร์</p>` : ''}
-      <button class="gbtn" data-act="task" ${t.n ? '' : 'disabled'}>${icon('scroll', 20)}${t.n ? `ทำราชกิจ · ${esc(TASK_GAMES[kind].title)}` : 'ยังไม่มีงานค้าง'}</button></div>`;
+      <button class="gbtn" data-act="task" ${t.n ? '' : 'disabled'}>${icon('scroll', 20)}${t.n ? `${child ? 'ทำงาน' : 'ทำราชกิจ'} · ${esc(TASK_GAMES[kind].title)}` : 'ยังไม่มีงานค้าง'}</button></div>`;
 }
 function promoteCard(): string {
   const L = g.life, c = careerOf(L.career!), cic = CAREER_ICON[L.career!] ?? 'star';
@@ -607,7 +610,7 @@ document.addEventListener('click', ev => {
         if (score != null) {
           const before = snap();
           const r = E.completeTask(g, score, bribes); save();
-          showResult(`ราชกิจ · ${TASK_GAMES[kind].title}`, diff(before), null);
+          showResult(`${E.ageOf(g.life) < B.careerMinAge ? 'งานเด็ก' : 'ราชกิจ'} · ${TASK_GAMES[kind].title}`, diff(before), null);
           if (r?.caught) toast('ถูกจับได้ว่ารับสินบน — นายเสียความเชื่อใจ ความชอบลดลง', 'cross');
           scene.showAnim(scene.workAnimId(g.life) ?? 'happy', 5);
         }

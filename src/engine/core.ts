@@ -184,14 +184,21 @@ export function taskKind(L: LifeState): string | null {
   const k = ageOf(L) < B.careerMinAge ? L.childJob : L.career;
   return k && B.taskReady.includes(k) ? k : null;
 }
+/** สุ่มของราชกิจแยกจากสุ่มหลัก (ไม่ไปเปลี่ยนผลเหตุการณ์อื่น) — คำนวณจากวันและชาติ */
+function taskRand(L: LifeState, salt: number) {
+  let h = (L.day * 374761393 + L.idx * 668265263 + salt * 2246822519) >>> 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+const taskGap = (L: LifeState, salt: number) => B.taskMinDays + Math.floor(taskRand(L, salt) * (B.taskMaxDays - B.taskMinDays + 1));
 export const taskAngry = (L: LifeState) => !!L.tasks && L.tasks.fullSince != null && L.day - L.tasks.fullSince > B.taskAngryAfter;
 function taskDay(g: GameState) {
   const L = g.life;
   if (!taskKind(L)) return;
-  const t = (L.tasks ??= { n: 0, next: L.day + randInt(g, B.taskMinDays, B.taskMaxDays), fullSince: null });
-  if (L.day >= t.next) { if (t.n < B.taskCap) t.n++; t.next = L.day + randInt(g, B.taskMinDays, B.taskMaxDays); }
+  const t = (L.tasks ??= { n: 0, next: L.day + taskGap(L, 1), fullSince: null });
+  if (L.day >= t.next) { if (t.n < B.taskCap) t.n++; t.next = L.day + taskGap(L, 2); }
   // บริวารช่วยเคลียร์ (ได้ผลแค่บางส่วน)
-  if (t.n > 0 && L.retainer > 0 && nextRandom(g) < B.taskRetainerDaily * L.retainer) {
+  if (t.n > 0 && L.retainer > 0 && taskRand(L, 3) < B.taskRetainerDaily * L.retainer) {
     t.n--; taskReward(g, 0.7, B.taskRetainerShareBase + B.taskRetainerSharePer * L.retainer); g.stats.tasksAuto = (g.stats.tasksAuto ?? 0) + 1;
   }
   t.fullSince = t.n >= B.taskCap ? (t.fullSince ?? L.day) : null;
@@ -206,7 +213,7 @@ function taskReward(g: GameState, score: number, share = 1, affMul = 1) {
     L.stats[s] = clamp(x + k * B.taskStat * B.eventK * (L.cap - x), 0, L.cap);
   } else {
     const job = content.childJobs.find(j => j.key === L.childJob);
-    for (const s of job?.stats ?? []) { const x = L.stats[s]; L.stats[s] = clamp(x + k * B.taskStat * B.eventK * (L.cap - x) / (job!.stats.length), 0, L.cap); }
+    for (const s of job?.stats ?? []) { const x = L.stats[s]; L.stats[s] = clamp(x + k * B.taskStat * B.taskChildStat * B.eventK * (L.cap - x) / (job!.stats.length), 0, L.cap); }
   }
 }
 const affStep = (L: LifeState) => Math.max(0.5, affectionReq(L.level + 1) - affectionReq(L.level));
@@ -225,7 +232,7 @@ export function completeTask(g: GameState, score: number, bribes = 0): TaskResul
     L.money += bribes * B.taskBribeMoneyDays * dailyIncome(g);
     L.sin += bribes * B.taskBribeSin;
     const risky = Math.max(0, bribes - B.taskBribeSafe);
-    if (risky > 0 && nextRandom(g) < risky * B.taskBribeCatch) { caught = true; L.affection = Math.max(0, L.affection - B.taskCaughtAff * affStep(L)); }
+    if (risky > 0 && taskRand(L, 4 + (g.stats.tasksDone ?? 0)) < risky * B.taskBribeCatch) { caught = true; L.affection = Math.max(0, L.affection - B.taskCaughtAff * affStep(L)); }
   } else bribes = 0;
   return { caught, bribes };
 }
