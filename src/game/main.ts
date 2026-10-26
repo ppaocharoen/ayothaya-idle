@@ -307,8 +307,9 @@ function trainInfo(): string {
 
 /** ราชกิจค้าง: งานงอกเรื่อยๆ เข้าไปเล่นมินิเกมเพื่อเคลียร์ */
 function taskCard(): string {
-  const L = g.life, kind = E.taskKind(L), t = L.tasks;
-  if (!kind || !t) return '';
+  const L = g.life, kind = E.taskKind(L), t = L.tasks ?? { n: 0, next: L.day + B.taskMinDays, fullSince: null };
+  if (!kind) return '';
+  const wait = Math.max(0, t.next - L.day);
   const angry = E.taskAngry(L), full = t.n >= B.taskCap, child = E.ageOf(L) < B.careerMinAge;
   const dots = Array.from({ length: B.taskCap }, (_, i) => `<i class="${i < t.n ? 'on' : ''}"></i>`).join('');
   const help = child
@@ -317,7 +318,7 @@ function taskCard(): string {
   return `${sec(child ? 'งานเด็กค้าง' : 'ราชกิจค้าง', `${th(t.n)}/${th(B.taskCap)}`, 'task')}${helpBox('task', help)}
     <div class="frame task ${angry ? 'angry' : ''}"><div class="taskdots">${dots}</div>
       ${angry ? `<p class="warn">${icon('cross', 16)}งานกองเต็มมานาน นายเริ่มไม่พอใจ — ความชอบจากการทำงานลดลง</p>` : full ? `<p class="muted">กองเต็มแล้ว ไม่มีงานใหม่เข้ามาจนกว่าจะเคลียร์</p>` : ''}
-      <button class="gbtn" data-act="task" ${t.n ? '' : 'disabled'}>${icon('scroll', 20)}${t.n ? `${child ? 'ทำงาน' : 'ทำราชกิจ'} · ${esc(TASK_GAMES[kind].title)}` : 'ยังไม่มีงานค้าง'}</button></div>`;
+      <button class="gbtn" data-act="task" ${t.n ? '' : 'disabled'}>${icon('scroll', 20)}${t.n ? `${child ? 'ทำงาน' : 'ทำราชกิจ'} · ${esc(TASK_GAMES[kind].title)}` : `ยังไม่มีงานค้าง · งานถัดไปอีก ${th(wait)} วัน`}</button></div>`;
 }
 function promoteCard(): string {
   const L = g.life, c = careerOf(L.career!), cic = CAREER_ICON[L.career!] ?? 'star';
@@ -819,7 +820,7 @@ function devAct(a: string, v: string) {
   const affStep = () => Math.max(0.5, E.affectionReq(L.level + 1) - E.affectionReq(L.level));
   switch (a) {
     case 'adv': E.advance(g, +v, { online: false }); break;
-    case 'age': L.day = Math.max(0, (+v - B.startAge) * B.daysPerYear); if (+v < B.careerMinAge) { L.career = null; L.level = 0; L.track = null; } break;
+    case 'age': L.day = Math.max(0, (+v - B.startAge) * B.daysPerYear); L.tasks = undefined; if (+v < B.careerMinAge) { L.career = null; L.level = 0; L.track = null; L.childJob ??= content.childJobs[0].key; } break;
     case 'career': if (E.ageOf(L) < B.careerMinAge) L.day = (B.careerMinAge - B.startAge) * B.daysPerYear; L.career = v; L.level = 0; L.track = null; L.tasks = undefined; break;
     case 'child': L.day = Math.min(L.day, (B.careerMinAge - B.startAge) * B.daysPerYear - 1); L.childJob = v; L.career = null; L.level = 0; L.track = null; L.tasks = undefined; break;
     case 'level': if (!L.career) break; L.level = +v; if (L.level >= B.lightDarkLevel && !L.track) L.track = 'light'; if (L.level < B.lightDarkLevel) L.track = null; break;
