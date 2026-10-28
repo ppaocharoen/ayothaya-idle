@@ -353,11 +353,21 @@ function wares(): { title: string; sub: string; list: Ware[] }[] {
     out.push({ title: 'ของประจำอาชีพ', sub: 'ทำงานได้ผลขึ้น', list: [{ id: 'citem', ic: CAREER_ICON[L.career] ?? 'star', name: clean(it.name), story: it.story ?? it.desc, effs: [['up', `ทำงาน +${pctAuto(B.careerItemEffPerLevel)}`]], price: items[lv] ? E.careerItemPrice(g) : null, act: 'citem', v: '', lv: `${th(Math.min(lv + 1, items.length))}/${th(items.length)}`, req: items[lv] ? E.careerItemReq(g) : null }] });
   }
   const acc2 = sh.accommodations[L.accommodation] ?? sh.accommodations[sh.accommodations.length - 1];
-  const ret = sh.retainers[L.retainer] ?? sh.retainers[sh.retainers.length - 1];
   out.push({ title: 'บ้านและบริวาร', sub: L.career ? 'ตามยศศักดิ์' : 'ยังอยู่เรือนพ่อแม่', list: [
     { id: 'acc', ic: 'house', name: clean(acc2.name), story: acc2.story ?? acc2.desc, effs: [['book', `ฝึกฝน +${pctAuto(B.accommodationTrainPerLevel)}`], ['clock', `ตอนปิดแอป +${pctAuto(B.awayPerHouse)}`], ['heart', `แก่ช้าลง ${pctAuto(B.healthHouse)}`]], price: sh.accommodations[L.accommodation] ? E.accommodationPrice(L) : null, act: 'acc', v: '', lv: `${th(Math.min(L.accommodation + 1, sh.accommodations.length))}/${th(sh.accommodations.length)}`, req: sh.accommodations[L.accommodation] ? E.accommodationReq(g) : null },
-    { id: 'ret', ic: 'people', name: clean(ret.name), story: ret.story ?? ret.desc, effs: [['coin', `รายได้ +${pctAuto(B.retainerIncomePerLevel)}`]], price: sh.retainers[L.retainer] ? E.retainerPrice(L) : null, act: 'ret', v: '', lv: `${th(Math.min(L.retainer + 1, sh.retainers.length))}/${th(sh.retainers.length)}`, req: sh.retainers[L.retainer] ? E.retainerReq(g) : null },
   ] });
+  // ทีมบริวาร: จ้างได้ไม่จำกัด แต่ละประเภทเก่งต่างกัน
+  const rc = E.retainerCounts(L);
+  out.push({ title: 'บริวาร', sub: 'จ้างเพิ่มได้ไม่จำกัด · คนถัดไปแพงขึ้น', list: sh.retainers.map((r, i) => {
+    const t = B.retainerTypes[i], effs: [string, string][] = [];
+    if (t.income) effs.push(['coin', `รายได้ +${pctAuto(t.income)} ต่อคน`]);
+    if (t.help) effs.push(['scroll', `ช่วยเคลียร์ราชกิจ ได้ผล ${pctAuto(t.share)}`]);
+    if (t.joy) effs.push(['smile', 'ทำงานบ้าน ความสำราญลดช้าลง']);
+    if (t.lawyer) effs.push(['hood', 'ทางมืด: ลดโอกาสถูกจับสินบน']);
+    if (t.guard) effs.push(['sword', 'เพิ่มโอกาสผ่านศึก/เหตุการณ์เช็คสเตตัส']);
+    effs.push(['people', 'คนยิ่งเยอะ ผลต่อคนยิ่งลดลงทีละน้อย']);
+    return { id: `ret:${i}`, ic: 'people', name: clean(r.name), story: r.story ?? r.desc, effs, price: E.retainerPrice(L, i), act: 'ret', v: String(i), lv: rc[i] ? `×${th(rc[i])}` : '', req: E.retainerReq(g, i) };
+  }) });
   out.push({ title: 'ทำบุญ', sub: 'ทำซ้ำได้', list: sh.meritItems.map((m, i) => ({ id: `donate:${i}`, ic: 'lotus', name: clean(m.name), story: m.story ?? m.effect, effs: [['lotus', `บุญ +${thInt(m.legacyMerit / (1 + g.merit / B.meritSoftcap))}`]] as [string, string][], price: E.donationPrice(L, i), act: 'donate', v: String(i), lv: L.donations[i] ? `×${th(L.donations[i])}` : '' })) });
   out.push({ title: 'ของใช้', sub: 'ซื้อซ้ำได้', list: sh.commonItems.map((m, i) => ({ id: `common:${i}`, ic: STAT_ICON[m.stat] ?? 'pouch', name: clean(m.name), story: m.story ?? m.desc, effs: [[STAT_ICON[m.stat], `${statName(m.stat)} +${pctAuto(0.004)}`], ...(m.legacyAffection ? [['medal', 'ความชอบ +๐.๓'] as [string, string]] : [])], price: E.commonPrice(L, i), act: 'common', v: String(i), lv: L.common[i] ? `×${th(L.common[i])}` : '' })) });
   out.push({ title: 'สัตว์เลี้ยง', sub: g.pet ? `มี${breedOf(g.pet.breed).name}แล้ว` : 'เลี้ยงได้ทีละตัว', list: BREEDS.map(b => ({ id: `pet:${b.key}`, ic: 'paw', name: b.name, story: b.desc + (b.art ? '' : ' (ภาพยังไม่พร้อม — เร็วๆ นี้)'), effs: [...b.stats.map(st => [STAT_ICON[st], `${statName(st)} โตเองทีละน้อย`] as [string, string]), ['smile', 'เพิ่มความสำราญ']], price: g.pet || !b.art ? null : petPrice(E.dailyIncome(g)), act: 'buypet', v: b.key, lv: b.art ? '' : 'เร็วๆ นี้' })) });
@@ -378,7 +388,7 @@ function wareSheet(id: string): string {
   const L = g.life, locked = w.req != null, can = !locked && w.price != null && L.money >= w.price;
   const lockMsg = !locked ? '' : w.req! < 0 ? 'ยังเป็นเด็กอยู่เรือนพ่อแม่ — ซื้อได้เมื่อเริ่มรับราชการ' : `ต้องเป็น <b>${esc(splitTitle(E.careerTitle(L.career!, w.req!, L.track ?? 'light'))[0])}</b> (ยศขั้น ${th(w.req!)}) ก่อนจึงจะครอบครองได้`;
   return `<button class="close" data-act="close" aria-label="ปิด">${icon('cross', 16)}</button>
-    <div class="head">${icon(w.ic, 48)}<div>${w.lv ? `<div class="eyebrow">${w.lv.startsWith('×') ? `ซื้อแล้ว ${w.lv.slice(1)} ครั้ง` : `ระดับ ${w.lv}`}</div>` : ''}<h2>${esc(w.name)}</h2></div></div>
+    <div class="head">${icon(w.ic, 48)}<div>${w.lv ? `<div class="eyebrow">${w.lv.startsWith('×') ? (w.act === 'ret' ? `มีอยู่ ${w.lv.slice(1)} คน` : `ซื้อแล้ว ${w.lv.slice(1)} ครั้ง`) : `ระดับ ${w.lv}`}</div>` : ''}<h2>${esc(w.name)}</h2></div></div>
     <p class="story">${esc(w.story)}</p>
     <div class="effs">${w.effs.map(([ic, t]) => `<span>${icon(ic, 18)}${esc(t)}</span>`).join('')}</div>
     ${lockMsg ? `<div class="odds">${icon('lock', 30)}<div>${lockMsg}</div></div>` : ''}
@@ -438,7 +448,7 @@ function showEvent() {
     let body = `${head}<span class="kind hist">${icon('scroll', 16)}พงศาวดาร</span>${art}<h2>${esc(h.title)}</h2>${h.desc ? `<p>${esc(h.desc)}</p>` : ''}`;
     if (h.kind === 'choice') body += h.choices!.map((c, i) => choiceBtn(i + 1, c.label, String(i))).join('');
     else if (h.kind === 'check') {
-      const p = Math.min(B.checkMax, B.checkBase + B.checkSlope * E.frac(L, h.checkStat!));
+      const p = E.checkChance(L, h.checkStat!);
       body += `<div class="odds">${icon(STAT_ICON[h.checkStat!], 30)}<div>ใช้${esc(statName(h.checkStat!))}<br><small class="muted">ผ่าน: ความชอบเพิ่ม · พลาด: เสียทรัพย์ ${pct(B.checkFailLoss)}</small></div><b>${pct(p)}</b></div>
         <button class="choice go" data-act="resolve-check">${icon('sword', 20)}รับมือ</button>`;
     } else body += `<button class="choice go" data-act="resolve" data-label="">รับทราบ</button>`;
@@ -630,7 +640,7 @@ document.addEventListener('click', ev => {
     case 'ware': S.playOpen(); openWare = v; openModal(wareSheet(v)); return;
     case 'citem': buy(() => E.buyCareerItem(g)); break;
     case 'acc': buy(() => { E.buyAccommodation(g); }); break;
-    case 'ret': buy(() => E.buyRetainer(g)); break;
+    case 'ret': buy(() => E.buyRetainer(g, +v)); break;
     case 'donate': buy(() => E.donate(g, +v)); break;
     case 'common': buy(() => E.buyCommon(g, +v)); break;
     case 'mega': buy(() => E.buyMega(g, v)); break;
@@ -826,7 +836,7 @@ function devAct(a: string, v: string) {
     case 'level': if (!L.career) break; L.level = +v; if (L.level >= B.lightDarkLevel && !L.track) L.track = 'light'; if (L.level < B.lightDarkLevel) L.track = null; break;
     case 'track': if (L.career && L.level >= B.lightDarkLevel) L.track = v as 'light' | 'dark'; break;
     case 'acc': L.accommodation = +v; break;
-    case 'ret': L.retainer = +v; break;
+    case 'ret': { const rs = E.retainerCounts(L); rs.fill(0); for (let i = 0; i < +v; i++) rs[i] = 3; L.retainer = rs.reduce((a, b) => a + b, 0); break; }
     case 'res':
       if (v === 'money') L.money += E.promoteCost(L.level) * 20 + 100;
       if (v === 'merit') g.merit += 5000;

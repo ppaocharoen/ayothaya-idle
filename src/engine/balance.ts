@@ -28,7 +28,19 @@ export const BALANCE = {
   lineagePerLife: 0.10,
   careerItemEffPerLevel: 0.08,
   accommodationTrainPerLevel: 0.06,
-  retainerIncomePerLevel: 0.08,
+  retainerIncomePerLevel: 0.08, // (เลิกใช้แล้ว เก็บไว้ให้เซฟเก่า)
+  /** ทีมบริวาร: ซื้อได้ไม่จำกัดต่อประเภท ราคาคนถัดไป ×retainerPriceGrowth · ผลต่อคนลดหลั่น n/(1+n/retainerSoft)
+   *  income = รายได้ต่อคน · help = โอกาสช่วยเคลียร์ราชกิจต่อวันต่อคน · share = ได้ผลกี่ส่วน
+   *  joy = ความสำราญลดช้าลง · lawyer = ลดโอกาสถูกจับสินบน · guard = เพิ่มโอกาสผ่านเหตุการณ์เช็คสเตตัส */
+  retainerTypes: [
+    { income: 0.03, help: 0, share: 0, joy: 0, lawyer: 0, guard: 0 },        // ไพร่ส่วย
+    { income: 0.01, help: 0.004, share: 0.4, joy: 0.05, lawyer: 0, guard: 0 }, // ทาสในเรือนเบี้ย
+    { income: 0.02, help: 0.01, share: 0.45, joy: 0, lawyer: 0, guard: 0 },   // ไพร่สม
+    { income: 0.01, help: 0.006, share: 0.7, joy: 0, lawyer: 0.15, guard: 0 }, // ทนายหน้าหอ
+    { income: 0.02, help: 0, share: 0, joy: 0, lawyer: 0, guard: 0.02 },      // ไพร่หลวงทแกล้วทหาร
+    { income: 0.04, help: 0.006, share: 0.6, joy: 0, lawyer: 0, guard: 0.03 }, // กองอาสาต่างชาติ
+  ],
+  retainerSoft: 5, retainerPriceGrowth: 1.15, retainerHelpMax: 0.5, retainerJoyMax: 0.4, retainerLawyerMax: 0.6, retainerGuardMax: 0.15,
 
   // ---- แนวทางชีวิต: สัดส่วนเวลา ทำงาน/ฝึก/ทำบุญ ----
   paths: {
@@ -126,7 +138,7 @@ export const BALANCE = {
   // ---- เอนดิ้ง ----
   fleeFrac: 0.6,             // หลบหลีกสูงสุด ≥ 60% ของเพดานชาตินั้น
   defendTosuFrac: 0.75, defendPoksapFrac: 0.5,
-  siegeBase: 0.20, siegeSlope: 0.55, siegeMaxFails: 4,
+  siegeBase: 0.19, siegeSlope: 0.55, siegeMaxFails: 4,
 
   // ---- งานบุญใหญ่ (ที่ใช้เงินช่วงท้าย) ----
   // ยศขั้นต่ำของที่ต้องได้รับพระราชทาน/ศักดินาถึงจะครอบครองได้ (ดัชนี = ชิ้นที่)

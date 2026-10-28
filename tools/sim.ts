@@ -70,7 +70,7 @@ function play(s: Strategy, maxLoops = 2): RunRec {
       if (blk === 'house') tryBuy(E.accommodationPrice(L), () => E.buyAccommodation(g)); // ติดบ้าน → ซื้อบ้านก่อน
       tryBuy(E.careerItemPrice(g), () => E.buyCareerItem(g));
       tryBuy(E.accommodationPrice(L), () => E.buyAccommodation(g));
-      tryBuy(E.retainerPrice(L), () => E.buyRetainer(g));
+      for (let i = 0; i < 6; i++) tryBuy(E.retainerReq(g, i) == null ? E.retainerPrice(L, i) : null, () => E.buyRetainer(g, i)); // จ้างบริวารทุกประเภทที่ปลดล็อก (ทีละคนต่อรอบ)
       if (blk === 'affection') {
         const i = content.shop.commonItems.findIndex(x => x.legacyAffection > 0);
         for (let k = 0; k < 5; k++) if (L.money - E.commonPrice(L, i) > reserve) E.buyCommon(g, i);

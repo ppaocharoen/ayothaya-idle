@@ -42,7 +42,7 @@ export interface LifeState {
   money: number; assets: number; affection: number;
   path: PathKey; train: StatKey[];
   childJob: string | null; career: string | null; level: number; track: 'light' | 'dark' | null;
-  careerItem: Record<string, number>; accommodation: number; retainer: number;
+  careerItem: Record<string, number>; accommodation: number; retainer: number; retainers?: number[];
   donations: number[]; common: number[]; mega: Record<string, number>;
   lastPromoteDay: number;
   peakFrac: Record<StatKey, number>;
@@ -162,7 +162,7 @@ export function dailyIncome(g: GameState): number {
   if (ageOf(L) < B.careerMinAge) return L.childJob ? B.childWage * p.work : 0;
   if (!L.career) return 0;
   return B.wageBase * Math.pow(B.wageGrowth, L.level) * p.work * workEff(g)
-    * (1 + B.retainerIncomePerLevel * L.retainer) * (1 + B.poksapIncome * frac(L, 'โภคทรัพย์'));
+    * (1 + retainerSum(L, 'income')) * (1 + B.poksapIncome * frac(L, 'โภคทรัพย์'));
 }
 
 /** สุขภาพลดต่อวัน: เริ่มเสื่อมหลังอายุ 35 · บ้านดีและร่างกายแข็งแรงช่วยชะลอ */
@@ -198,8 +198,12 @@ function taskDay(g: GameState) {
   const t = (L.tasks ??= { n: 0, next: L.day + taskGap(L, 1), fullSince: null });
   if (L.day >= t.next) { if (t.n < B.taskCap) t.n++; t.next = L.day + taskGap(L, 2); }
   // บริวารช่วยเคลียร์ (ได้ผลแค่บางส่วน)
-  if (t.n > 0 && L.retainer > 0 && taskRand(L, 3) < B.taskRetainerDaily * L.retainer) {
-    t.n--; taskReward(g, 0.7, B.taskRetainerShareBase + B.taskRetainerSharePer * L.retainer); g.stats.tasksAuto = (g.stats.tasksAuto ?? 0) + 1;
+  const help = Math.min(B.retainerHelpMax, retainerSum(L, 'help'));
+  if (t.n > 0 && help > 0 && taskRand(L, 3) < help) {
+    // บริวารคนไหนทำ: สุ่มตามความขยัน แล้วได้ผลตามฝีมือประเภทนั้น
+    const rs = retainerCounts(L); let r = taskRand(L, 5) * help, share = 0.4;
+    for (let i = 0; i < rs.length; i++) { const w = effCount(rs[i]) * B.retainerTypes[i].help; if (r < w) { share = B.retainerTypes[i].share; break; } r -= w; }
+    t.n--; taskReward(g, 0.7, share); g.stats.tasksAuto = (g.stats.tasksAuto ?? 0) + 1;
   }
   t.fullSince = t.n >= B.taskCap ? (t.fullSince ?? L.day) : null;
 }
@@ -232,7 +236,7 @@ export function completeTask(g: GameState, score: number, bribes = 0): TaskResul
     L.money += bribes * B.taskBribeMoneyDays * dailyIncome(g);
     L.sin += bribes * B.taskBribeSin;
     const risky = Math.max(0, bribes - B.taskBribeSafe);
-    if (risky > 0 && taskRand(L, 4 + (g.stats.tasksDone ?? 0)) < risky * B.taskBribeCatch) { caught = true; L.affection = Math.max(0, L.affection - B.taskCaughtAff * affStep(L)); }
+    if (risky > 0 && taskRand(L, 4 + (g.stats.tasksDone ?? 0)) < risky * B.taskBribeCatch * (1 - Math.min(B.retainerLawyerMax, retainerSum(L, 'lawyer')))) { caught = true; L.affection = Math.max(0, L.affection - B.taskCaughtAff * affStep(L)); }
   } else bribes = 0;
   return { caught, bribes };
 }
@@ -257,7 +261,7 @@ function stepDay(g: GameState, eff = 1) {
   if (L.track === 'dark') L.sin += B.sinDarkDaily;
   L.health -= healthDecay(g) * (L.joy > B.joyHigh ? B.joyHealthGood : L.joy < B.joyLow ? B.joyHealthBad : 1);
   // ความสำราญ: ลดทุกวัน (ทำงานหนักลดเร็ว) · บ้านดีช่วยพยุง
-  L.joy = clamp(L.joy - B.joyDecay * (0.4 + p.work) * (age < 18 ? B.joyChildDecay : 1) / D + B.joyHouse * L.accommodation / D, 0, 1);
+  L.joy = clamp(L.joy - B.joyDecay * (0.4 + p.work) * (age < 18 ? B.joyChildDecay : 1) * (1 - Math.min(B.retainerJoyMax, retainerSum(L, 'joy'))) / D + B.joyHouse * L.accommodation / D, 0, 1);
   if (L.day % D === D - 1 && age >= B.illnessFromAge && nextRandom(g) < B.illnessChance * (L.joy < B.joyLow ? 1.5 : 1)) {
     L.health -= (B.illnessMin + nextRandom(g) * (B.illnessMax - B.illnessMin));
     log(g, 'ล้มป่วยหนัก สุขภาพทรุดลง');
@@ -507,7 +511,7 @@ export function resolveEvent(g: GameState, choice?: number | 'risky' | EndingId)
   if (e.kind === 'hist') {
     const h = content.historical.find(x => x.id === e.id)!, L = g.life;
     if (h.kind === 'check') {
-      const p = clamp(B.checkBase + B.checkSlope * frac(L, h.checkStat!), 0, B.checkMax);
+      const p = checkChance(L, h.checkStat!);
       const ok = nextRandom(g) < p;
       if (ok) L.affection += B.affectionHistSuccess;
       else { L.money *= 1 - B.checkFailLoss; L.assets *= 1 - B.checkFailLoss; }
@@ -668,9 +672,20 @@ export function accommodationReq(g: GameState): number | null {
   const need = B.accommodationMinLevel[L.accommodation] ?? 0;
   return L.level >= need ? null : need;
 }
-export function retainerReq(g: GameState): number | null {
+// ---------- ทีมบริวาร ----------
+/** จำนวนบริวารแต่ละประเภท (เซฟเก่าที่ซื้อเป็นขั้น → ได้ประเภทละ ๑ คนตามขั้นที่มี) */
+export function retainerCounts(L: LifeState): number[] {
+  if (!L.retainers) L.retainers = B.retainerTypes.map((_, i) => i < L.retainer ? 1 : 0);
+  return L.retainers;
+}
+const effCount = (n: number) => n / (1 + n / B.retainerSoft);
+type RetainerStat = 'income' | 'help' | 'joy' | 'lawyer' | 'guard';
+export function retainerSum(L: LifeState, k: RetainerStat) { return retainerCounts(L).reduce((a, n, i) => a + effCount(n) * B.retainerTypes[i][k], 0); }
+export const checkChance = (L: LifeState, stat: StatKey) => clamp(B.checkBase + B.checkSlope * frac(L, stat) + Math.min(B.retainerGuardMax, retainerSum(L, 'guard')), 0, B.checkMax);
+/** ยศที่ต้องมีก่อนจ้างประเภทนี้ (null = จ้างได้ · -1 = ยังเด็ก/ไม่มีอาชีพ) */
+export function retainerReq(g: GameState, i = 0): number | null {
   const L = g.life; if (!L.career) return -1;
-  const need = B.retainerMinLevel[L.retainer] ?? 0;
+  const need = B.retainerMinLevel[i] ?? 0;
   return L.level >= need ? null : need;
 }
 export function buyCareerItem(g: GameState): boolean {
@@ -680,9 +695,9 @@ export function buyCareerItem(g: GameState): boolean {
 }
 // ราคาบ้าน/บริวารผูกกับค่ายื่นเลื่อนยศของยศขั้นต่ำที่ต้องมี (ให้ซื้อได้ทันเวลาที่ยศถึง)
 export const accommodationPrice = (L: LifeState) => content.shop.accommodations[L.accommodation] ? B.housePriceK * promoteCost(B.accommodationMinLevel[L.accommodation] ?? 0) : null;
-export const retainerPrice = (L: LifeState) => content.shop.retainers[L.retainer] ? B.retainerPriceK * promoteCost(B.retainerMinLevel[L.retainer] ?? 0) : null;
+export const retainerPrice = (L: LifeState, i = 0) => content.shop.retainers[i] ? B.retainerPriceK * promoteCost(B.retainerMinLevel[i] ?? 0) * Math.pow(B.retainerPriceGrowth, retainerCounts(L)[i]) : null;
 export function buyAccommodation(g: GameState) { const p = accommodationPrice(g.life); if (p == null || accommodationReq(g) != null || !pay(g, p)) return false; g.life.accommodation++; return true; }
-export function buyRetainer(g: GameState) { const p = retainerPrice(g.life); if (p == null || retainerReq(g) != null || !pay(g, p)) return false; g.life.retainer++; return true; }
+export function buyRetainer(g: GameState, i = 0) { const L = g.life, p = retainerPrice(L, i); if (p == null || retainerReq(g, i) != null || !pay(g, p)) return false; retainerCounts(L)[i]++; L.retainer = retainerCounts(L).reduce((a, b) => a + b, 0); return true; }
 export const donationPrice = (L: LifeState, i: number) => content.shop.meritItems[i].legacyPrice * Math.pow(B.donationPriceGrowth, L.donations[i]);
 export function donate(g: GameState, i: number): boolean {
   const L = g.life;
