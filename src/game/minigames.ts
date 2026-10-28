@@ -6,7 +6,8 @@ import * as S from './sound';
 
 export type Track = 'light' | 'dark' | null;
 /** done(score, สินบนที่รับ) · ทางมืดมีของเถื่อน/สินบนให้รับระหว่างเล่น */
-export interface TaskGame { title: string; intro: string; tiers?: boolean; darkHint: string; run: (box: HTMLElement, tier: number, track: Track, done: (score: number, bribes: number) => void) => () => void; }
+export interface TaskGame { title: string; intro: string; tiers?: boolean; tierNote?: string; darkHint: string;
+  /** งานที่มีหลายเกม: เลือกเกมย่อยตามชั้นยศ (คืนชื่อใน variants) */ variants?: Record<string, TaskGame>; pickVariant?: (tier: number) => string; run: (box: HTMLElement, tier: number, track: Track, done: (score: number, bribes: number) => void) => () => void; }
 
 const MONTHS = ['อ้าย', 'ยี่', 'สาม', 'สี่', 'ห้า', 'หก', 'เจ็ด', 'แปด', 'เก้า', 'สิบ', 'สิบเอ็ด', 'สิบสอง'];
 const DEPTS = [
@@ -276,14 +277,164 @@ const caravan: TaskGame = {
   },
 };
 
-export const TASK_GAMES: Record<string, TaskGame> = { 'บริหาร': bureau, 'หาของป่า': forage, 'งานวัด': sweep, 'คาราวาน': caravan };
+
+// ---------- ทหาร ----------
+const FOE = pix(['..rrr..', '.rkkkr.', '.kSkSk.', '..kkk..', '.bbbbb.', 'bbbbbbb', '.bb.bb.'], { r: '#b0302a', k: '#e3b48a', S: '#222', b: '#6a2a1f' }, 7);
+const ALLY = pix(['..yyy..', '.ykkky.', '.kSkSk.', '..kkk..', '.ggggg.', 'ggggggg', '.gg.gg.'], { y: '#d9a23a', k: '#e3b48a', S: '#222', g: '#2f5a8a' }, 7);
+const THIEF = pix(['.nnnnn.', '.nkkkn.', '.kSkSk.', '.nnnnn.', '.nnnnn.', 'nnnnnnn', '.nn.nn.'], { n: '#2a2a2e', k: '#e3b48a', S: '#fff' }, 7);
+/** เวรยามกำแพง: ข้าศึกปีนโผล่ตามช่องใบเสมา แตะให้ทัน อย่าแตะพวกเดียวกัน */
+const watch: TaskGame = {
+  title: 'เวรยามกำแพง', tiers: true, tierNote: 'ยศสูงขึ้น ข้าศึกมากขึ้นและโผล่เร็วขึ้น',
+  intro: 'ข้าศึกจะปีนขึ้นมาตามช่องใบเสมา แตะให้ทันก่อนข้ามกำแพง — แตะโดนทหารฝ่ายเราเสียเวลา ๒ วินาที ครบจำนวนก็จบ',
+  darkHint: 'บางครั้งมีโจรชูถุงเงินขอผ่านด่าน แตะที่ถุงเงิน = รับสินบนแล้วปล่อยผ่าน (แตะที่ตัว = จับกุม) — ได้เงินแต่ได้บาป และรับบ่อยเสี่ยงถูกจับ',
+  run(box, tier, track, done) {
+    const N = 5, TIME = 40, COUNT = 12 + 2 * tier;
+    const stay = 1.35 - 0.12 * tier, gap0 = 0.8 - 0.08 * tier;
+    let caught = 0, missed = 0, hitAlly = 0, bribes = 0, spawned = 0, over = false;
+    type Slot = { kind: 'foe' | 'ally' | 'thief' | null; until: number };
+    const slots: Slot[] = Array.from({ length: N }, () => ({ kind: null, until: 0 }));
+    const handled = () => caught + missed + bribes;
+    box.innerHTML = `<div class="mg-top"><span class="mg-count">ข้าศึก <b class="mg-n">${th(0)}</b>/${th(COUNT)}</span><span>${icon('check', 16)}<b class="mg-good">๐</b></span><span class="mg-bar"><i></i></span><span>${icon('cross', 16)}<b class="mg-badn">๐</b></span>${track === 'dark' ? `<span>${icon('pouch', 16)}<b class="mg-br">๐</b></span>` : ''}</div>
+      <div class="mg-rules"><div>แตะ <b>ข้าศึก (ผ้าโพกแดง)</b> ให้ทัน · อย่าแตะ <b>ทหารเรา (ลอมพอกเหลือง)</b>${track === 'dark' ? ' · <b>โจรชุดดำ</b> แตะตัว = จับ · แตะถุงเงิน = รับสินบน' : ''}</div></div>
+      <div class="mg-wall">${slots.map((_, i) => `<button class="mg-cren" data-i="${i}"><span></span></button>`).join('')}</div>`;
+    const btns = [...box.querySelectorAll<HTMLElement>('.mg-cren')], cells = btns.map(b => b.querySelector('span')!);
+    const upd = () => {
+      box.querySelector('.mg-n')!.textContent = th(Math.min(COUNT, handled()));
+      box.querySelector('.mg-good')!.textContent = th(caught);
+      box.querySelector('.mg-badn')!.textContent = th(missed + hitAlly);
+      const br = box.querySelector('.mg-br'); if (br) br.textContent = th(bribes);
+    };
+    const clear = (i: number) => { slots[i].kind = null; btns[i].classList.remove('up'); setTimeout(() => { if (!slots[i].kind) cells[i].innerHTML = ''; }, 120); };
+    let clock = 0, spawnT = 0.6, finished = false;
+    const finish = () => {
+      if (finished) return; finished = true; over = true; t.stop();
+      missed += Math.max(0, COUNT - handled()); // เวลาหมด ที่เหลือนับว่าหลุด
+      done(Math.max(0, Math.min(1, (caught - 0.5 * hitAlly) / Math.max(1, COUNT - bribes))), bribes);
+    };
+    const check = () => { upd(); if (handled() >= COUNT) { over = true; setTimeout(finish, 350); } };
+    const t = timed(box, TIME, dt => {
+      if (over) return;
+      clock += dt; spawnT -= dt;
+      slots.forEach((sl, i) => {
+        if (!sl.kind || clock <= sl.until) return;
+        if (sl.kind !== 'ally') { missed++; S.playFail(); btns[i].classList.add('shake'); setTimeout(() => btns[i].classList.remove('shake'), 250); }
+        clear(i); check();
+      });
+      if (spawnT <= 0 && spawned < COUNT + 30) {
+        spawnT = gap0 + Math.random() * 0.4;
+        const free = slots.map((sl, i) => sl.kind ? -1 : i).filter(i => i >= 0);
+        const foesOut = slots.filter(sl => sl.kind && sl.kind !== 'ally').length;
+        if (free.length) {
+          const i = free[Math.floor(Math.random() * free.length)], r = Math.random();
+          // ข้าศึกที่ยังไม่โผล่ (ไม่เกินจำนวนที่กำหนด) · ทหารเราโผล่สลับ
+          const foeLeft = COUNT - handled() - foesOut;
+          const kind: Slot['kind'] = foeLeft <= 0 || r < 0.22 ? 'ally' : track === 'dark' && r < 0.4 ? 'thief' : 'foe';
+          slots[i] = { kind, until: clock + (kind === 'ally' ? 1.1 : stay) + Math.random() * 0.3 };
+          cells[i].innerHTML = (kind === 'foe' ? FOE : kind === 'ally' ? ALLY : THIEF) + (kind === 'thief' ? `<i class="mg-pouch" data-pouch="1">${icon('pouch', 22)}</i>` : '');
+          requestAnimationFrame(() => btns[i].classList.add('up'));
+          spawned++;
+        }
+      }
+    }, finish);
+    const onClick = (ev: Event) => {
+      if (over) return;
+      const tg = ev.target as HTMLElement, b = tg.closest<HTMLElement>('.mg-cren'); if (!b) return;
+      const i = +b.dataset.i!, sl = slots[i]; if (!sl.kind) return;
+      if (sl.kind === 'thief' && tg.closest('[data-pouch]')) { bribes++; S.playTap(); }
+      else if (sl.kind === 'ally') { hitAlly++; t.penalty(2); S.playFail(); b.classList.add('shake'); setTimeout(() => b.classList.remove('shake'), 250); }
+      else { caught++; S.playTap(); b.classList.add('pop'); setTimeout(() => b.classList.remove('pop'), 200); }
+      clear(i); check();
+    };
+    box.addEventListener('click', onClick);
+    return () => { over = true; t.stop(); box.removeEventListener('click', onClick); };
+  },
+};
+
+const CLUES: Record<string, { img: string; name: string }> = {
+  dust: { name: 'ฝุ่นตลบ', img: pix(['..ccc...', '.ccccc..', 'cccccccc', '.cccccc.', '..cc.cc.'], { c: '#b8a07a' }, 5) },
+  bird: { name: 'นกแตกฮือ', img: pix(['k.k...k.k', '.k.....k.', '...k.k...', '....k....'], { k: '#333' }, 5) },
+  step: { name: 'รอยเท้าช้าง', img: pix(['.ee.....', 'eeee....', 'eeee.ee.', '.ee.eeee', '....eeee', '.....ee.'], { e: '#6b4a2a' }, 5) },
+};
+const GATES = ['ประตูเหนือ', 'ประตูตะวันออก', 'ประตูใต้'];
+/** วางทัพ: อ่านเบาะแสหน้าประตูเมือง แล้วส่งทัพไปประตูที่ข้าศึกจะบุก */
+const deploy: TaskGame = {
+  title: 'วางทัพรับศึก', tiers: true, tierNote: 'ชั้นยอด: มีกลลวง — ทางที่ข้าศึกบุกจริงมีเบาะแส ๒ อย่าง ทางหลอกมีอย่างเดียว',
+  intro: 'ข้าศึกบุก ๖ ระลอก ดูเบาะแสหน้าประตูเมือง แล้วส่งทัพไปประตูที่ข้าศึกจะบุกให้ทันเวลา',
+  darkHint: 'บางระลอกแม่ทัพข้าศึกส่งของกำนัลมาขอให้ถอนทัพ กด "รับของกำนัล" ระลอกนั้นจะแพ้ แต่ได้เงิน — ได้บาป และรับบ่อยเสี่ยงถูกจับ',
+  run(box, tier, track, done) {
+    const WAVES = 6, WT = tier >= 3 ? 4.5 : 5.5, decoy = tier >= 3;
+    let wave = 0, win = 0, lose = 0, bribes = 0, left = WT, over = false, locked = false, raf = 0, t0 = 0;
+    let real = 0, fake = -1, offer = false, clues: string[][] = [];
+    const keys = Object.keys(CLUES);
+    const shuffle = <T,>(a: T[]) => a.map(x => [Math.random(), x] as const).sort((p, q) => p[0] - q[0]).map(p => p[1]);
+    const setup = () => {
+      real = Math.floor(Math.random() * 3); fake = -1; clues = [[], [], []];
+      if (decoy) { const k = shuffle(keys); clues[real] = [k[0], k[1]]; fake = pick([0, 1, 2].filter(i => i !== real)); clues[fake] = [pick(keys)]; }
+      else clues[real] = [pick(keys)];
+      offer = track === 'dark' && Math.random() < 0.35;
+      left = WT; locked = false; render();
+    };
+    const render = () => {
+      box.innerHTML = `<div class="mg-top"><span class="mg-count">ระลอก ${th(wave + 1)}/${th(WAVES)}</span><span>${icon('check', 16)}${th(win)}</span><span class="mg-bar"><i style="width:${(left / WT * 100).toFixed(1)}%"></i></span><span>${icon('cross', 16)}${th(lose)}</span>${track === 'dark' ? `<span>${icon('pouch', 16)}${th(bribes)}</span>` : ''}</div>
+        <div class="mg-rules"><div>เบาะแส: ${keys.map(k => `<b>${CLUES[k].name}</b>`).join(' · ')}${decoy ? ' — ทางจริงมี ๒ อย่าง ทางหลอกมีอย่างเดียว' : ''}</div></div>
+        <div class="mg-gates">${GATES.map((g, i) => `<button class="mg-gate" data-g="${i}"><small>${g}</small><div class="clue">${clues[i].map(k => CLUES[k].img).join('') || '<span class="muted">เงียบ</span>'}</div><b>${icon('sword', 16)}ส่งทัพ</b></button>`).join('')}</div>
+        ${offer ? `<div class="mg-btns"><button class="gbtn red" data-bribe="1">${icon('pouch', 20)}รับของกำนัล ถอนทัพ</button></div>` : ''}`;
+    };
+    const resolve = (g: number | null, bribe = false) => {
+      if (locked || over) return; locked = true;
+      const ok = !bribe && g === real;
+      if (bribe) { bribes++; S.playTap(); } else if (ok) { win++; S.playTap(); } else { lose++; S.playFail(); }
+      const els = box.querySelectorAll<HTMLElement>('.mg-gate');
+      els[real]?.classList.add(ok ? 'win' : 'hit');
+      if (g != null && g !== real) els[g]?.classList.add('lose');
+      wave++;
+      setTimeout(() => { if (over) return; if (wave >= WAVES) finish(); else setup(); }, ok ? 450 : 800);
+    };
+    let finished = false;
+    const finish = () => {
+      if (finished) return; finished = true; over = true; cancelAnimationFrame(raf);
+      done(Math.max(0, Math.min(1, win / Math.max(1, WAVES - bribes))), bribes);
+    };
+    const tick = (now: number) => {
+      if (over) return;
+      const dt = t0 ? Math.min(0.1, (now - t0) / 1000) : 0; t0 = now;
+      if (!locked) {
+        left -= dt;
+        const bar = box.querySelector<HTMLElement>('.mg-bar i'); if (bar) bar.style.width = `${Math.max(0, left / WT * 100).toFixed(1)}%`;
+        if (left <= 0) resolve(null);
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    const onClick = (ev: Event) => {
+      const tg = ev.target as HTMLElement;
+      if (tg.closest('[data-bribe]')) { resolve(null, true); return; }
+      const b = tg.closest<HTMLElement>('[data-g]'); if (b) resolve(+b.dataset.g!);
+    };
+    box.addEventListener('click', onClick);
+    setup(); raf = requestAnimationFrame(tick);
+    return () => { over = true; cancelAnimationFrame(raf); box.removeEventListener('click', onClick); };
+  },
+};
+
+/** ทหาร: ชั้นผู้น้อย/กลาง = เวรยาม · ชั้นสูงขึ้นไป สุ่มสลับเวรยามกับวางทัพ */
+const soldier: TaskGame = {
+  title: 'รักษาพระนคร', tiers: true, intro: '', darkHint: '',
+  variants: { watch, deploy },
+  pickVariant: tier => tier >= 2 && Math.random() < 0.5 ? 'deploy' : 'watch',
+  run: (box, tier, track, done) => watch.run(box, tier, track, done),
+};
+
+export const TASK_GAMES: Record<string, TaskGame> = { 'บริหาร': bureau, 'ทหาร': soldier, 'หาของป่า': forage, 'งานวัด': sweep, 'คาราวาน': caravan };
 
 const TIER_NAME = ['ชั้นผู้น้อย', 'ชั้นกลาง', 'ชั้นสูง', 'ชั้นยอด'];
 const grade = (s: number) => s >= 0.9 ? 'ยอดเยี่ยม' : s >= 0.6 ? 'ดี' : s >= 0.3 ? 'พอใช้' : 'ต้องปรับปรุง';
 
 /** เปิดหน้ามินิเกมเต็มจอ: แนะนำ → เล่น → สรุป · onDone(score) หรือ null ถ้ากดออกก่อนเล่น */
 export function runTask(kind: string, tier: number, track: Track, onDone: (score: number | null, bribes: number) => void) {
-  const game = TASK_GAMES[kind];
+  // 'งาน:เกมย่อย' (โหมดลอง) หรือให้งานเลือกเกมย่อยเองตามชั้นยศ
+  const [base, sub] = kind.split(':');
+  const top = TASK_GAMES[base];
+  const game = top?.variants ? top.variants[sub ?? top.pickVariant!(tier)] : top;
   if (!game) { onDone(null, 0); return; }
   const root = document.createElement('div');
   root.className = 'mg';
@@ -293,7 +444,7 @@ export function runTask(kind: string, tier: number, track: Track, onDone: (score
   let stop: (() => void) | null = null;
   const close = (score: number | null, bribes = 0) => { stop?.(); root.remove(); onDone(score, bribes); };
   box.innerHTML = `<p>${esc(game.intro)}</p>
-    <div class="mg-rules">${tier >= 0 && game.tiers ? '<div>ยศสูงขึ้น กฎจะเพิ่มขึ้นทีละข้อ</div>' : ''}${track === 'light' ? '<div>ทางสว่าง: ทำได้ยอดเยี่ยมได้ความชอบเพิ่มและได้บุญ</div>' : track === 'dark' ? `<div>ทางมืด: ${esc(game.darkHint)}</div>` : ''}</div>
+    <div class="mg-rules">${tier >= 0 && game.tiers ? `<div>${esc(game.tierNote ?? 'ยศสูงขึ้น กฎจะเพิ่มขึ้นทีละข้อ')}</div>` : ''}${track === 'light' ? '<div>ทางสว่าง: ทำได้ยอดเยี่ยมได้ความชอบเพิ่มและได้บุญ</div>' : track === 'dark' ? `<div>ทางมืด: ${esc(game.darkHint)}</div>` : ''}</div>
     <div class="mg-btns"><button class="gbtn dark" data-x="later">ไว้ทีหลัง</button><button class="gbtn" data-x="go">${icon('play', 20)}เริ่ม</button></div>`;
   box.addEventListener('click', function intro(ev) {
     const b = (ev.target as HTMLElement).closest<HTMLElement>('[data-x]'); if (!b) return;

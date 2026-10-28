@@ -388,3 +388,21 @@ p { margin: 4px 0; }
 .mg-cv { width: 100%; display: block; border-radius: 8px; image-rendering: pixelated; touch-action: none; box-shadow: inset 0 0 0 2px var(--gold2); margin-top: 6px; }
 .mchip.dv { padding: 6px 10px; min-width: 0; flex: 0 0 auto; white-space: nowrap; }
 .mchip.dv small { font-size: 12px; }
+
+/* ทหาร: เวรยามกำแพง */
+.mg-wall { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-top: 10px; padding: 10px 6px 0; border-radius: 8px; background: linear-gradient(#bcd3e0, #e6dcc2); }
+.mg-cren { position: relative; aspect-ratio: 3 / 4; border: 0; padding: 0; background: transparent; overflow: hidden; display: flex; align-items: flex-end; justify-content: center; cursor: pointer; }
+.mg-cren::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 42%; background: repeating-linear-gradient(0deg, #c9b48c 0 9px, #a8916a 9px 10px); box-shadow: inset 0 3px 0 #ddc9a0; border-radius: 3px 3px 0 0; z-index: 2; }
+.mg-cren span { position: relative; display: flex; justify-content: center; transform: translateY(105%); transition: transform .12s ease-out; z-index: 1; margin-bottom: 34%; }
+.mg-cren.up span { transform: none; }
+.mg-cren.pop span { transform: translateY(-8%) scale(1.08); } .mg-cren.shake { animation: mgshake .25s; }
+.mg-pouch { position: absolute; top: -2px; right: -16px; color: #8a5a10; animation: mgbob .6s infinite alternate; z-index: 3; font-style: normal; }
+/* ทหาร: วางทัพ */
+.mg-gates { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+.mg-gate { font: inherit; color: inherit; border: 0; border-radius: 8px; background: #ead9b2; box-shadow: inset 0 0 0 2px #b89a62, 0 3px 0 #9c8460; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 6px; min-height: 140px; cursor: pointer; }
+.mg-gate small { font-weight: 700; }
+.mg-gate .clue { flex: 1; display: flex; flex-direction: column; gap: 6px; align-items: center; justify-content: center; }
+.mg-gate b { display: flex; gap: 3px; align-items: center; font-size: 13px; color: #7e2418; }
+.mg-gate.win { box-shadow: inset 0 0 0 3px #4f8a3a; background: #d6e6c2; }
+.mg-gate.hit { box-shadow: inset 0 0 0 3px #c0432c; background: #f1c8b8; }
+.mg-gate.lose { opacity: .6; }

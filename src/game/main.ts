@@ -804,7 +804,7 @@ function devPage(): string {
   const levels = [0, 1, 2, 5, 8, 11, 14, 17, 19].map(n => chip('level', n, `Lv.${n}`, L.level === n)).join('');
   const anims = Object.keys(Scene.ANIMS).map(a => chip('anim', a, a)).join('');
   const hist = ['L1-H02', 'L2-H04', 'L4-H09'].map(id => chip('hist', id, id)).join('');
-  const games = Object.keys(TASK_GAMES).map(k => chip('game', k, TASK_GAMES[k].title)).join('');
+  const games = Object.keys(TASK_GAMES).flatMap(k => { const vs = TASK_GAMES[k].variants; return vs ? Object.keys(vs).map(v => chip('game', `${k}:${v}`, vs[v].title)) : [chip('game', k, TASK_GAMES[k].title)]; }).join('');
   const pets = BREEDS.map(b => chip('pet', b.key, b.name, g.pet?.breed === b.key)).join('') + chip('pet', '', 'ไม่มี');
   return `<div class="mhead"><button class="mback" data-m="main">${icon('cross', 16)}</button><b>แผงนักพัฒนา</b></div>
     <p class="muted">อายุ ${th(age)} · ${esc(L.career ?? L.childJob ?? '-')} Lv.${th(L.level)} ${esc(L.track ?? '')} · บ้าน ${th(L.accommodation)} · บริวาร ${th(L.retainer)} · บาป ${th(L.sin.toFixed(1))}</p>
