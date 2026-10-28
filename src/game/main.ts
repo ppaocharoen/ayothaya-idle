@@ -313,8 +313,8 @@ function taskCard(): string {
   const angry = E.taskAngry(L), full = t.n >= B.taskCap, child = E.ageOf(L) < B.careerMinAge;
   const dots = Array.from({ length: B.taskCap }, (_, i) => `<i class="${i < t.n ? 'on' : ''}"></i>`).join('');
   const help = child
-    ? `งานใหม่เข้ามาเรื่อยๆ ราว ๑๐–๑๕ วันต่อชิ้น เก็บค้างได้ ${th(B.taskCap)} ชิ้น<br>เข้าไปทำด้วยมินิเกม ได้ค่าขนมและฝึก${esc(content.childJobs.find(j => j.key === L.childJob)?.stats.map(statName).join(' ') ?? '')} ตามฝีมือ`
-    : `งานใหม่เข้ามาเรื่อยๆ ราว ๑๐–๑๕ วันต่อชิ้น เก็บค้างได้ ${th(B.taskCap)} ชิ้น<br>เข้าไปเคลียร์ด้วยมินิเกม ได้เงิน ความชอบ และ${esc(statName(careerOf(L.career!).gateStat))} ตามฝีมือ<br>บริวารช่วยเคลียร์ให้บ้าง แต่ได้ผลไม่เต็ม (บริวารมากยิ่งช่วยมาก)<br>ถ้าปล่อยให้กองเต็มนาน นายจะไม่พอใจ ความชอบจากการทำงานลดลง`;
+    ? `งานใหม่เข้ามาเรื่อยๆ ราว ๒๐–๓๐ วันต่อชิ้น เก็บค้างได้ ${th(B.taskCap)} ชิ้น<br>เข้าไปทำด้วยมินิเกม ได้ค่าขนมและฝึก${esc(content.childJobs.find(j => j.key === L.childJob)?.stats.map(statName).join(' ') ?? '')} ตามฝีมือ`
+    : `งานใหม่เข้ามาเรื่อยๆ ราว ๒๐–๓๐ วันต่อชิ้น เก็บค้างได้ ${th(B.taskCap)} ชิ้น<br>เข้าไปเคลียร์ด้วยมินิเกม ได้เงิน ความชอบ และ${esc(statName(careerOf(L.career!).gateStat))} ตามฝีมือ<br>บริวารช่วยเคลียร์ให้บ้าง แต่ได้ผลไม่เต็ม (บริวารมากยิ่งช่วยมาก)<br>ถ้าปล่อยให้กองเต็มนาน นายจะไม่พอใจ ความชอบจากการทำงานลดลง`;
   return `${sec(child ? 'งานเด็กค้าง' : 'ราชกิจค้าง', `${th(t.n)}/${th(B.taskCap)}`, 'task')}${helpBox('task', help)}
     <div class="frame task ${angry ? 'angry' : ''}"><div class="taskdots">${dots}</div>
       ${angry ? `<p class="warn">${icon('cross', 16)}งานกองเต็มมานาน นายเริ่มไม่พอใจ — ความชอบจากการทำงานลดลง</p>` : full ? `<p class="muted">กองเต็มแล้ว ไม่มีงานใหม่เข้ามาจนกว่าจะเคลียร์</p>` : ''}

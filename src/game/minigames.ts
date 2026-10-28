@@ -19,7 +19,7 @@ const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 /** บริหาร: คัดหนังสือขอเบิก อนุมัติ/ตีกลับ ตามกฎ */
 const bureau: TaskGame = {
   title: 'คัดหนังสือราชการ', tiers: true,
-  intro: 'ภายใน ๓๐ วินาที ตัดสินหนังสือให้ถูกมากที่สุด — ตอบผิดเสียเวลา ๒ วินาที',
+  intro: 'ตัดสินหนังสือให้ครบตามจำนวน ทำเสร็จก่อนก็จบก่อน — ตอบผิดเสียเวลา ๒ วินาที เวลาหมดฉบับที่เหลือนับว่าพลาด',
   darkHint: 'บางฉบับมีถุงเงินแนบมา กด "รับไว้" จะได้เงินและอนุมัติให้ทันที แม้หนังสือผิดกฎ — แต่ได้บาป และรับบ่อยเสี่ยงถูกจับ',
   run(box, tier, track, done) {
     const cur = Math.floor(Math.random() * 12), limit = 20 + 10 * Math.floor(Math.random() * 4);
@@ -46,8 +46,9 @@ const bureau: TaskGame = {
       }
       return d;
     };
-    const TIME = 30, TARGET = 9;
+    const TIME = 45, COUNT = 8 + tier; // จำนวนหนังสือต่อรอบ (ยศสูงมากขึ้น) · เวลาเผื่อไว้
     let left = TIME, right = 0, wrong = 0, bribes = 0, doc = make(), t0 = 0, raf = 0, over = false;
+    const handled = () => right + wrong + bribes;
     const docHtml = (d: Doc) => `<div class="mg-doc">
       <div class="mg-dt">หนังสือขอเบิกพระราชทรัพย์</div>
       <p>จาก <b>${esc(d.dept.name)}</b></p>
@@ -58,7 +59,7 @@ const bureau: TaskGame = {
       ${d.seal ? `<div class="mg-seal" style="--c:${d.seal.color}"><span>ตรา<br>${esc(d.seal.seal)}</span></div>` : ''}
     </div>`;
     const render = () => {
-      box.innerHTML = `<div class="mg-top"><span>${icon('check', 16)}${th(right)}</span><span class="mg-bar"><i style="width:${(left / TIME * 100).toFixed(1)}%"></i></span><span>${icon('cross', 16)}${th(wrong)}</span>${track === 'dark' ? `<span>${icon('pouch', 16)}${th(bribes)}</span>` : ''}</div>
+      box.innerHTML = `<div class="mg-top"><span class="mg-count">ฉบับ ${th(handled() + 1)}/${th(COUNT)}</span><span>${icon('check', 16)}${th(right)}</span><span class="mg-bar"><i style="width:${(left / TIME * 100).toFixed(1)}%"></i></span><span>${icon('cross', 16)}${th(wrong)}</span>${track === 'dark' ? `<span>${icon('pouch', 16)}${th(bribes)}</span>` : ''}</div>
         <div class="mg-rules">${rules.map(r => `<div>• ${esc(r)}</div>`).join('')}</div>
         <div class="mg-stage">${docHtml(doc)}</div>
         <div class="mg-btns"><button class="gbtn dark" data-mg="no">${icon('cross', 20)}ตีกลับ</button><button class="gbtn" data-mg="yes">${icon('check', 20)}อนุมัติ</button></div>
@@ -69,7 +70,7 @@ const bureau: TaskGame = {
       if (over || !doc.bribe) return;
       bribes++; S.playTap();
       box.querySelector<HTMLElement>('.mg-doc')?.classList.add('go-r');
-      setTimeout(() => { doc = make(); render(); }, 160);
+      next(160);
     };
     const answer = (yes: boolean) => {
       if (over) return;
@@ -77,13 +78,23 @@ const bureau: TaskGame = {
       if (ok) { right++; S.playTap(); } else { wrong++; left = Math.max(0, left - 2); S.playFail(); }
       const el = box.querySelector<HTMLElement>('.mg-doc');
       el?.classList.add(ok ? (yes ? 'go-r' : 'go-l') : 'shake');
-      setTimeout(() => { doc = make(); render(); }, ok ? 160 : 260);
+      next(ok ? 160 : 260);
     };
+    /** ฉบับถัดไป หรือจบเมื่อครบจำนวน (กันไม่ให้วาดทับหน้าสรุปถ้าเวลาหมดระหว่างรอ) */
+    const next = (ms: number) => {
+      if (handled() >= COUNT) { over = true; cancelAnimationFrame(raf); setTimeout(finish, ms); return; }
+      setTimeout(() => { if (!over) { doc = make(); render(); } }, ms);
+    };
+    let finished = false;
     const finish = () => {
+      if (finished) return; finished = true;
       over = true; cancelAnimationFrame(raf);
-      done(Math.max(0, Math.min(1, (right - wrong) / TARGET)), bribes);
+      // คะแนน = ถูก − ผิดครึ่งหนึ่ง เทียบกับฉบับที่ต้องตัดสินเอง (ฉบับที่รับสินบนไม่นับ) · ฉบับที่ไม่ทันนับเป็นพลาด
+      const base = Math.max(1, COUNT - bribes);
+      done(Math.max(0, Math.min(1, (right - 0.5 * wrong) / base)), bribes);
     };
     const tick = (now: number) => {
+      if (over) return;
       if (!t0) t0 = now;
       const dt = (now - t0) / 1000; t0 = now; left -= dt;
       const bar = box.querySelector<HTMLElement>('.mg-bar i'); if (bar) bar.style.width = `${Math.max(0, left / TIME * 100).toFixed(1)}%`;
