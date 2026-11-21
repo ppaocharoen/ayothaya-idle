@@ -23,6 +23,8 @@ export interface Career {
   gateStat: StatKey; secondaryStat: StatKey;
   desc?: string;
   titles: CareerTitles;
+  /** ราชทินนามทางสว่าง ๘ ชื่อ ตามบรรดาศักดิ์ นาย → เจ้าพระยา */
+  rachathinnam?: string[];
 }
 export interface Monastic { key: string; fullname: string; gateStat: StatKey; titles: Record<string, string>; }
 export interface CareersFile { careers: Career[]; monastic: Monastic; }

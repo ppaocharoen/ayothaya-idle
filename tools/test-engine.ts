@@ -1,6 +1,7 @@
 // ทดสอบกติกาพื้นฐานของตัวเกม (npm test)
 import * as E from '../src/engine/core';
 import { BALANCE as B } from '../src/engine/balance';
+import * as S from '../src/engine/sakdina';
 
 let fail = 0;
 const t = (name: string, ok: boolean, info = '') => { console.log(`${ok ? 'ผ่าน ' : 'ไม่ผ่าน'}  ${name}${info ? ' — ' + info : ''}`); if (!ok) fail++; };
@@ -58,6 +59,22 @@ const t = (name: string, ok: boolean, info = '') => { console.log(`${ok ? 'ผ�
   t('ปิดแอป 1 ชม. = ประมาณ 21 วันในเกม (⅒ ของตอนเปิด)', Math.abs(d - 3600 / B.secondsPerGameDay * B.offlineSpeed) <= 1, `${d} วัน`);
   g.savedAt = Date.now() - 30 * 86400_000;
   t('ปิดแอปนานแค่ไหนก็เดินไม่เกิน 2 ปีในเกม', E.offlineDays(g) === B.offlineMaxDays, `${E.offlineDays(g)} วัน`);
+}
+// 6) ศักดินา
+{
+  const ok = B.rankOfLevel.length === B.maxLevel + 1 && B.sakdinaOfLevel.length === B.maxLevel + 1;
+  t('ศักดินา: ตารางยศครบ Lv.0–19', ok);
+  const mono = B.sakdinaOfLevel.every((v, i, a) => i === 0 || v >= a[i - 1]) && B.rankOfLevel.every((v, i, a) => i === 0 || v >= a[i - 1]);
+  t('ศักดินา: ยศสูงขึ้นศักดินาไม่ลด', mono);
+  t('ศักดินา: ทางมืดไม่มีบรรดาศักดิ์', S.rankOf('ทหาร', 10, 'dark') === null && S.rankOf('ทหาร', 1, 'dark')?.rank === 'นาย');
+  t('ศักดินา: เจ้าพระยาที่ Lv.19', S.rankOf('บริหาร', 19, 'light')?.full === 'เจ้าพระยาจักรีศรีองครักษ์', S.rankOf('บริหาร', 19, 'light')?.full);
+  t('ศักดินา: ค่าปรับยศสูงมากกว่ายศต่ำ', S.fineDays(S.sakdinaAt('บริหาร', 19)) > S.fineDays(S.sakdinaAt('บริหาร', 2)));
+  const g = E.newGame(3);
+  t('ชาติแรกเกิดเป็นไพร่', g.life.birth === B.birthDefault);
+  const L = { ...g.life, meritStart: 0, sin: 300 };
+  t('บาปหนักเกิดเป็นทาส', S.birthFrom(L, 9000) === 'ทาส');
+  t('บุญมาก บาปน้อย เกิดเป็นบุตรขุนนาง', S.birthFrom({ ...L, sin: 5 }, 5000) === 'ขุนนาง');
+  t('บุญน้อย บาปน้อย เกิดเป็นไพร่ราบ', S.birthFrom({ ...L, sin: 5 }, 100) === 'ไพร่ราบ');
 }
 console.log(fail ? `\nไม่ผ่าน ${fail} ข้อ` : '\nผ่านทุกข้อ');
 process.exit(fail ? 1 : 0);

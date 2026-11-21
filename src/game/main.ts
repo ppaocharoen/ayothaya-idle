@@ -4,6 +4,7 @@ import { content } from '../content';
 import type { StatKey } from '../content/types';
 import { BALANCE as B, type PathKey } from '../engine/balance';
 import * as E from '../engine/core';
+import * as K from '../engine/sakdina';
 import { Scene, type SceneMood } from './scene';
 import * as S from './sound';
 import { sound, setMusic } from './sound';
@@ -30,6 +31,13 @@ const splitTitle = (t: string): [string, string] => {
   const m = t.match(/^(.+?)\s*\((.+)\)\s*$/); if (m) return [m[1], m[2]];
   const i = t.indexOf(' '); return i > 0 ? [t.slice(0, i), t.slice(i + 1)] : [t, ''];
 };
+/** ชื่อเรียกตามศักดินา: ทางสว่าง = บรรดาศักดิ์+ราชทินนาม · ทางมืด = ฉายา (ชื่อยศ) */
+const callName = (k: string, lv: number, tr: 'light' | 'dark' | null) => K.rankOf(k, lv, tr)?.full ?? `«${splitTitle(E.careerTitle(k, lv, tr))[0]}»`;
+/** บรรทัดศักดินา: "หลวงศรีเนตรพิทักษ์ · ศักดินา ๒,๔๐๐" (ทางมืด: "ฉายา «…» · ศักดินา …") */
+function sakLine(k: string, lv: number, tr: 'light' | 'dark' | null): string {
+  const r = K.rankOf(k, lv, tr), n = thInt(K.sakdinaAt(k, lv));
+  return `<span class="sak">${r ? `${esc(r.full)} · ศักดินา ${n}${r.panThong ? ' · พานทอง' : ''}` : `ฉายา ${esc(callName(k, lv, tr))} · ศักดินา ${n}`}</span>`;
+}
 const clean = (s: string) => s.replace(/\s*\([^)]*\)\s*/g, ' ').trim(); // ตัดวงเล็บภาษาอังกฤษในชื่อของ
 
 // ---------- โหลด/เซฟ ----------
@@ -219,7 +227,7 @@ function renderHud() {
   $('res-aff').textContent = th(L.affection.toFixed(1));
   const [ic, doing] = age < B.careerMinAge
     ? (L.childJob ? [CHILD_ICON[L.childJob] ?? 'leaf', content.childJobs.find(j => j.key === L.childJob)!.name] : ['person', 'ยังไม่ได้ช่วยงาน'])
-    : (L.career ? [CAREER_ICON[L.career] ?? 'star', splitTitle(E.careerTitle(L.career, L.level, L.track))[0]] : ['person', 'ยังไม่มีอาชีพ']);
+    : (L.career ? [CAREER_ICON[L.career] ?? 'star', callName(L.career, L.level, L.track)] : ['person', 'ยังไม่มีอาชีพ']);
   const key = `${running}|${speedIdx}|${ic}|${doing}|${sound.sfx}|${sound.music}|${lifeAlert()}`;
   if (key === hudKey) return;
   hudKey = key;
@@ -322,7 +330,7 @@ function taskCard(): string {
 }
 function promoteCard(): string {
   const L = g.life, c = careerOf(L.career!), cic = CAREER_ICON[L.career!] ?? 'star';
-  if (L.level >= B.maxLevel) return `${sec('ยศ')}<div class="frame"><div class="rank">${icon('crown', 44)}<div><small>ถึงยศสูงสุดแล้ว</small><b>${esc(E.careerTitle(L.career!, L.level, L.track))}</b></div></div></div>`;
+  if (L.level >= B.maxLevel) return `${sec('ยศ')}<div class="frame"><div class="rank">${icon('crown', 44)}<div><small>ถึงยศสูงสุดแล้ว</small><b>${esc(splitTitle(E.careerTitle(L.career!, L.level, L.track))[0])}</b>${sakLine(L.career!, L.level, L.track)}</div></div></div>`;
   const t = L.level + 1;
   if (t >= B.lightDarkLevel && !L.track) {
     return `${sec('ทางแยกของชีวิต')}<div class="frame"><p class="muted">ยศถัดไปต้องเลือกว่าจะเดินทางไหน — เลือกแล้วเปลี่ยนไม่ได้</p><div class="forks">
@@ -335,7 +343,7 @@ function promoteCard(): string {
     `<div class="req ${ok ? 'ok' : ''}">${icon(ic, 20)}<div class="meter"><i style="width:${Math.min(100, frac * 100).toFixed(1)}%"></i></div><span>${val}</span>${icon(ok ? 'check' : 'cross', 18)}</div>`;
   const cooldown = Math.max(0, B.promoteCooldownDays - (L.day - L.lastPromoteDay));
   return `${sec('ยศถัดไป', '', 'rank')}${helpBox('rank', `ต้องครบทั้ง ๓ อย่าง:<br>${icon(STAT_ICON[c.gateStat], 16)} ${statName(c.gateStat)} ผสม ${statName(c.secondaryStat)} (หลักมีน้ำหนักมากกว่า)<br>${icon('medal', 16)} ความชอบสะสม — ได้จากการทำงาน เหตุการณ์ และงานบุญใหญ่<br>${icon('coin', 16)} ค่ายื่นเรื่อง<br>${icon('house', 16)} ยศขั้น ๗, ๑๑, ๑๕ ต้องมีบ้านสมฐานะ (เรือนไทย ตึก จวน)<br>ยื่นแล้วยังมีโอกาสไม่ผ่าน ถ้าไม่ผ่านต้องรอสักพัก`)}
-    <div class="frame"><div class="rank" data-act="careerinfo" data-v="${L.career}">${icon(cic, 44)}<div><small>ขั้นที่ ${th(t)}</small><b>${esc(splitTitle(E.careerTitle(L.career!, t, L.track))[0])}</b><small>${esc(splitTitle(E.careerTitle(L.career!, t, L.track))[1])}</small></div></div>
+    <div class="frame"><div class="rank" data-act="careerinfo" data-v="${L.career}">${icon(cic, 44)}<div><small>ขั้นที่ ${th(t)}</small><b>${esc(splitTitle(E.careerTitle(L.career!, t, L.track))[0])}</b><small>${esc(splitTitle(E.careerTitle(L.career!, t, L.track))[1])}</small>${sakLine(L.career!, t, L.track)}</div></div>
       ${req(STAT_ICON[c.gateStat], gv >= gn, gv / gn, `${pct(gv)}/${pct(gn)}`)}
       ${req('medal', L.affection >= aff, L.affection / aff, `${th(L.affection.toFixed(1))}/${th(aff.toFixed(1))}`)}
       ${req('coin', L.money >= cost, L.money / cost, baht(cost, 1))}
@@ -409,7 +417,7 @@ function charTab(): string {
   const hp = Math.max(0, L.health);
   const health = `<button class="stat health" data-tip="health">${icon('heart', 28)}<div><div class="sl"><b>สุขภาพ</b><span>${th(Math.round(hp * 100))}%</span></div><div class="bar"><i style="width:${(hp * 100).toFixed(1)}%"></i></div></div></button>`;
   const jy = `<button class="stat joyrow" data-tip="joy">${icon('smile', 28)}<div><div class="sl"><b>ความสำราญ</b><span>${th(Math.round(L.joy * 100))}%</span></div><div class="bar"><i style="width:${(L.joy * 100).toFixed(1)}%"></i></div></div></button>`;
-  const who = `<div class="frame who"><div class="rank">${icon('person', 40)}<div><small>ชาติที่ ${th(L.idx)}${g.loop > 1 ? ` · รอบที่ ${th(g.loop)}` : ''}</small><b>${esc(L.name)}</b></div></div><button class="gbtn dark" data-act="rename">เปลี่ยนชื่อ</button></div>`;
+  const who = `<div class="frame who"><div class="rank">${icon('person', 40)}<div><small>ชาติที่ ${th(L.idx)}${g.loop > 1 ? ` · รอบที่ ${th(g.loop)}` : ''}</small><b>${esc(L.name)}</b><small>${esc(L.career ? callName(L.career, L.level, L.track) : K.birthDef(L.birth).name)} · ศักดินา ${thInt(K.sakdinaOf(L))}</small></div></div><button class="gbtn dark" data-act="rename">เปลี่ยนชื่อ</button></div>`;
   return `${who}${sec('ร่างกายและจิตใจ')}${health}${jy}${petPanel()}${sec('ค่าพลัง', `เพดาน ${th(L.cap)}`, 'stats')}${helpBox('stats', 'แตะแต่ละแถวเพื่อดูว่าค่านั้นใช้ทำอะไร · ค่าแสดงเป็น % ของเพดานชาตินี้ (ชาติต่อไปเพดานสูงขึ้น)')}${bars}
     ${sec('สมุดสะสม', 'แตะเพื่อเปิดดู')}<div class="coll"><div data-act="coll" data-v="titles"><b>${th(coll.titles.length)}</b><small>ยศที่เคยได้</small></div><div data-act="coll" data-v="choices"><b>${th(Object.keys(coll.choices).length)}</b><small>เหตุการณ์ที่เลือก</small></div><div data-act="coll" data-v="family"><b>${th(coll.family.length)}</b><small>ชาติที่บันทึก</small></div></div>
     <div class="foot"><a href="./content.html">คลังเนื้อหา</a></div>`;
@@ -516,7 +524,7 @@ function careerSheet(k: string, choose = true): string {
   const c = careerOf(k), L = g.life, mine = L.career === k;
   const rank = (lv: number, label: string, on = false) => {
     const [name, desc] = splitTitle(E.careerTitle(k, lv, L.track));
-    return `<li class="${on ? 'on' : ''}"><small>${label}</small><b>${esc(name)}</b>${desc ? `<p>${esc(desc)}</p>` : ''}</li>`;
+    return `<li class="${on ? 'on' : ''}"><small>${label}</small><b>${esc(name)}</b>${sakLine(k, lv, L.track)}${desc ? `<p>${esc(desc)}</p>` : ''}</li>`;
   };
   const ranks = mine
     ? rank(L.level, `ยศที่เป็นอยู่ · ขั้น ${th(L.level)}`, true) + (L.level < B.maxLevel && (L.level + 1 < B.lightDarkLevel || L.track) ? rank(L.level + 1, `ยศถัดไป · ขั้น ${th(L.level + 1)}`) : '')
@@ -622,7 +630,7 @@ document.addEventListener('click', ev => {
           const before = snap();
           const r = E.completeTask(g, score, bribes); save();
           showResult(`${E.ageOf(g.life) < B.careerMinAge ? 'งานเด็ก' : 'ราชกิจ'} · ${TASK_GAMES[kind].title}`, diff(before), null);
-          if (r?.caught) toast('ถูกจับได้ว่ารับสินบน — นายเสียความเชื่อใจ ความชอบลดลง', 'cross');
+          if (r?.caught) toast(`ถูกจับได้ว่ารับสินบน — ปรับไหมตามศักดินา ${baht(r.fine)} และความชอบลดลง`, 'cross');
           scene.showAnim(scene.workAnimId(g.life) ?? 'happy', 5);
         }
         renderHud(); renderTab();
@@ -633,7 +641,7 @@ document.addEventListener('click', ev => {
     case 'track': E.chooseTrack(g, v as 'light' | 'dark'); S.playGong(); break;
     case 'promote': {
       const before = g.life.level, r = E.tryPromote(g);
-      if (r.ok && g.life.level > before) celebrate(E.careerTitle(g.life.career!, g.life.level, g.life.track));
+      if (r.ok && g.life.level > before) celebrate(E.careerTitle(g.life.career!, g.life.level, g.life.track), K.rankOf(g.life.career!, g.life.level, g.life.track)?.full);
       else { S.playFail(); scene.showAnim('sad', 4); toast('ยื่นเรื่องไม่ผ่านคราวนี้ ลองใหม่ภายหลัง', 'cross'); }
       break;
     }
@@ -992,6 +1000,7 @@ function nameSheet() {
   const L = g.life, sug = L.name;
   openModal(`<span class="kind">${icon('person', 16)}${L.idx === 1 && g.loop === 1 && !L.named ? 'เด็กน้อยแห่งหนองโสน' : `ชาติที่ ${th(L.idx)}`}</span>
     <h2>ตั้งชื่อตัวละคร</h2>
+    ${L.day < B.daysPerYear ? `<p>${icon('seal', 16)} เกิดเป็น<b>${esc(K.birthDef(L.birth).name)}</b> · ศักดินา ${thInt(K.birthDef(L.birth).sakdina)}<br><small class="muted">${esc(K.birthDef(L.birth).desc)}</small></p>` : ''}
     <p class="muted">ชื่อนี้ใช้ตลอดชาตินี้ · ชาติหน้าตั้งใหม่ได้</p>
     <div class="namebox"><input id="nm" maxlength="20" value="${esc(sug)}" aria-label="ชื่อ"><button class="choice" data-act="name-rand"><span class="n">${icon('star', 16)}</span><span>สุ่ม</span></button></div>
     <button class="gbtn" data-act="name-ok">${icon('check', 20)}ตกลง</button>`);
@@ -1035,10 +1044,10 @@ function healthWarn() {
   if (h > 0.5) healthWarned = false;
 }
 
-function celebrate(title: string) {
+function celebrate(title: string, rank?: string) {
   scene.celebrate(); S.playFanfare();
   const el = $('banner');
-  el.innerHTML = `<small>เลื่อนยศเป็น</small><b>${esc(splitTitle(title)[0])}</b>`;
+  el.innerHTML = `<small>เลื่อนยศเป็น</small><b>${esc(splitTitle(title)[0])}</b>${rank ? `<small>${esc(rank)}</small>` : ''}`;
   el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
 }
 
